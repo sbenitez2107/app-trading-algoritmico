@@ -1,0 +1,60 @@
+name: Check Health Host
+description: >
+  Validación integral de la salud del backend .NET 9. 
+  Asegura que los cambios compilen, pasen los tests unitarios 
+  y respeten los estándares de Clean Architecture.
+
+# Se dispara únicamente ante cambios en el proyecto Host
+trigger:
+  path_filters:
+    - "Prizm.Generic.Host/**"
+
+steps:
+  - name: Build Verification
+    agent: ArchitectAgent
+    action: execute_skill
+    skill: dotnet-automation
+    params:
+      command: "build"
+      project_path: "Prizm.Generic.Host/Prizm.Generic.sln"
+    on_failure: 
+      goto: self_healing_compilation
+
+  - name: Unit Testing
+    agent: SDETAgent
+    action: execute_skill
+    skill: dotnet-automation
+    params:
+      command: "test"
+      args: "--no-build --verbosity normal"
+    on_failure:
+      goto: self_healing_tests
+
+  - name: Architecture Compliance
+    agent: ReviewerAgent
+    action: analyze_code
+    params:
+      rules_file: "Prizm.Generic.Host/skills/clean-architecture/skill.md"
+      scope: "modified_files"
+    description: "Verifica que los nuevos Handlers/Services sigan los patrones CQRS y de inyección de dependencias."
+
+  - name: Summary Report
+    agent: ArchitectAgent
+    action: create_report
+    params:
+      output_file: "Reports/Health_check_host.md"
+
+# Rutas de Auto-sanación (Self-healing)
+recovery_paths:
+  - id: self_healing_compilation
+    agent: SDETAgent
+    action: fix_syntax_errors
+    description: "Analiza el log de dotnet build y corrige errores de sintaxis comunes."
+
+  - id: self_healing_tests
+    agent: ReviewerAgent
+    action: debug_failed_tests
+    description: >
+      Analiza fallos de aserción xUnit/FluentAssertions. 
+      Si el fallo es por lógica, propone corrección; 
+      si es por falta de Mocks, actualiza el setup del test.

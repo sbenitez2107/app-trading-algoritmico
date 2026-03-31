@@ -1,0 +1,87 @@
+# ===========================
+# .NET 10
+# ===========================
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userosscache
+*.sln.docstates
+project.lock.json
+artifacts/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Sensitive config — never commit
+**/appsettings.Local.json
+**/appsettings.Development.json
+**/*.local.json
+
+# ===========================
+# Angular 21 / Node
+# ===========================
+node_modules/
+dist/
+.angular/
+.cache/
+npm-debug.log*
+pnpm-debug.log*
+
+# Angular environment overrides
+app.trading.algoritmico.web/src/environments/environment.development.ts
+app.trading.algoritmico.web/src/environments/environment.local.ts
+
+# ===========================
+# OS
+# ===========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===========================
+# IDEs
+# ===========================
+.idea/
+.vs/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.cursor/
+*.code-workspace
+localdocs/
+
+# ===========================
+# Agent / AI Tools
+# ===========================
+.claude/skills/
+.claude/settings.local.json
+
+# ===========================
+# CDK / AWS
+# ===========================
+cdk.out/
+**/cdk.out/
+
+# ===========================
+# Logs & Reports
+# ===========================
+*.log
+logs/
+Reports/
+error*.txt
+TEST*.xml
+
+# ===========================
+# Media
+# ===========================
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv

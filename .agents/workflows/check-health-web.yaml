@@ -1,0 +1,43 @@
+name: Check Health Web
+description: Validación integral de la salud del frontend Angular 24.
+trigger:
+  path_filters:
+    - "Prizm.Generic.Web/**"
+
+steps:
+  - name: Build Verification
+    agent: ArchitectAgent
+    action: execute_skill
+    skill: web-angular-cli
+    params:
+      command: "build"
+    on_failure: 
+      goto: self_healing_build
+
+  - name: Component & Service Testing
+    agent: SDETAgent
+    action: execute_skill
+    skill: web-angular-cli
+    params:
+      command: "test"
+      args: "--watch=false --browsers=ChromeHeadless"
+    on_failure:
+      goto: self_healing_web_tests
+
+  - name: UI/UX Standards Check
+    agent: ReviewerAgent
+    action: analyze_code
+    params:
+      rules_file: "Prizm.Generic.Web/skills/design-core/skill.md"
+    description: "Verifica que el layout y los componentes respeten el Design Core de Prizm Pro."
+
+recovery_paths:
+  - id: self_healing_build
+    agent: SDETAgent
+    action: fix_angular_errors
+    description: "Corrige errores de templates, imports faltantes o tipos de TypeScript."
+
+  - id: self_healing_web_tests
+    agent: ReviewerAgent
+    action: fix_component_tests
+    description: "Ajusta los fixtures de test o los mocks de servicios de datos."
