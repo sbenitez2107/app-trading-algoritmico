@@ -71,6 +71,6 @@ Direct database access via CLI commands (e.g., `dotnet ef`, `sqlcmd`, migration 
 - **NEVER** execute any CLI command that connects to a database without first asking the user for explicit authorization.
 - **ALWAYS** state clearly which connection string / environment will be targeted before executing.
 - **HARD BLOCK**: If a connection is classified as production or ambiguous, authorization from the user is **non-negotiable** and mandatory — no exceptions.
-- **SOFT BLOCK**: Even for clearly development connections (e.g., `TradingAlgoritmicoLocal`), always confirm with the user before proceeding, explicitly naming the target connection.
+- **SOFT BLOCK**: Even for clearly development connections (e.g., `DefaultConnection`), always confirm with the user before proceeding, explicitly naming the target connection.
 
-> Example prompt before executing: *"I'm about to run migrations against `TradingAlgoritmicoLocal` (development). Do I have your authorization to proceed?"*
+> Example prompt before executing: *"I'm about to run migrations against `DefaultConnection` (development). Do I have your authorization to proceed?"*

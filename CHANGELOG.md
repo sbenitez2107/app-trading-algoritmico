@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account management for brokers, prop firms, and capital managers
 - Prop firm challenge phase tracker (FTMO, The Trading Pits)
 - Capital manager performance tracking (Axi Select, Darwinex)
+---
+
+## [0.1.1] — 2026-03-31
+
+### Changed
+- Synchronized `AGENTS.md` (root, API, Web) references to use correct connection string (`DefaultConnection`) and .NET 10 versioning.
+- Updated root `AGENTS.md` commands table to mirror available workflows properly.
 
 ---
 

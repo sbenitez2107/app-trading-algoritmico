@@ -55,10 +55,13 @@ The agent can manage the following infrastructure tasks:
 
 | Command | Description |
 |---------|-------------|
-| `@[/run-all]` | Start Host + Web without Docker |
+| `@[/run-all]` | Start both projects (Host + Web) |
 | `@[/stop-all]` | Stop all running services |
-| `@[/run-host]` | Start Host Project (.NET 9) |
-| `@[/run-web]` | Start Web Project (Angular) |
+| `@[/run-host]` | Start Host project (.NET 10) |
+| `@[/run-web]` | Start Web project (Angular 21) |
+| `@[/stop-host]` | Stop Host project |
+| `@[/stop-web]` | Stop Web project |
+| `@[/restart-host]` | Stop and restart the Host project |
 
 > **Standard for Local Development**: Use `@[/docker-local-up]` for containerized development (recommended for production parity).
 
