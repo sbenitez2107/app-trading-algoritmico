@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AppTradingAlgoritmico.Application/AppTradingAlgoritmico.Application.csproj" />
+    <Project Path="src/AppTradingAlgoritmico.Domain/AppTradingAlgoritmico.Domain.csproj" />
+    <Project Path="src/AppTradingAlgoritmico.Infrastructure/AppTradingAlgoritmico.Infrastructure.csproj" />
+    <Project Path="src/AppTradingAlgoritmico.WebAPI/AppTradingAlgoritmico.WebAPI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AppTradingAlgoritmico.UnitTests/AppTradingAlgoritmico.UnitTests.csproj" />
+  </Folder>
+</Solution>
