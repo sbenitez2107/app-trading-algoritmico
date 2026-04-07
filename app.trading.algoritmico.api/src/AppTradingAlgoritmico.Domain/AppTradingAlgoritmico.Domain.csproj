@@ -6,9 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- IdentityUser/IdentityRole base classes are in this package -->
+  <!-- ASP.NET Core framework reference provides IdentityUser/IdentityRole base classes
+       without coupling Domain to EF Core (Clean Architecture) -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.0" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
 </Project>
