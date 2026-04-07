@@ -1,0 +1,107 @@
+<div class="l-app" [class.l-app--collapsed]="sidebarCollapsed()">
+
+  <!-- Sidebar -->
+  <aside class="l-sidebar">
+    <div class="l-sidebar__header">
+      <div class="l-sidebar__logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        @if (!sidebarCollapsed()) {
+          <span class="l-sidebar__app-name">algoTrading</span>
+        }
+      </div>
+    </div>
+
+    <!-- Collapse Toggle -->
+    <button class="l-sidebar__collapse-btn" (click)="toggleSidebar()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <line x1="3" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      @if (!sidebarCollapsed()) {
+        <span>{{ 'LAYOUT.SIDEBAR.COLLAPSE' | translate }}</span>
+      }
+    </button>
+
+    <!-- Navigation -->
+    <nav class="l-sidebar__nav">
+      <a
+        routerLink="/dashboard"
+        routerLinkActive="l-sidebar__nav-item--active"
+        class="l-sidebar__nav-item"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <polyline points="9,22 9,12 15,12 15,22" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        @if (!sidebarCollapsed()) {
+          <span>{{ 'LAYOUT.SIDEBAR.HOME' | translate }}</span>
+        }
+      </a>
+
+      <a
+        routerLink="/administration"
+        routerLinkActive="l-sidebar__nav-item--active"
+        class="l-sidebar__nav-item"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        @if (!sidebarCollapsed()) {
+          <span>{{ 'LAYOUT.SIDEBAR.ADMINISTRATION' | translate }}</span>
+        }
+      </a>
+    </nav>
+
+    <!-- User Footer -->
+    <div class="l-sidebar__user">
+      <div class="l-sidebar__user-avatar">AM</div>
+      @if (!sidebarCollapsed()) {
+        <div class="l-sidebar__user-info">
+          <span class="l-sidebar__user-name">Alex Morgan</span>
+          <span class="l-sidebar__user-role">{{ 'LAYOUT.SIDEBAR.ADMIN_ROLE' | translate }}</span>
+        </div>
+      }
+    </div>
+  </aside>
+
+  <!-- Main Area -->
+  <div class="l-main">
+
+    <!-- Top Header -->
+    <header class="l-header">
+      <div class="l-header__actions">
+        <!-- Notification Bell -->
+        <button class="l-header__icon-btn" [attr.aria-label]="'LAYOUT.HEADER.NOTIFICATIONS' | translate">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="l-header__notification-dot"></span>
+        </button>
+
+        <!-- User Avatar -->
+        <div class="l-header__user-avatar">AM</div>
+
+        <!-- New Report Button -->
+        <button class="l-header__new-report-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          {{ 'LAYOUT.HEADER.NEW_REPORT' | translate }}
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Area -->
+    <main class="l-content">
+      <router-outlet />
+    </main>
+
+  </div>
+</div>

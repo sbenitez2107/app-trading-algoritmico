@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "algo-trading-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "start"],
+      "port": 4200
+    }
+  ]
+}

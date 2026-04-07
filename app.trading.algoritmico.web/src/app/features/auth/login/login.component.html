@@ -1,0 +1,144 @@
+<div class="login-page">
+
+  <!-- Login Card -->
+  <div class="login-card">
+
+    <!-- Blue Header -->
+    <div class="login-card__header">
+      <div class="login-card__logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h1 class="login-card__app-name">algoTrading</h1>
+      <p class="login-card__subtitle">{{ 'AUTH.LOGIN.SUBTITLE' | translate }}</p>
+    </div>
+
+    <!-- Form Section -->
+    <div class="login-card__body">
+      <h2 class="login-card__welcome">{{ 'AUTH.LOGIN.WELCOME_TITLE' | translate }}</h2>
+      <p class="login-card__description">{{ 'AUTH.LOGIN.WELCOME_SUBTITLE' | translate }}</p>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
+
+        <!-- Email Field -->
+        <div class="login-form__group">
+          <label class="login-form__label" for="email">
+            {{ 'AUTH.LOGIN.EMAIL_LABEL' | translate }}
+          </label>
+          <div class="login-form__input-wrapper">
+            <input
+              id="email"
+              type="email"
+              class="login-form__input"
+              [class.login-form__input--error]="emailControl.invalid && emailControl.touched"
+              [placeholder]="'AUTH.LOGIN.EMAIL_PLACEHOLDER' | translate"
+              formControlName="email"
+              autocomplete="email"
+            />
+            <span class="login-form__input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M2 8L12 13L22 8" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </span>
+          </div>
+          @if (emailControl.invalid && emailControl.touched) {
+            <span class="login-form__error">{{ 'COMMON.VALIDATION.INVALID_EMAIL' | translate }}</span>
+          }
+        </div>
+
+        <!-- Password Field -->
+        <div class="login-form__group">
+          <label class="login-form__label" for="password">
+            {{ 'AUTH.LOGIN.PASSWORD_LABEL' | translate }}
+          </label>
+          <div class="login-form__input-wrapper">
+            <input
+              id="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              class="login-form__input"
+              [class.login-form__input--error]="passwordControl.invalid && passwordControl.touched"
+              [placeholder]="'AUTH.LOGIN.PASSWORD_PLACEHOLDER' | translate"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+            <button
+              type="button"
+              class="login-form__toggle-password"
+              (click)="togglePassword()"
+              [attr.aria-label]="'AUTH.LOGIN.TOGGLE_PASSWORD' | translate"
+            >
+              @if (showPassword()) {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              } @else {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                </svg>
+              }
+            </button>
+          </div>
+          @if (passwordControl.invalid && passwordControl.touched) {
+            <span class="login-form__error">{{ 'COMMON.VALIDATION.REQUIRED' | translate }}</span>
+          }
+        </div>
+
+        <!-- Forgot Password -->
+        <div class="login-form__forgot">
+          <a href="#" (click)="$event.preventDefault()" class="login-form__link">
+            {{ 'AUTH.LOGIN.FORGOT_PASSWORD' | translate }}
+          </a>
+        </div>
+
+        <!-- Error Message -->
+        @if (errorMessage()) {
+          <div class="login-form__alert">
+            {{ errorMessage()! | translate }}
+          </div>
+        }
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="login-form__submit"
+          [disabled]="isLoading()"
+        >
+          @if (isLoading()) {
+            <span>{{ 'COMMON.STATUS.LOADING' | translate }}</span>
+          } @else {
+            <span>{{ 'AUTH.LOGIN.SUBMIT_BUTTON' | translate }} →</span>
+          }
+        </button>
+
+      </form>
+    </div>
+
+    <!-- Card Footer -->
+    <div class="login-card__footer">
+      <p class="login-card__create-account">
+        {{ 'AUTH.LOGIN.NO_ACCOUNT' | translate }}
+        <a href="#" (click)="$event.preventDefault()" class="login-form__link">
+          {{ 'AUTH.LOGIN.CREATE_ACCOUNT' | translate }}
+        </a>
+      </p>
+    </div>
+
+  </div>
+
+  <!-- Security Badges -->
+  <div class="login-page__security">
+    <div class="login-page__security-badges">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <span class="login-page__security-text">{{ 'AUTH.LOGIN.SECURE_ENVIRONMENT' | translate }}</span>
+  </div>
+
+</div>
