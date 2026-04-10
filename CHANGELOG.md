@@ -13,9 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strategy management module (Strategy Quant X integration)
 - Risk management dashboard
 - Deployment tracker (demo/live accounts)
-- Account management for brokers, prop firms, and capital managers
 - Prop firm challenge phase tracker (FTMO, The Trading Pits)
 - Capital manager performance tracking (Axi Select, Darwinex)
+---
+
+## [0.2.0] - 2026-04-10
+
+### Added
+- **Trading Accounts Module**: Added `TradingAccount` entity and CRUD features to the `.NET` Host, allowing connection to brokers and platforms (MT4/MT5).
+- **AES-256 Encryption**: Created `AesEncryptionService` in the backend so all Trading Account passwords are automatically encrypted/decrypted transparently and are never exposed as plain text over HTTP (`"***"` returned to frontend).
+- **Frontend Trading Accounts Area**: Angular UI interface to handle demo and live accounts with interactive modals and custom reactive forms.
+- **Improved Sidebar Navigation**: Added a robust nested routing configuration for `darwinex/demo` and `darwinex/live`, visually structured using native Angular Signals for expansion states.
+- **Auth User Header**: Replaced hardcoded frontend user placeholders with a dynamic indicator showing initials and current login email of the user.
+
+### Changed
+- App name updated to **BENT**.
+- Main layout visual restructuring (removed dummy dashboard cards, old notifications, and AM avatar).
+- Angular service `ChangeDetectionStrategy.OnPush` propagation correctly mitigated with `ChangeDetectorRef.markForCheck()` implementation for HTTP calls inside asynchronous UI updates.
 ---
 
 ## [0.1.1] — 2026-03-31

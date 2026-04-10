@@ -18,6 +18,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/dashboard/home/home.component').then(m => m.HomeComponent)
       },
+      {
+        path: 'darwinex',
+        loadChildren: () =>
+          import('./features/darwinex/darwinex.routes').then(m => m.DARWINEX_ROUTES)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: '**', redirectTo: 'dashboard' }
     ]

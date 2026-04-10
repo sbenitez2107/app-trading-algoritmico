@@ -51,6 +51,8 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IDataSeeder, DataSeeder>();
+        services.AddSingleton<IEncryptionService, AesEncryptionService>();
+        services.AddScoped<ITradingAccountService, TradingAccountService>();
 
         return services;
     }

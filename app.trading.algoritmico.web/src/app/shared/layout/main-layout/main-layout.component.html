@@ -10,7 +10,7 @@
           <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
         </svg>
         @if (!sidebarCollapsed()) {
-          <span class="l-sidebar__app-name">algoTrading</span>
+          <span class="l-sidebar__app-name">BENT</span>
         }
       </div>
     </div>
@@ -22,9 +22,6 @@
         <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <line x1="3" y1="18" x2="21" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      @if (!sidebarCollapsed()) {
-        <span>{{ 'LAYOUT.SIDEBAR.COLLAPSE' | translate }}</span>
-      }
     </button>
 
     <!-- Navigation -->
@@ -43,6 +40,71 @@
         }
       </a>
 
+      <!-- Darwinex with submenu -->
+      <div class="l-sidebar__nav-group">
+        <button
+          class="l-sidebar__nav-item l-sidebar__nav-item--group"
+          (click)="toggleDarwinex()"
+          [class.l-sidebar__nav-item--expanded]="darwinexExpanded()"
+        >
+          <!-- Darwinex official logo -->
+          <svg width="20" height="20" viewBox="0 0 28 35" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M24.2423 0.723633C24.2423 0.723633 23.0142 2.88898 25.0099 6.0442C27.7117 10.313 30.5364 24.9137 21.5098 29.863C20.8343 30.327 19.7597 30.7292 18.4395 31.0076C18.3167 31.5644 18.0711 32.6161 17.3035 33.5441C17.3035 33.5441 16.3824 32.7089 16.1675 31.3169C15.492 31.3788 14.7245 31.4406 13.9876 31.4406C13.0665 31.4406 12.1454 31.4097 11.3165 31.286C11.1937 31.8737 10.9173 32.7708 10.2419 33.5441C10.2419 33.5441 9.10588 32.5233 9.04447 30.8838C7.93917 30.6054 7.01809 30.2652 6.40404 29.8321C-2.59185 24.8827 0.232796 10.2821 2.90393 6.0442C4.89961 2.91991 3.6715 0.723633 3.6715 0.723633C5.88209 0.754566 7.90847 2.45591 9.22869 3.87885C10.6717 3.60045 12.299 3.44579 13.9569 3.44579C15.6763 3.44579 17.2421 3.63139 18.6851 3.87885C20.036 2.42498 22.0624 0.7855 24.2423 0.723633ZM13.9262 17.5824C13.9262 17.5824 15.0929 16.5616 15.4306 14.8603C16.4131 16.2832 18.0097 17.2421 19.7597 17.2731C22.7072 17.2731 25.0713 14.7675 25.0713 11.736C25.1941 11.0245 25.0406 10.4368 24.8871 9.87996C24.7335 9.10662 23.5976 7.03408 23.5976 7.03408C22.4001 5.08526 22.308 3.29112 22.308 3.29112C21.0799 4.03352 20.1281 4.9306 19.422 5.79673L19.422 5.79675L19.4219 5.79677C19.2684 5.95142 19.1456 6.07514 18.9921 6.16794C14.5403 4.86873 10.1498 5.673 8.70674 6.01327C8.67604 5.9514 8.58393 5.8586 8.52252 5.79673C7.78566 4.96153 6.86458 4.06446 5.63647 3.29112C5.63647 3.29112 5.54436 5.05433 4.34696 7.03408C4.34696 7.03408 3.24166 9.07569 3.05744 9.87996C2.87323 10.4677 2.75042 11.0864 2.75042 11.705C2.75042 14.7675 5.17593 17.2421 8.06198 17.2421C9.87344 17.2421 11.4393 16.3141 12.4218 14.8603C12.7595 16.5616 13.9262 17.5824 13.9262 17.5824ZM25.9003 15.912C25.9003 15.912 20.3124 17.9846 20.4966 25.8417V28.3782C20.4966 28.3767 20.5108 28.3715 20.5378 28.3618C21.049 28.1773 26.1335 26.3421 25.9003 15.912ZM18.9614 23.1505C18.9614 23.1505 18.1325 22.4081 18.1939 21.2016L18.9307 22.5627L19.729 21.2016C19.7597 21.1707 19.6983 22.2843 18.9614 23.1505ZM18.1939 26.9862C18.1325 28.1926 18.9614 28.935 18.9614 28.935C19.6983 28.0689 19.7597 26.9862 19.729 26.9862L18.9307 28.3164L18.1939 26.9862ZM16.9658 24.0785L17.7026 25.4395L18.5009 24.0785C18.5009 24.0785 18.4395 25.1611 17.7333 26.0273C17.7333 26.0582 16.9044 25.3158 16.9658 24.0785ZM15.7684 26.9862C15.707 28.1926 16.5359 28.935 16.5359 28.935C17.2728 28.0689 17.3035 26.9862 17.3035 26.9862L16.5052 28.3164L15.7684 26.9862ZM15.7684 21.1707L16.5052 22.5318L17.3035 21.1707C17.3035 21.1707 17.2421 22.2534 16.5359 23.1195C16.5359 23.1505 15.707 22.4081 15.7684 21.1707ZM15.3692 25.4395L14.6324 24.0785C14.571 25.3158 15.3999 26.0582 15.3999 26.0273C16.1061 25.1611 16.1675 24.0785 16.1675 24.0785L15.3692 25.4395ZM14.0797 28.935C14.0797 28.935 13.2507 28.1926 13.3121 26.9862L14.049 28.3164L14.8473 26.9862C14.8473 26.9862 14.7859 28.0689 14.0797 28.935ZM14.049 22.5318L13.3121 21.1707C13.2507 22.4081 14.0797 23.1505 14.0797 23.1195C14.7859 22.2534 14.8473 21.1707 14.8473 21.1707L14.049 22.5318ZM12.1454 24.0785L12.8823 25.4395L13.6806 24.0785C13.6806 24.0785 13.6192 25.1611 12.913 26.0273C12.913 26.0582 12.084 25.3158 12.1454 24.0785ZM10.8866 26.9862C10.8252 28.1926 11.6542 28.935 11.6542 28.935C12.3604 28.0689 12.4218 26.9862 12.4218 26.9862L11.6235 28.3164L10.8866 26.9862ZM10.8866 21.1707L11.6235 22.5318L12.4218 21.1707C12.4218 21.1707 12.3604 22.2534 11.6542 23.1195C11.6542 23.1505 10.8252 22.4081 10.8866 21.1707ZM10.4261 25.4395L9.68923 24.0785C9.62782 25.3158 10.4568 26.0582 10.4568 26.0273C11.163 25.1611 11.2244 24.0785 11.2244 24.0785L10.4261 25.4395ZM8.43042 21.1707L9.16728 22.5318L9.96555 21.1707C9.96555 21.1707 9.90415 22.2534 9.19798 23.1195C9.22869 23.1505 8.39971 22.4081 8.43042 21.1707ZM8.46112 26.9862C8.39971 28.1926 9.22869 28.935 9.22869 28.935C9.93485 28.0689 9.99625 26.9862 9.99625 26.9862L9.19798 28.3164L8.46112 26.9862ZM7.41723 28.3782C7.41739 28.3781 7.41739 28.3778 7.41723 28.3776V28.3782ZM7.41723 28.3776C7.41561 28.3751 7.39822 28.3685 7.36678 28.3566C6.80803 28.145 1.81119 26.252 2.01355 15.912C2.01355 15.912 7.60144 17.9846 7.41723 25.8417V28.3776ZM7.84706 12.9115C8.30761 12.9115 8.70674 12.5093 8.70674 12.0144C8.70674 11.7669 8.58393 11.5194 8.39971 11.3338L8.15409 11.1792C8.06198 11.1482 7.96988 11.1173 7.84706 11.1173C7.38652 11.1173 6.98739 11.5194 6.98739 12.0144C6.98739 12.5093 7.38652 12.9115 7.84706 12.9115ZM5.72858 12.0144C5.72858 13.2517 6.68036 14.2725 7.87777 14.2725C8.95236 14.2725 9.84274 13.4373 9.99625 12.3546L11.9919 13.6229C11.2858 15.1077 9.81204 16.1595 8.09269 16.1595C5.72858 16.1595 3.79431 14.1488 3.79431 11.6741C3.79431 10.6224 4.13204 9.69436 4.68469 8.95196L6.61896 10.1893C6.06631 10.6224 5.72858 11.272 5.72858 12.0144ZM20.251 12.9115C20.7115 12.9115 21.1106 12.5093 21.1106 12.0144C21.1106 11.5194 20.7115 11.1173 20.251 11.1173C20.1281 11.1173 20.036 11.1482 19.9439 11.1792L19.6983 11.3338C19.5141 11.4885 19.3913 11.736 19.3913 12.0144C19.3913 12.5093 19.7904 12.9115 20.251 12.9115ZM21.5098 10.2202L23.444 8.98289C23.9967 9.7253 24.3344 10.6533 24.3344 11.736C24.3344 14.2107 22.4001 16.2213 20.036 16.2213C18.3167 16.2213 16.843 15.1387 16.1368 13.6848L18.1325 12.4165C18.286 13.4683 19.1764 14.3035 20.251 14.3035C21.4484 14.3035 22.4001 13.2827 22.4001 12.0453C22.4001 11.3029 22.0624 10.6224 21.5098 10.2202Z" fill="currentColor"/>
+          </svg>
+          @if (!sidebarCollapsed()) {
+            <span class="l-sidebar__nav-label">Darwinex</span>
+            <svg class="l-sidebar__chevron" [class.l-sidebar__chevron--open]="darwinexExpanded()"
+              width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
+        </button>
+
+        <!-- Submenu -->
+        @if (darwinexExpanded() && !sidebarCollapsed()) {
+          <div class="l-sidebar__submenu">
+            <a routerLink="/darwinex/demo" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--demo"></span>
+              Cuentas Demo
+            </a>
+            <a routerLink="/darwinex/live" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--live"></span>
+              Cuentas Live
+            </a>
+          </div>
+        }
+      </div>
+
+      <a
+        routerLink="/axi"
+        routerLinkActive="l-sidebar__nav-item--active"
+        class="l-sidebar__nav-item"
+      >
+        <!-- Axi Select official logo -->
+        <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+          <path d="M8.38651 3.5049C8.43257 3.55313 8.43257 3.63351 8.38651 3.68174L5.5682 6.84063C5.50373 6.91298 5.37478 6.91298 5.31031 6.84063L0.0697175 1.0453C-0.0960658 0.852391 0.0512974 0.579102 0.327603 0.579102H5.19979C5.52215 0.579102 5.83529 0.715746 6.03792 0.940808L8.38651 3.5049Z" fill="currentColor"/>
+          <path d="M1.11918 16.9357L7.59868 9.05038L10.4911 5.51789L14.2364 0.955789C14.4298 0.713035 14.72 0.579102 15.0365 0.579102H19.6873C19.951 0.579102 20.0917 0.87208 19.9335 1.06461L13.3836 9.04201L19.8631 16.9357C20.0214 17.1366 19.8807 17.4212 19.6169 17.4212H14.9661C14.6584 17.4212 14.3595 17.2789 14.1661 17.0445L10.4911 12.5745L6.81621 17.0445C6.62279 17.2873 6.33267 17.4212 6.01617 17.4212H1.36535C1.1016 17.4212 0.960931 17.1282 1.11918 16.9357Z" fill="currentColor"/>
+        </svg>
+        @if (!sidebarCollapsed()) {
+          <span>Axi</span>
+        }
+      </a>
+
+      <a
+        routerLink="/sqx"
+        routerLinkActive="l-sidebar__nav-item--active"
+        class="l-sidebar__nav-item"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        @if (!sidebarCollapsed()) {
+          <span>SQX</span>
+        }
+      </a>
+
       <a
         routerLink="/administration"
         routerLinkActive="l-sidebar__nav-item--active"
@@ -57,17 +119,6 @@
         }
       </a>
     </nav>
-
-    <!-- User Footer -->
-    <div class="l-sidebar__user">
-      <div class="l-sidebar__user-avatar">AM</div>
-      @if (!sidebarCollapsed()) {
-        <div class="l-sidebar__user-info">
-          <span class="l-sidebar__user-name">Alex Morgan</span>
-          <span class="l-sidebar__user-role">{{ 'LAYOUT.SIDEBAR.ADMIN_ROLE' | translate }}</span>
-        </div>
-      }
-    </div>
   </aside>
 
   <!-- Main Area -->
@@ -76,24 +127,23 @@
     <!-- Top Header -->
     <header class="l-header">
       <div class="l-header__actions">
-        <!-- Notification Bell -->
-        <button class="l-header__icon-btn" [attr.aria-label]="'LAYOUT.HEADER.NOTIFICATIONS' | translate">
+
+        <!-- User Info -->
+        <div class="l-header__user-info">
+          <div class="l-header__user-avatar">{{ userInitials() }}</div>
+          <div class="l-header__user-details">
+            <span class="l-header__user-name">{{ currentUser()?.userName ?? '' }}</span>
+            <span class="l-header__user-email">{{ currentUser()?.email ?? '' }}</span>
+          </div>
+        </div>
+
+        <!-- Logout Button -->
+        <button class="l-header__icon-btn" (click)="logout()" aria-label="Logout" title="Cerrar sesión">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="16 17 21 12 16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="l-header__notification-dot"></span>
-        </button>
-
-        <!-- User Avatar -->
-        <div class="l-header__user-avatar">AM</div>
-
-        <!-- New Report Button -->
-        <button class="l-header__new-report-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          {{ 'LAYOUT.HEADER.NEW_REPORT' | translate }}
         </button>
       </div>
     </header>
