@@ -1,0 +1,111 @@
+<div class="pl-detail">
+
+  <!-- Breadcrumb -->
+  <div class="pl-detail__breadcrumb">
+    <button class="pl-detail__back" (click)="goBack()">
+      &larr; {{ 'SQX.WORKFLOW.TITLE' | translate }}
+    </button>
+    <span class="pl-detail__separator">/</span>
+    <span class="pl-detail__current">{{ assetTitle }} {{ timeframeLabels[timeframe] }}</span>
+  </div>
+
+  <!-- Header -->
+  <div class="pl-detail__header">
+    <h2 class="pl-detail__title">{{ assetTitle }} — {{ timeframeLabels[timeframe] }}</h2>
+    <button class="pl-detail__btn-new" (click)="openCreateModal()">
+      + {{ 'SQX.WORKFLOW.NEW_BATCH' | translate }}
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="pl-detail__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</div>
+  }
+
+  <!-- Pipeline Grid -->
+  @if (!isLoading() && batches().length > 0) {
+    <div class="pl-grid">
+      <!-- Header row -->
+      <div class="pl-grid__header">
+        <div class="pl-grid__cell pl-grid__cell--label">{{ 'SQX.WORKFLOW.BATCH' | translate }}</div>
+        @for (stageType of stageTypes; track stageType) {
+          <div class="pl-grid__cell pl-grid__cell--stage-header">
+            {{ stageLabels[stageType] }}
+          </div>
+        }
+        <div class="pl-grid__cell pl-grid__cell--actions">{{ 'COMMON.ACTIONS.EDIT' | translate }}</div>
+      </div>
+
+      <!-- Batch rows -->
+      @for (batch of batches(); track batch.id) {
+        <div class="pl-grid__row">
+          <!-- Batch label -->
+          <div class="pl-grid__cell pl-grid__cell--label">
+            <span class="pl-grid__bb-name">{{ batch.buildingBlockName }}</span>
+            @if (batch.name) {
+              <span class="pl-grid__batch-name">{{ batch.name }}</span>
+            }
+          </div>
+
+          <!-- Stage cells -->
+          @for (stageType of stageTypes; track stageType) {
+            @let stage = getStage(batch, stageType);
+            <div
+              class="pl-grid__cell pl-grid__cell--stage"
+              [class]="getStatusClass(stage)"
+              [class.pl-grid__cell--clickable]="stage"
+              (click)="stage && navigateToStage(batch, stage)"
+            >
+              @if (stage) {
+                <span class="pl-grid__status-icon">{{ getStatusIcon(stage) }}</span>
+                <span class="pl-grid__counts">{{ stage.inputCount }} &rarr; {{ stage.outputCount }}</span>
+              } @else {
+                <span class="pl-grid__empty">—</span>
+              }
+            </div>
+          }
+
+          <!-- Actions -->
+          <div class="pl-grid__cell pl-grid__cell--actions">
+            @if (canAdvance(batch)) {
+              <button class="pl-grid__advance-btn" (click)="openAdvanceModal(batch.id)"
+                [title]="'SQX.WORKFLOW.ADVANCE' | translate">
+                &#9654;
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Empty -->
+  @if (!isLoading() && batches().length === 0) {
+    <div class="pl-detail__empty">
+      <p>{{ 'SQX.WORKFLOW.EMPTY_BATCHES' | translate }}</p>
+      <button class="pl-detail__btn-new" (click)="openCreateModal()">
+        + {{ 'SQX.WORKFLOW.NEW_BATCH' | translate }}
+      </button>
+    </div>
+  }
+
+  <!-- Create Batch Modal -->
+  @if (showCreateModal()) {
+    <app-batch-create-modal
+      [assetId]="assetId"
+      [timeframe]="timeframe"
+      (created)="onBatchCreated()"
+      (cancelled)="closeCreateModal()"
+    />
+  }
+
+  <!-- Advance Stage Modal -->
+  @if (advanceBatchId()) {
+    <app-advance-stage-modal
+      [batchId]="advanceBatchId()!"
+      (advanced)="onBatchAdvanced()"
+      (cancelled)="closeAdvanceModal()"
+    />
+  }
+
+</div>

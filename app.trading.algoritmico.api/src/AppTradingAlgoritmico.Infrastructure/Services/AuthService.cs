@@ -45,7 +45,9 @@ public class AuthService : IAuthService
             ExpiresIn: _tokenService.ExpiresInSeconds,
             Email: user.Email!,
             UserName: user.UserName!,
-            Roles: roles
+            Roles: roles,
+            PreferredLanguage: user.PreferredLanguage ?? "es",
+            PreferredTheme: user.PreferredTheme ?? "dark"
         );
     }
 

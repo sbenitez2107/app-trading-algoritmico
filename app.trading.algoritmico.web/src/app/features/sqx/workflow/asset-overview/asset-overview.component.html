@@ -1,0 +1,152 @@
+<div class="wf-overview">
+
+  <!-- Header -->
+  <div class="wf-overview__header">
+    <h2 class="wf-overview__title">{{ 'SQX.WORKFLOW.TITLE' | translate }}</h2>
+    <button class="wf-overview__btn-new" (click)="openAssetModal()">
+      + {{ 'SQX.WORKFLOW.NEW_ASSET' | translate }}
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="wf-overview__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</div>
+  }
+
+  @if (!isLoading()) {
+
+    <!-- Asset Cards (with batches) -->
+    @if (assetGroups().length > 0) {
+      <div class="wf-cards">
+        @for (group of assetGroups(); track group.assetId + '-' + group.timeframe) {
+          <div class="wf-card" (click)="navigateToDetail(group)">
+            <div class="wf-card__header">
+              <div class="wf-card__asset">
+                <span class="wf-card__symbol">{{ group.assetSymbol }}</span>
+                <span class="wf-card__name">{{ group.assetName }}</span>
+              </div>
+              <div class="wf-card__badges">
+                <span class="wf-card__tf-badge">{{ timeframeLabels[group.timeframe] }}</span>
+                <span class="wf-card__batch-count">{{ group.batches.length }} {{ 'SQX.WORKFLOW.BATCHES' | translate }}</span>
+              </div>
+            </div>
+
+            <!-- Pipeline Dots -->
+            <div class="wf-card__pipeline">
+              @for (stage of group.stagesSummary; track stage.type) {
+                <div class="wf-card__stage">
+                  <span class="wf-dot" [class]="getStageDotClass(stage)"></span>
+                  <span class="wf-card__stage-label">{{ stageLabels[stage.type] }}</span>
+                </div>
+              }
+            </div>
+
+            <!-- Active Batch -->
+            @if (group.activeBatch) {
+              <div class="wf-card__active">
+                <span class="wf-card__active-icon">&#9654;</span>
+                <span class="wf-card__active-text">
+                  {{ group.activeBatch.buildingBlockName }} &rarr; {{ getActiveStageLabel(group.activeBatch) }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Assets without batches -->
+    @if (assetsWithoutBatches().length > 0) {
+      <h3 class="wf-overview__section-title">{{ 'SQX.WORKFLOW.AVAILABLE_ASSETS' | translate }}</h3>
+      <div class="wf-cards">
+        @for (asset of assetsWithoutBatches(); track asset.id) {
+          <div class="wf-card wf-card--empty">
+            <div class="wf-card__header">
+              <div class="wf-card__asset">
+                <span class="wf-card__symbol">{{ asset.symbol }}</span>
+                <span class="wf-card__name">{{ asset.name }}</span>
+              </div>
+            </div>
+            <div class="wf-card__tf-select">
+              <span class="wf-card__tf-hint">{{ 'SQX.WORKFLOW.SELECT_TF' | translate }}</span>
+              <div class="wf-card__tf-buttons">
+                @for (tf of timeframeOptions; track tf.value) {
+                  <button class="wf-card__tf-btn" (click)="navigateToAsset(asset, tf.value)">
+                    {{ tf.label }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Empty state (no assets at all) -->
+    @if (assetGroups().length === 0 && assetsWithoutBatches().length === 0) {
+      <div class="wf-overview__empty">
+        <p>{{ 'SQX.WORKFLOW.EMPTY' | translate }}</p>
+        <button class="wf-overview__btn-new" (click)="openAssetModal()">
+          + {{ 'SQX.WORKFLOW.NEW_ASSET' | translate }}
+        </button>
+      </div>
+    }
+
+  }
+
+  <!-- Create Asset Modal -->
+  @if (showAssetModal()) {
+    <div class="wf-modal-backdrop" (click)="onAssetModalBackdrop($event)">
+      <div class="wf-modal" role="dialog">
+        <h3 class="wf-modal__title">{{ 'SQX.WORKFLOW.NEW_ASSET' | translate }}</h3>
+
+        <form [formGroup]="assetForm" (ngSubmit)="onCreateAsset()">
+          <div class="wf-modal__field">
+            <label class="wf-modal__label" for="asset-name">
+              {{ 'SQX.WORKFLOW.ASSET_NAME' | translate }}
+            </label>
+            <input
+              id="asset-name"
+              type="text"
+              class="wf-modal__input"
+              formControlName="name"
+              [placeholder]="'SQX.WORKFLOW.ASSET_NAME_PLACEHOLDER' | translate"
+            />
+          </div>
+
+          <div class="wf-modal__field">
+            <label class="wf-modal__label" for="asset-symbol">
+              {{ 'SQX.WORKFLOW.ASSET_SYMBOL' | translate }}
+            </label>
+            <input
+              id="asset-symbol"
+              type="text"
+              class="wf-modal__input"
+              formControlName="symbol"
+              [placeholder]="'SQX.WORKFLOW.ASSET_SYMBOL_PLACEHOLDER' | translate"
+              style="text-transform: uppercase"
+            />
+          </div>
+
+          @if (assetError()) {
+            <div class="wf-modal__error">{{ assetError()! | translate }}</div>
+          }
+
+          <div class="wf-modal__actions">
+            <button type="button" class="wf-modal__btn wf-modal__btn--cancel" (click)="closeAssetModal()">
+              {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+            </button>
+            <button type="submit" class="wf-modal__btn wf-modal__btn--submit" [disabled]="isCreatingAsset()">
+              @if (isCreatingAsset()) {
+                {{ 'COMMON.STATUS.LOADING' | translate }}
+              } @else {
+                {{ 'COMMON.ACTIONS.CREATE' | translate }}
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+</div>

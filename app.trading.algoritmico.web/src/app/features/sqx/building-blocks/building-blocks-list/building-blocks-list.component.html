@@ -1,0 +1,98 @@
+<div class="bb-list">
+
+  <!-- Header -->
+  <div class="bb-list__header">
+    <h2 class="bb-list__title">{{ 'SQX.BUILDING_BLOCKS.TITLE' | translate }}</h2>
+    <button class="bb-list__btn-new" (click)="openCreate()">
+      + {{ 'SQX.BUILDING_BLOCKS.NEW' | translate }}
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="bb-list__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</div>
+  }
+
+  <!-- Table -->
+  @if (!isLoading() && blocks().length > 0) {
+    <table class="bb-table">
+      <thead>
+        <tr>
+          <th>{{ 'SQX.BUILDING_BLOCKS.COL_NAME' | translate }}</th>
+          <th>{{ 'SQX.BUILDING_BLOCKS.COL_TYPE' | translate }}</th>
+          <th>{{ 'SQX.BUILDING_BLOCKS.COL_DESCRIPTION' | translate }}</th>
+          <th>{{ 'SQX.BUILDING_BLOCKS.COL_CREATED' | translate }}</th>
+          <th>{{ 'COMMON.ACTIONS.EDIT' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (bb of blocks(); track bb.id) {
+          <tr>
+            <td class="bb-table__name">{{ bb.name }}</td>
+            <td>
+              <span class="bb-badge" [class]="getTypeBadgeClass(bb.type)">
+                {{ typeLabels[bb.type] }}
+              </span>
+            </td>
+            <td class="bb-table__desc">{{ bb.description ?? '—' }}</td>
+            <td class="bb-table__date">{{ bb.createdAt | date:'shortDate' }}</td>
+            <td class="bb-table__actions">
+              <button class="bb-table__action-btn" (click)="openEdit(bb)"
+                [title]="'COMMON.ACTIONS.EDIT' | translate">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="bb-table__action-btn bb-table__action-btn--danger" (click)="confirmDelete(bb)"
+                [title]="'COMMON.ACTIONS.DELETE' | translate">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- Empty state -->
+  @if (!isLoading() && blocks().length === 0) {
+    <div class="bb-list__empty">
+      <p>{{ 'SQX.BUILDING_BLOCKS.EMPTY' | translate }}</p>
+      <button class="bb-list__btn-new" (click)="openCreate()">
+        + {{ 'SQX.BUILDING_BLOCKS.NEW' | translate }}
+      </button>
+    </div>
+  }
+
+  <!-- Create/Edit Modal -->
+  @if (showModal()) {
+    <app-building-block-form
+      [block]="editingBlock()"
+      (saved)="onSaved()"
+      (cancelled)="closeModal()"
+    />
+  }
+
+  <!-- Delete Confirmation Modal -->
+  @if (deleteTarget()) {
+    <div class="bb-modal-backdrop" (click)="cancelDelete()">
+      <div class="bb-modal bb-modal--confirm" (click)="$event.stopPropagation()">
+        <h3>{{ 'SQX.BUILDING_BLOCKS.CONFIRM_DELETE' | translate }}</h3>
+        <p>{{ deleteTarget()!.name }}</p>
+        <div class="bb-modal__actions">
+          <button class="bb-modal__btn bb-modal__btn--cancel" (click)="cancelDelete()">
+            {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+          </button>
+          <button class="bb-modal__btn bb-modal__btn--danger" (click)="executeDelete()">
+            {{ 'COMMON.ACTIONS.DELETE' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>

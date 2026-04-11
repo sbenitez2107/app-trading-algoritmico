@@ -36,7 +36,10 @@
     },
     "HEADER": {
       "NOTIFICATIONS": "Notificaciones",
-      "NEW_REPORT": "Nuevo Reporte"
+      "NEW_REPORT": "Nuevo Reporte",
+      "TOGGLE_THEME_LIGHT": "Cambiar a modo claro",
+      "TOGGLE_THEME_DARK": "Cambiar a modo oscuro",
+      "TOGGLE_LANG": "Cambiar idioma"
     }
   },
   "COMMON": {
@@ -57,6 +60,64 @@
     "VALIDATION": {
       "REQUIRED": "Este campo es obligatorio",
       "INVALID_EMAIL": "Por favor ingresá un email válido"
+    }
+  },
+  "SQX": {
+    "SIDEBAR": {
+      "STRATEGY_WORKFLOW": "Strategy Workflow",
+      "BUILDING_BLOCKS": "Building Blocks"
+    },
+    "BUILDING_BLOCKS": {
+      "TITLE": "Building Blocks",
+      "NEW": "Nuevo Building Block",
+      "EMPTY": "No hay building blocks todavía. Creá el primero.",
+      "COL_NAME": "Nombre",
+      "COL_TYPE": "Tipo",
+      "COL_DESCRIPTION": "Descripción",
+      "COL_CREATED": "Creado",
+      "CONFIRM_DELETE": "¿Estás seguro de eliminar este building block?",
+      "FORM": {
+        "CREATE_TITLE": "Nuevo Building Block",
+        "EDIT_TITLE": "Editar Building Block",
+        "NAME": "Nombre",
+        "NAME_PLACEHOLDER": "ej. BB1 IMOX Base",
+        "TYPE": "Tipo",
+        "DESCRIPTION": "Descripción",
+        "DESCRIPTION_PLACEHOLDER": "¿En qué se enfoca este BB?",
+        "FILE": "Archivo de Config (.sqb)",
+        "ERROR": "Ocurrió un error. Intentá nuevamente."
+      }
+    },
+    "WORKFLOW": {
+      "TITLE": "Strategy Workflow",
+      "BATCHES": "remesas",
+      "EMPTY": "No hay remesas todavía. Creá activos y building blocks primero.",
+      "EMPTY_BATCHES": "No hay remesas para este activo. Creá la primera.",
+      "NEW_BATCH": "Nueva Remesa",
+      "BATCH": "Remesa",
+      "BATCH_NAME": "Nombre de Remesa (opcional)",
+      "BATCH_NAME_PLACEHOLDER": "ej. Corrida Marzo 2026",
+      "SELECT_BB": "Building Block",
+      "SELECT_BB_PLACEHOLDER": "Seleccioná un building block...",
+      "ZIP_FILE": "ZIP de Estrategias (.zip con archivos .sqx)",
+      "FILE_REQUIRED": "Seleccioná un archivo ZIP con estrategias.",
+      "ADVANCE": "Avanzar Etapa",
+      "ADVANCE_DESC": "Subí un ZIP con las estrategias que pasaron el filtro de esta etapa.",
+      "BACK_TO_PIPELINE": "Volver al Pipeline",
+      "INPUT": "Entrada",
+      "OUTPUT": "Salida",
+      "STRATEGIES": "Estrategias",
+      "TOP_10": "Top 10 Ranking",
+      "ALL_STRATEGIES": "Todas las Estrategias",
+      "STRATEGY_NAME": "Estrategia",
+      "VIEW_LOGIC": "Ver lógica de trading",
+      "NEW_ASSET": "Nuevo Activo",
+      "ASSET_NAME": "Nombre del Activo",
+      "ASSET_NAME_PLACEHOLDER": "ej. Oro, Nasdaq, DAX",
+      "ASSET_SYMBOL": "Símbolo",
+      "ASSET_SYMBOL_PLACEHOLDER": "ej. XAUUSD, NQ, DE40",
+      "AVAILABLE_ASSETS": "Activos Disponibles",
+      "SELECT_TF": "Seleccioná un timeframe para comenzar:"
     }
   }
 }

@@ -10,11 +10,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Strategy management module (Strategy Quant X integration)
 - Risk management dashboard
 - Deployment tracker (demo/live accounts)
 - Prop firm challenge phase tracker (FTMO, The Trading Pits)
 - Capital manager performance tracking (Axi Select, Darwinex)
+- Automated KPI extraction from .sqx strategy files
+- Per-stage configuration for Strategy Workflow pipeline
+- Date tracking (start/end) per pipeline stage
+
+---
+
+## [0.3.0] - 2026-04-11
+
+### Added
+- **Strategy Workflow (SQX Pipeline)**: Full pipeline dashboard for trading strategies (Builder → Retester → Optimizer → Demo → Live). 3-level UI: Asset Overview cards, Pipeline Detail grid, Stage Detail with KPI table. Batch creation with ZIP upload of .sqx files, stage advancement, inline KPI editing, pseudocode viewer.
+- **Building Blocks CRUD**: Management of SQX Building Block configs with .sqb file upload. 4 types: Base, Trend, Volatility, Reversion.
+- **Assets Management**: Create trading assets from the Workflow dashboard with timeframe selection.
+- **SQX Parser Service**: Extracts pseudocode from .sqx files (nested ZIP + XML parsing).
+- **Multi-language (EN/ES)**: Default Spanish. Header toggle for instant switching. Persisted in user profile.
+- **Dark/Light Theme**: CSS variable theming. Default dark. Header toggle. Persisted in user profile.
+- **User Preferences API**: `GET/PATCH /api/user/preferences` for language and theme. Returned in login response.
+- **App Version Display**: v0.3.0 shown in sidebar.
+
+### Changed
+- Login page footer and security badges removed.
+- Default language changed from EN to ES.
+- AuthResponseDto extended with preferences.
+
+### Fixed
+- i18n files consolidated to `public/assets/i18n/` (Angular 21 Vite compatibility).
+
 ---
 
 ## [0.2.0] - 2026-04-10

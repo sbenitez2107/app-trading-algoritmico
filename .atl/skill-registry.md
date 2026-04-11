@@ -1,5 +1,5 @@
 # Skill Registry — imox-ta
-*Generated: 2026-04-06*
+*Generated: 2026-04-11*
 
 ## Convention Files (Index Files)
 
@@ -13,7 +13,10 @@
 
 | Skill | Trigger |
 |-------|---------|
+| branch-pr | PR creation workflow (issue-first enforcement) |
 | go-testing | Go tests, Bubbletea TUI testing |
+| issue-creation | GitHub issue creation workflow (issue-first enforcement) |
+| judgment-day | Parallel adversarial review protocol (two blind judge sub-agents) |
 | skill-creator | Creating new AI skills |
 | sdd-init | `/sdd-init` — Initialize SDD context |
 | sdd-apply | `/sdd-apply` — Implement tasks |
@@ -366,10 +369,10 @@
 
 | Category | Count |
 |----------|-------|
-| User Skills (Global) | 11 |
+| User Skills (Global) | 14 |
 | Universal Skills | 6 |
 | Agent/Orchestration Skills | 12 |
 | Backend Agent Skills | 6 |
 | Backend Domain Skills | 10 |
 | Frontend Web Skills | 8 |
-| **TOTAL** | **53** |
+| **TOTAL** | **56** |

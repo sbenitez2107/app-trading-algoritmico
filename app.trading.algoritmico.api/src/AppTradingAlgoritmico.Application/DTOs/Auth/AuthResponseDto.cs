@@ -6,5 +6,7 @@ public record AuthResponseDto(
     int ExpiresIn,
     string Email,
     string UserName,
-    IEnumerable<string> Roles
+    IEnumerable<string> Roles,
+    string PreferredLanguage,
+    string PreferredTheme
 );

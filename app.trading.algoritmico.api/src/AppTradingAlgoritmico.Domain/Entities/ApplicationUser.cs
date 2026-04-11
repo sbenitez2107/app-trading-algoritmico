@@ -11,4 +11,6 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime? UpdatedAt { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public string? PreferredTheme { get; set; }
 }

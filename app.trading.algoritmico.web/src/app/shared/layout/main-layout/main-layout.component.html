@@ -11,6 +11,7 @@
         </svg>
         @if (!sidebarCollapsed()) {
           <span class="l-sidebar__app-name">BENT</span>
+          <span class="l-sidebar__version">v{{ appVersion }}</span>
         }
       </div>
     </div>
@@ -92,18 +93,40 @@
         }
       </a>
 
-      <a
-        routerLink="/sqx"
-        routerLinkActive="l-sidebar__nav-item--active"
-        class="l-sidebar__nav-item"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-        </svg>
-        @if (!sidebarCollapsed()) {
-          <span>SQX</span>
+      <!-- SQX with submenu -->
+      <div class="l-sidebar__nav-group">
+        <button
+          class="l-sidebar__nav-item l-sidebar__nav-item--group"
+          (click)="toggleSqx()"
+          [class.l-sidebar__nav-item--expanded]="sqxExpanded()"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          @if (!sidebarCollapsed()) {
+            <span class="l-sidebar__nav-label">SQX</span>
+            <svg class="l-sidebar__chevron" [class.l-sidebar__chevron--open]="sqxExpanded()"
+              width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
+        </button>
+
+        @if (sqxExpanded() && !sidebarCollapsed()) {
+          <div class="l-sidebar__submenu">
+            <a routerLink="/sqx/workflow" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--workflow"></span>
+              {{ 'SQX.SIDEBAR.STRATEGY_WORKFLOW' | translate }}
+            </a>
+            <a routerLink="/sqx/building-blocks" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--blocks"></span>
+              {{ 'SQX.SIDEBAR.BUILDING_BLOCKS' | translate }}
+            </a>
+          </div>
         }
-      </a>
+      </div>
 
       <a
         routerLink="/administration"
@@ -127,6 +150,35 @@
     <!-- Top Header -->
     <header class="l-header">
       <div class="l-header__actions">
+
+        <!-- Language Toggle -->
+        <button
+          class="l-header__icon-btn l-header__lang-btn"
+          (click)="toggleLanguage()"
+          [attr.aria-label]="'LAYOUT.HEADER.TOGGLE_LANG' | translate"
+          [attr.title]="'LAYOUT.HEADER.TOGGLE_LANG' | translate"
+        >
+          {{ currentLang() === 'es' ? 'EN' : 'ES' }}
+        </button>
+
+        <!-- Theme Toggle -->
+        <button
+          class="l-header__icon-btn"
+          (click)="toggleTheme()"
+          [attr.aria-label]="isDark() ? ('LAYOUT.HEADER.TOGGLE_THEME_LIGHT' | translate) : ('LAYOUT.HEADER.TOGGLE_THEME_DARK' | translate)"
+          [attr.title]="isDark() ? ('LAYOUT.HEADER.TOGGLE_THEME_LIGHT' | translate) : ('LAYOUT.HEADER.TOGGLE_THEME_DARK' | translate)"
+        >
+          @if (isDark()) {
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          } @else {
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
+        </button>
 
         <!-- User Info -->
         <div class="l-header__user-info">

@@ -1,0 +1,126 @@
+<div class="sd">
+
+  <!-- Breadcrumb -->
+  <div class="sd__breadcrumb">
+    <button class="sd__back" (click)="goBack()">
+      &larr; {{ 'SQX.WORKFLOW.BACK_TO_PIPELINE' | translate }}
+    </button>
+    <span class="sd__sep">/</span>
+    <span class="sd__crumb">{{ bbName() }} &mdash; {{ stageLabels[stageType] }}</span>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="sd__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</div>
+  }
+
+  @if (!isLoading() && stage()) {
+    <!-- Stage Header Card -->
+    <div class="sd__header-card">
+      <div class="sd__header-row">
+        <div class="sd__header-info">
+          <h2 class="sd__title">{{ stageLabels[stageType] }}</h2>
+          <span class="sd__status-badge" [class]="getStatusClass(stage()!.status)">
+            {{ statusLabels[stage()!.status] }}
+          </span>
+        </div>
+        <div class="sd__header-counts">
+          <div class="sd__count-item">
+            <span class="sd__count-label">{{ 'SQX.WORKFLOW.INPUT' | translate }}</span>
+            <span class="sd__count-value">{{ stage()!.inputCount }}</span>
+          </div>
+          <div class="sd__count-item">
+            <span class="sd__count-label">{{ 'SQX.WORKFLOW.OUTPUT' | translate }}</span>
+            <span class="sd__count-value">{{ stage()!.outputCount }}</span>
+          </div>
+          <div class="sd__count-item">
+            <span class="sd__count-label">{{ 'SQX.WORKFLOW.STRATEGIES' | translate }}</span>
+            <span class="sd__count-value">{{ totalCount() }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 10 Ranking -->
+    @if (topStrategies().length > 0) {
+      <div class="sd__ranking">
+        <div class="sd__ranking-header">
+          <h3>{{ 'SQX.WORKFLOW.TOP_10' | translate }}</h3>
+          <select class="sd__rank-select" (change)="onRankByChange($event)">
+            @for (opt of kpiOptions; track opt.key) {
+              <option [value]="opt.key" [selected]="rankBy() === opt.key">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+        <table class="sd__rank-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>{{ 'SQX.WORKFLOW.STRATEGY_NAME' | translate }}</th>
+              <th>{{ rankBy() }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of topStrategies(); track s.id; let i = $index) {
+              <tr>
+                <td>{{ i + 1 }}</td>
+                <td>{{ s.name }}</td>
+                <td class="sd__rank-value">{{ formatKpi($any(s)[rankBy()]) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Full Strategy Table -->
+    <div class="sd__strategies">
+      <h3 class="sd__strategies-title">
+        {{ 'SQX.WORKFLOW.ALL_STRATEGIES' | translate }} ({{ totalCount() }})
+      </h3>
+      <table class="sd__table">
+        <thead>
+          <tr>
+            <th>{{ 'SQX.WORKFLOW.STRATEGY_NAME' | translate }}</th>
+            <th>Sharpe</th>
+            <th>RetDD</th>
+            <th>Win%</th>
+            <th>PF</th>
+            <th>Trades</th>
+            <th>Net $</th>
+            <th>MaxDD</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of strategies(); track s.id) {
+            <tr>
+              <td class="sd__table-name">{{ s.name }}</td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.sharpeRatio" (blur)="onKpiChange(s, 'sharpeRatio', $event)" /></td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.returnDrawdownRatio" (blur)="onKpiChange(s, 'returnDrawdownRatio', $event)" /></td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.winRate" (blur)="onKpiChange(s, 'winRate', $event)" /></td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.profitFactor" (blur)="onKpiChange(s, 'profitFactor', $event)" /></td>
+              <td><input type="number" step="1" class="sd__kpi-input" [value]="s.totalTrades" (blur)="onKpiChange(s, 'totalTrades', $event)" /></td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.netProfit" (blur)="onKpiChange(s, 'netProfit', $event)" /></td>
+              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.maxDrawdown" (blur)="onKpiChange(s, 'maxDrawdown', $event)" /></td>
+              <td>
+                <button class="sd__expand-btn" (click)="togglePseudocode(s.id)"
+                  [title]="'SQX.WORKFLOW.VIEW_LOGIC' | translate">
+                  {{ expandedStrategy() === s.id ? '▲' : '▼' }}
+                </button>
+              </td>
+            </tr>
+            @if (expandedStrategy() === s.id && s.pseudocode) {
+              <tr class="sd__pseudocode-row">
+                <td colspan="9">
+                  <pre class="sd__pseudocode">{{ s.pseudocode }}</pre>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+</div>

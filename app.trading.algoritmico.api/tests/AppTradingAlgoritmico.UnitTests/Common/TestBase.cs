@@ -13,7 +13,9 @@ public abstract class TestBase
         string email = "test@trading.local",
         string firstName = "Test",
         string lastName = "User",
-        bool isActive = true)
+        bool isActive = true,
+        string? preferredLanguage = null,
+        string? preferredTheme = null)
     {
         return new ApplicationUser
         {
@@ -26,7 +28,9 @@ public abstract class TestBase
             LastName = lastName,
             IsActive = isActive,
             EmailConfirmed = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PreferredLanguage = preferredLanguage,
+            PreferredTheme = preferredTheme
         };
     }
 

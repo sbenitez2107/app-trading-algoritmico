@@ -53,6 +53,15 @@ public static class DependencyInjection
         services.AddScoped<IDataSeeder, DataSeeder>();
         services.AddSingleton<IEncryptionService, AesEncryptionService>();
         services.AddScoped<ITradingAccountService, TradingAccountService>();
+        services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+
+        // Strategy Workflow
+        services.AddScoped<ISqxParserService, SqxParserService>();
+        services.AddScoped<IAssetService, AssetService>();
+        services.AddScoped<IBuildingBlockService, BuildingBlockService>();
+        services.AddScoped<IBatchService, BatchService>();
+        services.AddScoped<IBatchStageService, BatchStageService>();
+        services.AddScoped<IStrategyService, StrategyService>();
 
         return services;
     }

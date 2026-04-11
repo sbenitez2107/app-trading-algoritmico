@@ -1,47 +1,43 @@
-# 📈 App Trading Algorítmico
+# BENT — Algorithmic Trading Platform
 
-> **Personal platform for algorithmic trading management** — from strategy development in Strategy Quant to live account administration across brokers, prop firms, and capital managers.
-
----
-
-## 🎯 Purpose
-
-This is a personal full-stack application designed to centralize and streamline all activities related to algorithmic trading. The platform covers the full lifecycle:
-
-1. **Strategy Development** — tooling to manage and track strategies built in Strategy Quant X.
-2. **Risk Management** — monitoring and controlling risk parameters across accounts and strategies.
-3. **Deployment Management** — orchestrating strategy go-lives on demo and live accounts.
-4. **Account Management** — administering accounts across brokers, prop firms, and capital managers.
+> **v0.3.0** | Personal platform for algorithmic trading management — from strategy development in Strategy Quant X to live account administration across brokers, prop firms, and capital managers.
 
 ---
 
-## 🏗️ Domain Areas
+## Features
 
-### 📐 Strategy Management (Strategy Quant X)
-- Track strategy versions, backtests, and optimization runs.
-- Store walk-forward analysis results and robustness metrics.
-- Manage the strategy lifecycle: development → validation → deployment → monitoring.
+### Strategy Workflow (SQX Pipeline)
+Full pipeline dashboard to manage the lifecycle of trading strategies created in Strategy Quant X.
 
-### 🛡️ Risk Management
-- Define and enforce risk parameters per strategy and per account.
-- Track drawdown limits, lot sizing rules, and exposure caps.
-- Monitor real-time account equity and margin levels.
+- **Pipeline stages**: Builder → Retester → Optimizer → Demo → Live
+- **Batch management**: Each batch (remesa) travels independently through the pipeline, associated to an asset + timeframe + building block
+- **3-level dashboard**: Asset Overview (cards) → Pipeline Detail (grid) → Stage Detail (KPIs + strategy table)
+- **ZIP upload**: Upload .sqx strategy files in bulk with automatic pseudocode extraction from settings.xml
+- **Inline KPI editing**: Sharpe Ratio, Ret DD/Ratio, WinRate, ProfitFactor, TotalTrades, NetProfit, MaxDrawdown
+- **Building Blocks CRUD**: Manage SQX BB configurations (.sqb file upload with XML parsing)
 
-### 🚀 Deployment & Execution
-- Manage strategy deployments on **demo** and **live** accounts.
-- Track go-live dates, version history, and performance since deployment.
-- Monitor execution quality (slippage, spread, fill rate).
+### Trading Accounts
+- Connect and manage broker/platform accounts (MT4/MT5)
+- Darwinex (demo/live) and Axi support
+- AES-256 encryption for account credentials
 
-### 💼 Account & Entity Management
-Centralized administration for all external entities:
+### User Preferences
+- Multi-language (EN/ES) with instant header toggle — default Spanish
+- Dark/Light theme with instant header toggle — default dark
+- Preferences persisted in user profile via backend API
 
-| Entity Type | Examples |
-|-------------|----------|
-| **Brokers** | Axi, Darwinex Zero, IC Markets |
-| **Capital Managers** | Axi Select, Darwinex (Darwin) |
-| **Prop Firms** | FTMO, The Trading Pits, My Forex Funds |
+### Authentication & Security
+- ASP.NET Core Identity + JWT Bearer tokens
+- Role-based authorization: Admin, Trader, Viewer
+- Functional route guards + HTTP interceptor
+- Sensitive data masked in logs
 
-Manage credentials, account status, balance history, challenge phases (prop firms), and performance metrics per entity.
+### Planned
+- Risk management dashboard
+- Deployment tracker (demo/live accounts)
+- Prop firm challenge tracker (FTMO, The Trading Pits)
+- Capital manager performance tracking (Axi Select, Darwinex)
+- Automated KPI extraction from .sqx binary format
 
 ---
 

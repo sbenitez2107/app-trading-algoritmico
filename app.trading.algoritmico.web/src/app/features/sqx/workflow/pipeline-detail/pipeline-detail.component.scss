@@ -1,0 +1,163 @@
+.pl-detail {
+  &__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.875rem;
+  }
+
+  &__back {
+    color: var(--color-primary);
+    font-size: 0.875rem;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  &__separator { color: var(--text-muted); }
+  &__current { color: var(--text-muted); }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+  }
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__btn-new {
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-primary);
+    color: #fff;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+
+    &:hover { background: var(--color-primary-dark); }
+  }
+
+  &__loading, &__empty {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+
+    p { margin-bottom: var(--spacing-md); }
+  }
+}
+
+// Pipeline Grid
+.pl-grid {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+
+  &__header {
+    display: grid;
+    grid-template-columns: 10rem repeat(5, 1fr) 4rem;
+    background: var(--bg-surface-2);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 10rem repeat(5, 1fr) 4rem;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child { border-bottom: none; }
+    &:hover { background: var(--bg-surface-2); }
+  }
+
+  &__cell {
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8125rem;
+    min-height: 3.5rem;
+
+    &--label {
+      align-items: flex-start;
+      border-right: 1px solid var(--border-color);
+    }
+
+    &--stage-header {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    &--stage {
+      border-left: 1px solid var(--border-color);
+    }
+
+    &--clickable {
+      cursor: pointer;
+      transition: background var(--transition-fast);
+
+      &:hover { background: rgba(59, 130, 246, 0.08); }
+    }
+
+    &--actions {
+      align-items: center;
+    }
+  }
+
+  &__bb-name {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.8125rem;
+  }
+
+  &__batch-name {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+
+  &__status-icon {
+    font-size: 0.875rem;
+    margin-bottom: 0.125rem;
+  }
+
+  &__counts {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+
+  &__empty {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  &__advance-btn {
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    font-size: 0.75rem;
+    transition: background var(--transition-fast);
+
+    &:hover {
+      background: rgba(59, 130, 246, 0.15);
+    }
+  }
+}
+
+// Status cell colors
+.cell {
+  &--pending { }
+  &--in-progress { background: rgba(245, 158, 11, 0.06); }
+  &--completed { background: rgba(34, 197, 94, 0.06); }
+  &--empty { }
+}

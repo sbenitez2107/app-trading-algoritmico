@@ -32,6 +32,12 @@ public class ApplicationUserConfiguration : IEntityTypeConfiguration<Application
         builder.Property(u => u.RefreshToken)
             .HasMaxLength(500);
 
+        builder.Property(u => u.PreferredLanguage)
+            .HasMaxLength(10);
+
+        builder.Property(u => u.PreferredTheme)
+            .HasMaxLength(10);
+
         builder.HasIndex(u => u.Email)
             .IsUnique();
     }

@@ -1,0 +1,71 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal-dialog" role="dialog">
+    <h3 class="modal-dialog__title">{{ 'SQX.WORKFLOW.NEW_BATCH' | translate }}</h3>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+      <!-- Building Block -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="batch-bb">
+          {{ 'SQX.WORKFLOW.SELECT_BB' | translate }}
+        </label>
+        <select id="batch-bb" class="modal-field__input" formControlName="buildingBlockId">
+          <option value="" disabled>{{ 'SQX.WORKFLOW.SELECT_BB_PLACEHOLDER' | translate }}</option>
+          @for (bb of blocks(); track bb.id) {
+            <option [value]="bb.id">{{ bb.name }} ({{ typeLabels[bb.type] }})</option>
+          }
+        </select>
+      </div>
+
+      <!-- Name (optional) -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="batch-name">
+          {{ 'SQX.WORKFLOW.BATCH_NAME' | translate }}
+        </label>
+        <input
+          id="batch-name"
+          type="text"
+          class="modal-field__input"
+          formControlName="name"
+          [placeholder]="'SQX.WORKFLOW.BATCH_NAME_PLACEHOLDER' | translate"
+        />
+      </div>
+
+      <!-- ZIP File -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="batch-file">
+          {{ 'SQX.WORKFLOW.ZIP_FILE' | translate }}
+        </label>
+        <input
+          id="batch-file"
+          type="file"
+          class="modal-field__file"
+          accept=".zip"
+          (change)="onFileChange($event)"
+        />
+        @if (selectedFile()) {
+          <span class="modal-field__file-info">{{ selectedFile()!.name }}</span>
+        }
+      </div>
+
+      <!-- Error -->
+      @if (errorMessage()) {
+        <div class="modal-error">{{ errorMessage()! | translate }}</div>
+      }
+
+      <!-- Actions -->
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn--cancel" (click)="cancelled.emit()">
+          {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+        </button>
+        <button type="submit" class="modal-btn modal-btn--submit" [disabled]="isLoading()">
+          @if (isLoading()) {
+            {{ 'COMMON.STATUS.LOADING' | translate }}
+          } @else {
+            {{ 'COMMON.ACTIONS.CREATE' | translate }}
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

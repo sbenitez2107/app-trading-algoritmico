@@ -23,6 +23,11 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/darwinex/darwinex.routes').then(m => m.DARWINEX_ROUTES)
       },
+      {
+        path: 'sqx',
+        loadChildren: () =>
+          import('./features/sqx/sqx.routes').then(m => m.SQX_ROUTES)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: '**', redirectTo: 'dashboard' }
     ]

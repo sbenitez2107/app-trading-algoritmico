@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { TranslateService } from '@ngx-translate/core';
+import { ThemeService } from './core/services/theme.service';
+import { LanguageService } from './core/services/language.service';
 
 @Component({
   selector: 'app-root',
@@ -10,10 +11,6 @@ import { TranslateService } from '@ngx-translate/core';
   styles: []
 })
 export class App {
-  private readonly translate = inject(TranslateService);
-
-  constructor() {
-    this.translate.setDefaultLang('en');
-    this.translate.use('en');
-  }
+  private readonly _theme = inject(ThemeService);
+  private readonly _language = inject(LanguageService);
 }

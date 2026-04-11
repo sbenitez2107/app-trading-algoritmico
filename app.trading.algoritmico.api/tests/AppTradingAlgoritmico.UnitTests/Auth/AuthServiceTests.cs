@@ -55,6 +55,36 @@ public class AuthServiceTests : TestBase
         result.TokenType.Should().Be("Bearer");
         result.Email.Should().Be(user.Email);
         result.Roles.Should().Contain("Admin");
+        result.PreferredLanguage.Should().Be("es");
+        result.PreferredTheme.Should().Be("dark");
+    }
+
+    [Fact]
+    public async Task LoginAsync_UserWithPreferences_ReturnsStoredValues()
+    {
+        // Arrange
+        var user = CreateUser(
+            email: "custom@trading.local",
+            preferredLanguage: "en",
+            preferredTheme: "light");
+        var request = new LoginRequestDto("custom@trading.local", "Trading@2024!");
+
+        _userManagerMock.Setup(m => m.FindByEmailAsync(request.Email))
+            .ReturnsAsync(user);
+        _userManagerMock.Setup(m => m.CheckPasswordAsync(user, request.Password))
+            .ReturnsAsync(true);
+        _userManagerMock.Setup(m => m.GetRolesAsync(user))
+            .ReturnsAsync(["Trader"]);
+        _tokenServiceMock.Setup(t => t.GenerateAccessToken(user, It.IsAny<IEnumerable<string>>()))
+            .Returns("mocked.jwt.token");
+        _tokenServiceMock.Setup(t => t.ExpiresInSeconds).Returns(3600);
+
+        // Act
+        var result = await _sut.LoginAsync(request);
+
+        // Assert
+        result.PreferredLanguage.Should().Be("en");
+        result.PreferredTheme.Should().Be("light");
     }
 
     [Fact]

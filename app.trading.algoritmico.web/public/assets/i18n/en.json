@@ -36,7 +36,10 @@
     },
     "HEADER": {
       "NOTIFICATIONS": "Notifications",
-      "NEW_REPORT": "New Report"
+      "NEW_REPORT": "New Report",
+      "TOGGLE_THEME_LIGHT": "Switch to light mode",
+      "TOGGLE_THEME_DARK": "Switch to dark mode",
+      "TOGGLE_LANG": "Switch language"
     }
   },
   "COMMON": {
@@ -57,6 +60,64 @@
     "VALIDATION": {
       "REQUIRED": "This field is required",
       "INVALID_EMAIL": "Please enter a valid email address"
+    }
+  },
+  "SQX": {
+    "SIDEBAR": {
+      "STRATEGY_WORKFLOW": "Strategy Workflow",
+      "BUILDING_BLOCKS": "Building Blocks"
+    },
+    "BUILDING_BLOCKS": {
+      "TITLE": "Building Blocks",
+      "NEW": "New Building Block",
+      "EMPTY": "No building blocks yet. Create your first one.",
+      "COL_NAME": "Name",
+      "COL_TYPE": "Type",
+      "COL_DESCRIPTION": "Description",
+      "COL_CREATED": "Created",
+      "CONFIRM_DELETE": "Are you sure you want to delete this building block?",
+      "FORM": {
+        "CREATE_TITLE": "New Building Block",
+        "EDIT_TITLE": "Edit Building Block",
+        "NAME": "Name",
+        "NAME_PLACEHOLDER": "e.g. BB1 IMOX Base",
+        "TYPE": "Type",
+        "DESCRIPTION": "Description",
+        "DESCRIPTION_PLACEHOLDER": "What does this BB focus on?",
+        "FILE": "Config File (.sqb)",
+        "ERROR": "An error occurred. Please try again."
+      }
+    },
+    "WORKFLOW": {
+      "TITLE": "Strategy Workflow",
+      "BATCHES": "batches",
+      "EMPTY": "No batches yet. Create assets and building blocks first.",
+      "EMPTY_BATCHES": "No batches for this asset yet. Create the first one.",
+      "NEW_BATCH": "New Batch",
+      "BATCH": "Batch",
+      "BATCH_NAME": "Batch Name (optional)",
+      "BATCH_NAME_PLACEHOLDER": "e.g. Run March 2026",
+      "SELECT_BB": "Building Block",
+      "SELECT_BB_PLACEHOLDER": "Select a building block...",
+      "ZIP_FILE": "Strategies ZIP (.zip with .sqx files)",
+      "FILE_REQUIRED": "Please select a ZIP file with strategies.",
+      "ADVANCE": "Advance Stage",
+      "ADVANCE_DESC": "Upload a ZIP with the strategies that passed this stage's filter.",
+      "BACK_TO_PIPELINE": "Back to Pipeline",
+      "INPUT": "Input",
+      "OUTPUT": "Output",
+      "STRATEGIES": "Strategies",
+      "TOP_10": "Top 10 Ranking",
+      "ALL_STRATEGIES": "All Strategies",
+      "STRATEGY_NAME": "Strategy",
+      "VIEW_LOGIC": "View trading logic",
+      "NEW_ASSET": "New Asset",
+      "ASSET_NAME": "Asset Name",
+      "ASSET_NAME_PLACEHOLDER": "e.g. Oro, Nasdaq, DAX",
+      "ASSET_SYMBOL": "Symbol",
+      "ASSET_SYMBOL_PLACEHOLDER": "e.g. XAUUSD, NQ, DE40",
+      "AVAILABLE_ASSETS": "Available Assets",
+      "SELECT_TF": "Select timeframe to start:"
     }
   }
 }

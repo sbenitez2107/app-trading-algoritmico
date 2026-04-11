@@ -45,6 +45,13 @@
     white-space: nowrap;
   }
 
+  &__version {
+    font-size: 0.625rem;
+    color: var(--text-sidebar-muted);
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
   &__collapse-btn {
     display: flex;
     align-items: center;
@@ -294,6 +301,12 @@
       background: var(--border-color);
       color: var(--text-primary);
     }
+  }
+
+  &__lang-btn {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
   }
 }
 

@@ -6,6 +6,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
+import { PreferencesService } from '../../../core/services/preferences.service';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +19,7 @@ import { AuthService } from '../../../core/services/auth.service';
 export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  private readonly preferencesService = inject(PreferencesService);
   private readonly router = inject(Router);
 
   showPassword = signal(false);
@@ -45,7 +47,8 @@ export class LoginComponent {
     const { email, password } = this.form.value;
 
     this.authService.login(email!, password!).subscribe({
-      next: () => {
+      next: (response) => {
+        this.preferencesService.applyFromLogin(response);
         this.isLoading.set(false);
         this.router.navigate(['/dashboard']);
       },

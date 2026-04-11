@@ -1,0 +1,86 @@
+<div class="bb-form-backdrop" (click)="onBackdropClick($event)">
+  <div class="bb-form-modal" role="dialog">
+    <h3 class="bb-form-modal__title">
+      {{ (isEditing ? 'SQX.BUILDING_BLOCKS.FORM.EDIT_TITLE' : 'SQX.BUILDING_BLOCKS.FORM.CREATE_TITLE') | translate }}
+    </h3>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+
+      <!-- Name -->
+      <div class="bb-form__group">
+        <label class="bb-form__label" for="bb-name">
+          {{ 'SQX.BUILDING_BLOCKS.FORM.NAME' | translate }}
+        </label>
+        <input
+          id="bb-name"
+          type="text"
+          class="bb-form__input"
+          formControlName="name"
+          [placeholder]="'SQX.BUILDING_BLOCKS.FORM.NAME_PLACEHOLDER' | translate"
+        />
+      </div>
+
+      <!-- Type -->
+      <div class="bb-form__group">
+        <label class="bb-form__label" for="bb-type">
+          {{ 'SQX.BUILDING_BLOCKS.FORM.TYPE' | translate }}
+        </label>
+        <select id="bb-type" class="bb-form__input" formControlName="type">
+          @for (opt of typeOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Description -->
+      <div class="bb-form__group">
+        <label class="bb-form__label" for="bb-desc">
+          {{ 'SQX.BUILDING_BLOCKS.FORM.DESCRIPTION' | translate }}
+        </label>
+        <textarea
+          id="bb-desc"
+          class="bb-form__input bb-form__textarea"
+          formControlName="description"
+          rows="3"
+          [placeholder]="'SQX.BUILDING_BLOCKS.FORM.DESCRIPTION_PLACEHOLDER' | translate"
+        ></textarea>
+      </div>
+
+      <!-- File Upload -->
+      <div class="bb-form__group">
+        <label class="bb-form__label" for="bb-file">
+          {{ 'SQX.BUILDING_BLOCKS.FORM.FILE' | translate }}
+        </label>
+        <input
+          id="bb-file"
+          type="file"
+          class="bb-form__file"
+          accept=".sqb"
+          (change)="onFileChange($event)"
+        />
+        @if (selectedFile()) {
+          <span class="bb-form__file-name">{{ selectedFile()!.name }}</span>
+        }
+      </div>
+
+      <!-- Error -->
+      @if (errorMessage()) {
+        <div class="bb-form__error">{{ errorMessage()! | translate }}</div>
+      }
+
+      <!-- Actions -->
+      <div class="bb-form__actions">
+        <button type="button" class="bb-form__btn bb-form__btn--cancel" (click)="cancelled.emit()">
+          {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+        </button>
+        <button type="submit" class="bb-form__btn bb-form__btn--submit" [disabled]="isLoading()">
+          @if (isLoading()) {
+            {{ 'COMMON.STATUS.LOADING' | translate }}
+          } @else {
+            {{ 'COMMON.ACTIONS.SAVE' | translate }}
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

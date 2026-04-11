@@ -15,7 +15,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     { provide: API_BASE_URL, useValue: environment.apiUrl },
-    provideTranslateService({ defaultLanguage: 'en' }),
+    provideTranslateService({ defaultLanguage: 'es' }),
     provideTranslateHttpLoader()
   ]
 };
