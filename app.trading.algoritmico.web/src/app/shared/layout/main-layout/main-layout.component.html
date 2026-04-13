@@ -4,10 +4,9 @@
   <aside class="l-sidebar">
     <div class="l-sidebar__header">
       <div class="l-sidebar__logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linejoin="round"/>
-          <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
+          <polyline points="4,22 9,18 13,24 18,10 22,16 28,8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="28" cy="8" r="2" fill="#22c55e"/>
         </svg>
         @if (!sidebarCollapsed()) {
           <span class="l-sidebar__app-name">BENT</span>
@@ -100,9 +99,7 @@
           (click)="toggleSqx()"
           [class.l-sidebar__nav-item--expanded]="sqxExpanded()"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-          </svg>
+          <img src="/assets/images/sqx-logo.jpg" alt="SQX" width="20" height="20" class="l-sidebar__nav-icon-img" />
           @if (!sidebarCollapsed()) {
             <span class="l-sidebar__nav-label">SQX</span>
             <svg class="l-sidebar__chevron" [class.l-sidebar__chevron--open]="sqxExpanded()"

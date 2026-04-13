@@ -20,6 +20,9 @@ public class BatchStage : BaseEntity
     /// <summary>Stage ordering for pipeline sequencing (mirrors enum ordinal)</summary>
     public int Order { get; set; }
 
+    /// <summary>When this stage was set to Running</summary>
+    public DateTime? RunningStartedAt { get; set; }
+
     /// <summary>Optional notes about this stage run</summary>
     public string? Notes { get; set; }
 

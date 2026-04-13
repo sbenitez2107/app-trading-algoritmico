@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
+- Drag & drop reordering for asset cards
 - Risk management dashboard
 - Deployment tracker (demo/live accounts)
 - Prop firm challenge phase tracker (FTMO, The Trading Pits)
@@ -17,6 +18,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated KPI extraction from .sqx strategy files
 - Per-stage configuration for Strategy Workflow pipeline
 - Date tracking (start/end) per pipeline stage
+
+---
+
+## [0.3.1] - 2026-04-12
+
+### Added
+- **Pipeline status model**: Simplified to Pending → Running → Completed. Toggle buttons (▶/⏸) to start/stop running directly from the pipeline grid. `RunningStartedAt` timestamp tracked.
+- **Edit/Delete stage**: Edit strategy counts and delete stages (rollback to previous) for non-completed stages. `DELETE /api/batches/{batchId}/stages/{stageId}` endpoint.
+- **Pipeline totals row**: Summary row showing input/passed totals per stage with pass rate percentages.
+- **Cell display format**: Builder shows total created, other stages show `input / passed` with % rate.
+- **Asset overview redesign**: Cards grouped by asset with timeframe rows. Support for multiple timeframes per asset.
+- **Session expiry redirect**: Auth interceptor now detects 401 responses and redirects to login automatically.
+- **SQX logo**: Strategy Quant official logo in sidebar, replacing placeholder shield icon.
+- **Favicon**: New trading chart pulse SVG favicon. Title updated to "BENT — Trading Automatico".
+- **Pre-commit skill**: `/pre-commit` checklist for code review before commits.
+- **Optional ZIP upload**: Strategy count can be entered manually without uploading .sqx files (for data migration).
+- **Advance with 0**: Pipeline stages can be advanced with 0 strategies.
+- **Advance modal**: Shows batch name for context.
+
+### Changed
+- Timeframes reduced to M15, M30, H1, H4 only.
+- Pending stage cells now have amber background.
+- Advance stage icon changed to ⏭ (skip forward) to differentiate from ▶ (run).
+- Login page footer and security badges removed.
+
+### Fixed
+- Auth interceptor handles 401 and redirects to login.
+- i18n keys resolved correctly after consolidating to `public/assets/i18n/`.
 
 ---
 

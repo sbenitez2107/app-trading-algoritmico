@@ -99,10 +99,12 @@
       "BATCH_NAME_PLACEHOLDER": "e.g. Run March 2026",
       "SELECT_BB": "Building Block",
       "SELECT_BB_PLACEHOLDER": "Select a building block...",
-      "ZIP_FILE": "Strategies ZIP (.zip with .sqx files)",
-      "FILE_REQUIRED": "Please select a ZIP file with strategies.",
+      "STRATEGY_COUNT": "Number of Strategies",
+      "STRATEGY_COUNT_PLACEHOLDER": "e.g. 500",
+      "ZIP_FILE_OPTIONAL": "Strategies ZIP (optional)",
+      "FILE_OR_COUNT_REQUIRED": "Enter a strategy count or upload a ZIP file.",
       "ADVANCE": "Advance Stage",
-      "ADVANCE_DESC": "Upload a ZIP with the strategies that passed this stage's filter.",
+      "ADVANCE_DESC": "Enter the number of strategies that passed, or upload a ZIP with the .sqx files.",
       "BACK_TO_PIPELINE": "Back to Pipeline",
       "INPUT": "Input",
       "OUTPUT": "Output",
@@ -111,13 +113,20 @@
       "ALL_STRATEGIES": "All Strategies",
       "STRATEGY_NAME": "Strategy",
       "VIEW_LOGIC": "View trading logic",
+      "TOTALS": "Totals",
+      "START_RUNNING": "Start running",
+      "STOP_RUNNING": "Stop running",
+      "EDIT_STAGE": "Edit Stage",
+      "DELETE_STAGE": "Delete Stage",
+      "DELETE_STAGE_CONFIRM": "This will delete this stage and revert to the previous one. This action cannot be undone.",
       "NEW_ASSET": "New Asset",
       "ASSET_NAME": "Asset Name",
       "ASSET_NAME_PLACEHOLDER": "e.g. Oro, Nasdaq, DAX",
       "ASSET_SYMBOL": "Symbol",
       "ASSET_SYMBOL_PLACEHOLDER": "e.g. XAUUSD, NQ, DE40",
       "AVAILABLE_ASSETS": "Available Assets",
-      "SELECT_TF": "Select timeframe to start:"
+      "SELECT_TF": "Select timeframe to start:",
+      "ADD_TIMEFRAME": "Add timeframe:"
     }
   }
 }

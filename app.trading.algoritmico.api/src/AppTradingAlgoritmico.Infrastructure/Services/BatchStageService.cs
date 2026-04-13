@@ -1,5 +1,6 @@
 using AppTradingAlgoritmico.Application.DTOs.BatchStages;
 using AppTradingAlgoritmico.Application.Interfaces;
+using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,9 +15,7 @@ public sealed class BatchStageService(AppDbContext db) : IBatchStageService
             .FirstOrDefaultAsync(x => x.Id == stageId && x.BatchId == batchId, ct)
             ?? throw new KeyNotFoundException($"BatchStage {stageId} not found for batch {batchId}.");
 
-        return new BatchStageDetailDto(
-            stage.Id, stage.StageType, stage.Status,
-            stage.InputCount, stage.OutputCount, stage.Notes, stage.CreatedAt);
+        return ToDto(stage);
     }
 
     public async Task<BatchStageDetailDto> UpdateAsync(Guid batchId, Guid stageId, UpdateBatchStageDto dto, CancellationToken ct = default)
@@ -26,7 +25,17 @@ public sealed class BatchStageService(AppDbContext db) : IBatchStageService
             ?? throw new KeyNotFoundException($"BatchStage {stageId} not found for batch {batchId}.");
 
         if (dto.Status.HasValue)
-            stage.Status = dto.Status.Value;
+        {
+            var newStatus = dto.Status.Value;
+
+            // Track RunningStartedAt
+            if (newStatus == PipelineStageStatus.Running && stage.Status == PipelineStageStatus.Pending)
+                stage.RunningStartedAt = DateTime.UtcNow;
+            else if (newStatus == PipelineStageStatus.Pending)
+                stage.RunningStartedAt = null;
+
+            stage.Status = newStatus;
+        }
 
         if (dto.Notes is not null)
             stage.Notes = dto.Notes;
@@ -37,8 +46,11 @@ public sealed class BatchStageService(AppDbContext db) : IBatchStageService
         stage.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
-        return new BatchStageDetailDto(
-            stage.Id, stage.StageType, stage.Status,
-            stage.InputCount, stage.OutputCount, stage.Notes, stage.CreatedAt);
+        return ToDto(stage);
     }
+
+    private static BatchStageDetailDto ToDto(Domain.Entities.BatchStage stage) =>
+        new(stage.Id, stage.StageType, stage.Status,
+            stage.InputCount, stage.OutputCount, stage.Notes,
+            stage.RunningStartedAt, stage.CreatedAt);
 }

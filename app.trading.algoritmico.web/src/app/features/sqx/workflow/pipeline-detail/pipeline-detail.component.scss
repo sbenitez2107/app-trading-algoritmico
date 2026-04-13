@@ -111,6 +111,35 @@
     }
   }
 
+  &__row--totals {
+    background: var(--bg-surface-2);
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  &__cell--totals {
+    font-weight: 700;
+  }
+
+  &__totals-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  &__totals-value {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  &__totals-rate {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-primary);
+  }
+
   &__bb-name {
     font-weight: 600;
     color: var(--text-main);
@@ -122,9 +151,14 @@
     color: var(--text-muted);
   }
 
-  &__status-icon {
-    font-size: 0.875rem;
+  &__status-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
     margin-bottom: 0.125rem;
+
+    &.cell--pending { color: var(--text-muted); }
+    &.cell--running { color: #3b82f6; }
+    &.cell--completed { color: var(--color-gain); }
   }
 
   &__counts {
@@ -132,9 +166,41 @@
     color: var(--text-muted);
   }
 
+  &__pass-rate {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    opacity: 0.8;
+  }
+
   &__empty {
     color: var(--text-muted);
     font-size: 0.75rem;
+  }
+
+  &__cell-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+
+  &__mini-btn {
+    font-size: 0.625rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    opacity: 0.5;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+
+    &:hover { opacity: 1; background: var(--bg-surface-2); }
+    &--run { color: #3b82f6; &:hover { background: rgba(59, 130, 246, 0.15); } }
+    &--pause { color: var(--color-warning); &:hover { background: rgba(245, 158, 11, 0.15); } }
+    &--danger:hover { background: rgba(239, 68, 68, 0.15); }
   }
 
   &__advance-btn {
@@ -156,8 +222,86 @@
 
 // Status cell colors
 .cell {
-  &--pending { }
-  &--in-progress { background: rgba(245, 158, 11, 0.06); }
+  &--pending { background: rgba(245, 158, 11, 0.08); }
+  &--running { background: rgba(59, 130, 246, 0.08); }
   &--completed { background: rgba(34, 197, 94, 0.06); }
   &--empty { }
+}
+
+// Inline modals
+.pl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.pl-modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-lg);
+  width: 100%;
+  max-width: 24rem;
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-main);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  &__subtitle {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-md);
+  }
+
+  &__warning {
+    font-size: 0.8125rem;
+    color: var(--color-loss);
+    margin-bottom: var(--spacing-md);
+  }
+
+  &__field { margin-bottom: var(--spacing-md); }
+
+  &__label {
+    display: block;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: var(--spacing-xs);
+  }
+
+  &__input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    font-size: 0.875rem;
+    &:focus { outline: none; border-color: var(--color-primary); }
+  }
+
+  &__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+  }
+
+  &__btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+
+    &--cancel { background: var(--bg-surface-2); color: var(--text-main); &:hover { background: var(--border-color); } }
+    &--submit { background: var(--color-primary); color: #fff; &:hover { background: var(--color-primary-dark); } }
+    &--danger { background: var(--color-loss); color: #fff; &:hover { opacity: 0.9; } }
+  }
 }

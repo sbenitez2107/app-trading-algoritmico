@@ -31,10 +31,25 @@
         />
       </div>
 
-      <!-- ZIP File -->
+      <!-- Strategy Count (manual) -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="batch-count">
+          {{ 'SQX.WORKFLOW.STRATEGY_COUNT' | translate }}
+        </label>
+        <input
+          id="batch-count"
+          type="number"
+          min="1"
+          class="modal-field__input"
+          formControlName="strategyCount"
+          [placeholder]="'SQX.WORKFLOW.STRATEGY_COUNT_PLACEHOLDER' | translate"
+        />
+      </div>
+
+      <!-- ZIP File (optional) -->
       <div class="modal-field">
         <label class="modal-field__label" for="batch-file">
-          {{ 'SQX.WORKFLOW.ZIP_FILE' | translate }}
+          {{ 'SQX.WORKFLOW.ZIP_FILE_OPTIONAL' | translate }}
         </label>
         <input
           id="batch-file"

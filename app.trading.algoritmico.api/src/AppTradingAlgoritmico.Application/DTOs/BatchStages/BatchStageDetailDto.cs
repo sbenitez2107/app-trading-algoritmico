@@ -10,5 +10,6 @@ public record BatchStageDetailDto(
     int InputCount,
     int OutputCount,
     string? Notes,
+    DateTime? RunningStartedAt,
     DateTime CreatedAt
 );

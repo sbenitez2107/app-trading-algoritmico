@@ -1,42 +1,64 @@
 <div class="modal-backdrop" (click)="onBackdropClick($event)">
   <div class="modal-dialog" role="dialog">
     <h3 class="modal-dialog__title">{{ 'SQX.WORKFLOW.ADVANCE' | translate }}</h3>
+    @if (batchName) {
+      <p class="modal-dialog__batch-name">{{ batchName }}</p>
+    }
     <p class="modal-dialog__desc">{{ 'SQX.WORKFLOW.ADVANCE_DESC' | translate }}</p>
 
-    <!-- ZIP File -->
-    <div class="modal-field">
-      <label class="modal-field__label" for="advance-file">
-        {{ 'SQX.WORKFLOW.ZIP_FILE' | translate }}
-      </label>
-      <input
-        id="advance-file"
-        type="file"
-        class="modal-field__file"
-        accept=".zip"
-        (change)="onFileChange($event)"
-      />
-      @if (selectedFile()) {
-        <span class="modal-field__file-info">{{ selectedFile()!.name }}</span>
-      }
-    </div>
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
-    <!-- Error -->
-    @if (errorMessage()) {
-      <div class="modal-error">{{ errorMessage()! | translate }}</div>
-    }
+      <!-- Strategy Count (manual) -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="advance-count">
+          {{ 'SQX.WORKFLOW.STRATEGY_COUNT' | translate }}
+        </label>
+        <input
+          id="advance-count"
+          type="number"
+          min="0"
+          class="modal-field__input"
+          formControlName="strategyCount"
+          [placeholder]="'SQX.WORKFLOW.STRATEGY_COUNT_PLACEHOLDER' | translate"
+        />
+      </div>
 
-    <!-- Actions -->
-    <div class="modal-actions">
-      <button type="button" class="modal-btn modal-btn--cancel" (click)="cancelled.emit()">
-        {{ 'COMMON.ACTIONS.CANCEL' | translate }}
-      </button>
-      <button class="modal-btn modal-btn--submit" (click)="onSubmit()" [disabled]="isLoading()">
-        @if (isLoading()) {
-          {{ 'COMMON.STATUS.LOADING' | translate }}
-        } @else {
-          {{ 'SQX.WORKFLOW.ADVANCE' | translate }}
+      <!-- ZIP File (optional) -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="advance-file">
+          {{ 'SQX.WORKFLOW.ZIP_FILE_OPTIONAL' | translate }}
+        </label>
+        <input
+          id="advance-file"
+          type="file"
+          class="modal-field__file"
+          accept=".zip"
+          (change)="onFileChange($event)"
+        />
+        @if (selectedFile()) {
+          <span class="modal-field__file-info">{{ selectedFile()!.name }}</span>
         }
-      </button>
-    </div>
+      </div>
+
+      <!-- Error -->
+      @if (errorMessage()) {
+        <div class="modal-error">{{ errorMessage()! | translate }}</div>
+      }
+
+      <!-- Actions -->
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn--cancel" (click)="cancelled.emit()">
+          {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+        </button>
+        <button type="submit" class="modal-btn modal-btn--submit" [disabled]="isLoading()">
+          @if (isLoading()) {
+            {{ 'COMMON.STATUS.LOADING' | translate }}
+          } @else {
+            {{ 'SQX.WORKFLOW.ADVANCE' | translate }}
+          }
+        </button>
+      </div>
+
+    </form>
   </div>
 </div>

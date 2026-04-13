@@ -41,13 +41,12 @@ export const STAGE_TYPE_LABELS: Record<number, string> = {
 
 export const STAGE_STATUS_LABELS: Record<number, string> = {
   0: 'Pending',
-  1: 'In Progress',
+  1: 'Running',
   2: 'Completed'
 };
 
 export const TIMEFRAME_LABELS: Record<number, string> = {
-  0: 'M1', 1: 'M5', 2: 'M15', 3: 'M30',
-  4: 'H1', 5: 'H4', 6: 'D1', 7: 'W1', 8: 'MN'
+  2: 'M15', 3: 'M30', 4: 'H1', 5: 'H4'
 };
 
 @Injectable({ providedIn: 'root' })
@@ -66,19 +65,25 @@ export class BatchService {
     return this.http.get<BatchDto>(`${this.base}/${id}`);
   }
 
-  create(dto: CreateBatchDto, file: File): Observable<BatchDto> {
+  create(dto: CreateBatchDto, file?: File, strategyCount?: number): Observable<BatchDto> {
     const fd = new FormData();
     fd.append('assetId', dto.assetId);
     fd.append('timeframe', dto.timeframe.toString());
     fd.append('buildingBlockId', dto.buildingBlockId);
     if (dto.name) fd.append('name', dto.name);
-    fd.append('file', file, file.name);
+    if (file) fd.append('file', file, file.name);
+    if (strategyCount !== undefined) fd.append('strategyCount', strategyCount.toString());
     return this.http.post<BatchDto>(this.base, fd);
   }
 
-  advance(batchId: string, file: File): Observable<BatchDto> {
+  advance(batchId: string, file?: File, strategyCount?: number): Observable<BatchDto> {
     const fd = new FormData();
-    fd.append('file', file, file.name);
+    if (file) fd.append('file', file, file.name);
+    if (strategyCount !== undefined) fd.append('strategyCount', strategyCount.toString());
     return this.http.post<BatchDto>(`${this.base}/${batchId}/advance`, fd);
+  }
+
+  rollbackStage(batchId: string, stageId: string): Observable<BatchDto> {
+    return this.http.delete<BatchDto>(`${this.base}/${batchId}/stages/${stageId}`);
   }
 }

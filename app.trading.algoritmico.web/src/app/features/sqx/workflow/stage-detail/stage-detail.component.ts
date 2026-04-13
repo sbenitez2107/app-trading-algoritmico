@@ -97,7 +97,7 @@ export class StageDetailComponent {
   getStatusClass(status: number): string {
     switch (status) {
       case 0: return 'sd-status--pending';
-      case 1: return 'sd-status--in-progress';
+      case 1: return 'sd-status--running';
       case 2: return 'sd-status--completed';
       default: return '';
     }

@@ -31,7 +31,8 @@ export class BatchCreateModalComponent {
 
   form = this.fb.group({
     buildingBlockId: ['', Validators.required],
-    name: ['']
+    name: [''],
+    strategyCount: [null as number | null, [Validators.min(1)]]
   });
 
   ngOnInit(): void {
@@ -46,9 +47,16 @@ export class BatchCreateModalComponent {
   }
 
   onSubmit(): void {
-    if (this.form.invalid || !this.selectedFile()) {
+    if (this.form.invalid) {
       this.form.markAllAsTouched();
-      if (!this.selectedFile()) this.errorMessage.set('SQX.WORKFLOW.FILE_REQUIRED');
+      return;
+    }
+
+    const file = this.selectedFile() ?? undefined;
+    const count = this.form.value.strategyCount ?? undefined;
+
+    if (!file && !count) {
+      this.errorMessage.set('SQX.WORKFLOW.FILE_OR_COUNT_REQUIRED');
       return;
     }
 
@@ -62,7 +70,8 @@ export class BatchCreateModalComponent {
         buildingBlockId: this.form.value.buildingBlockId!,
         name: this.form.value.name || undefined
       },
-      this.selectedFile()!
+      file,
+      count
     ).subscribe({
       next: () => {
         this.isLoading.set(false);

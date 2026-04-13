@@ -36,6 +36,22 @@
         <div class="pl-grid__cell pl-grid__cell--actions">{{ 'COMMON.ACTIONS.EDIT' | translate }}</div>
       </div>
 
+      <!-- Totals row -->
+      <div class="pl-grid__row pl-grid__row--totals">
+        <div class="pl-grid__cell pl-grid__cell--label">
+          <span class="pl-grid__totals-label">{{ 'SQX.WORKFLOW.TOTALS' | translate }}</span>
+        </div>
+        @for (stageType of stageTypes; track stageType) {
+          <div class="pl-grid__cell pl-grid__cell--stage pl-grid__cell--totals">
+            <span class="pl-grid__totals-value">{{ getStageTotalDisplay(stageType) }}</span>
+            @if (getStageTotalPassRate(stageType)) {
+              <span class="pl-grid__totals-rate">{{ getStageTotalPassRate(stageType) }}</span>
+            }
+          </div>
+        }
+        <div class="pl-grid__cell pl-grid__cell--actions"></div>
+      </div>
+
       <!-- Batch rows -->
       @for (batch of batches(); track batch.id) {
         <div class="pl-grid__row">
@@ -57,8 +73,32 @@
               (click)="stage && navigateToStage(batch, stage)"
             >
               @if (stage) {
-                <span class="pl-grid__status-icon">{{ getStatusIcon(stage) }}</span>
-                <span class="pl-grid__counts">{{ stage.inputCount }} &rarr; {{ stage.outputCount }}</span>
+                <span class="pl-grid__status-label" [class]="getStatusClass(stage)">{{ getStatusIcon(stage) }} {{ getStatusLabel(stage) }}</span>
+                @if (stage.stageType === 0) {
+                  <span class="pl-grid__counts">{{ getCellCounts(batch, stage).passed }}</span>
+                } @else {
+                  <span class="pl-grid__counts">{{ getCellCounts(batch, stage).input }} / {{ getCellCounts(batch, stage).passed }}</span>
+                }
+                @if (getCellPassRate(batch, stage)) {
+                  <span class="pl-grid__pass-rate">{{ getCellPassRate(batch, stage) }}</span>
+                }
+                <div class="pl-grid__cell-actions">
+                  @if (canToggleRunning(stage)) {
+                    <button
+                      class="pl-grid__mini-btn"
+                      [class.pl-grid__mini-btn--run]="stage.status === 0"
+                      [class.pl-grid__mini-btn--pause]="stage.status === 1"
+                      (click)="toggleRunning(batch, stage, $event)"
+                      [title]="stage.status === 0 ? ('SQX.WORKFLOW.START_RUNNING' | translate) : ('SQX.WORKFLOW.STOP_RUNNING' | translate)"
+                    >{{ stage.status === 0 ? '▶' : '⏸' }}</button>
+                  }
+                  @if (canEditOrDelete(stage)) {
+                    <button class="pl-grid__mini-btn" (click)="openEditStage(batch, stage, $event)" title="Edit">✏️</button>
+                  }
+                  @if (canDeleteStage(stage)) {
+                    <button class="pl-grid__mini-btn pl-grid__mini-btn--danger" (click)="confirmDeleteStage(batch, stage, $event)" title="Delete">🗑️</button>
+                  }
+                </div>
               } @else {
                 <span class="pl-grid__empty">—</span>
               }
@@ -68,9 +108,9 @@
           <!-- Actions -->
           <div class="pl-grid__cell pl-grid__cell--actions">
             @if (canAdvance(batch)) {
-              <button class="pl-grid__advance-btn" (click)="openAdvanceModal(batch.id)"
+              <button class="pl-grid__advance-btn" (click)="openAdvanceModal(batch)"
                 [title]="'SQX.WORKFLOW.ADVANCE' | translate">
-                &#9654;
+                ⏭
               </button>
             }
           </div>
@@ -100,12 +140,48 @@
   }
 
   <!-- Advance Stage Modal -->
-  @if (advanceBatchId()) {
+  @if (advanceBatch()) {
     <app-advance-stage-modal
-      [batchId]="advanceBatchId()!"
+      [batchId]="advanceBatch()!.id"
+      [batchName]="advanceBatch()!.buildingBlockName + (advanceBatch()!.name ? ' — ' + advanceBatch()!.name : '')"
       (advanced)="onBatchAdvanced()"
       (cancelled)="closeAdvanceModal()"
     />
+  }
+
+  <!-- Edit Stage Modal -->
+  @if (editingStage()) {
+    <div class="pl-modal-backdrop" (click)="cancelEditStage()">
+      <div class="pl-modal" (click)="$event.stopPropagation()">
+        <h3 class="pl-modal__title">{{ 'SQX.WORKFLOW.EDIT_STAGE' | translate }}</h3>
+        <p class="pl-modal__subtitle">{{ editingStage()!.batch.buildingBlockName }} — {{ stageLabels[editingStage()!.stage.stageType] }}</p>
+        <div class="pl-modal__field">
+          <label class="pl-modal__label">{{ 'SQX.WORKFLOW.STRATEGY_COUNT' | translate }}</label>
+          <input type="number" min="0" class="pl-modal__input"
+            [value]="editCount()"
+            (input)="editCount.set(+$any($event.target).value)" />
+        </div>
+        <div class="pl-modal__actions">
+          <button class="pl-modal__btn pl-modal__btn--cancel" (click)="cancelEditStage()">{{ 'COMMON.ACTIONS.CANCEL' | translate }}</button>
+          <button class="pl-modal__btn pl-modal__btn--submit" (click)="saveEditStage()">{{ 'COMMON.ACTIONS.SAVE' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Stage Confirmation -->
+  @if (deleteTarget()) {
+    <div class="pl-modal-backdrop" (click)="cancelDeleteStage()">
+      <div class="pl-modal" (click)="$event.stopPropagation()">
+        <h3 class="pl-modal__title">{{ 'SQX.WORKFLOW.DELETE_STAGE' | translate }}</h3>
+        <p class="pl-modal__subtitle">{{ deleteTarget()!.batch.buildingBlockName }} — {{ stageLabels[deleteTarget()!.stage.stageType] }}</p>
+        <p class="pl-modal__warning">{{ 'SQX.WORKFLOW.DELETE_STAGE_CONFIRM' | translate }}</p>
+        <div class="pl-modal__actions">
+          <button class="pl-modal__btn pl-modal__btn--cancel" (click)="cancelDeleteStage()">{{ 'COMMON.ACTIONS.CANCEL' | translate }}</button>
+          <button class="pl-modal__btn pl-modal__btn--danger" (click)="executeDeleteStage()">{{ 'COMMON.ACTIONS.DELETE' | translate }}</button>
+        </div>
+      </div>
+    </div>
   }
 
 </div>

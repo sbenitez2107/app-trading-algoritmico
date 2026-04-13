@@ -10,6 +10,7 @@ export interface BatchStageDetailDto {
   inputCount: number;
   outputCount: number;
   notes: string | null;
+  runningStartedAt: string | null;
   createdAt: string;
 }
 

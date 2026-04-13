@@ -7,14 +7,19 @@ import { forkJoin } from 'rxjs';
 import { BatchService, BatchDto, STAGE_TYPE_LABELS, STAGE_STATUS_LABELS, TIMEFRAME_LABELS } from '../../../../core/services/batch.service';
 import { AssetService, AssetDto } from '../../../../core/services/asset.service';
 
+interface TimeframeGroup {
+  timeframe: number;
+  batchCount: number;
+  stagesSummary: { type: number; count: number; hasRunning: boolean; hasCompleted: boolean }[];
+  activeBatch: BatchDto | null;
+}
+
 interface AssetGroup {
   assetId: string;
   assetName: string;
   assetSymbol: string;
-  timeframe: number;
-  batches: BatchDto[];
-  stagesSummary: { type: number; count: number; hasInProgress: boolean; hasCompleted: boolean }[];
-  activeBatch: BatchDto | null;
+  timeframes: TimeframeGroup[];
+  totalBatches: number;
 }
 
 @Component({
@@ -55,57 +60,68 @@ export class AssetOverviewComponent {
 
   readonly assetGroups = computed<AssetGroup[]>(() => {
     const batchList = this.batches();
-    const groups = new Map<string, AssetGroup>();
+    const assetMap = new Map<string, AssetGroup>();
 
     for (const batch of batchList) {
-      const key = `${batch.assetId}-${batch.timeframe}`;
-      if (!groups.has(key)) {
-        groups.set(key, {
+      // Group by asset
+      if (!assetMap.has(batch.assetId)) {
+        assetMap.set(batch.assetId, {
           assetId: batch.assetId,
           assetName: batch.assetName,
           assetSymbol: batch.assetSymbol,
-          timeframe: batch.timeframe,
-          batches: [],
-          stagesSummary: this.stageTypes.map(t => ({ type: t, count: 0, hasInProgress: false, hasCompleted: false })),
-          activeBatch: null
+          timeframes: [],
+          totalBatches: 0
         });
       }
-      const group = groups.get(key)!;
-      group.batches.push(batch);
+      const asset = assetMap.get(batch.assetId)!;
+      asset.totalBatches++;
+
+      // Group by timeframe within asset
+      let tfGroup = asset.timeframes.find(t => t.timeframe === batch.timeframe);
+      if (!tfGroup) {
+        tfGroup = {
+          timeframe: batch.timeframe,
+          batchCount: 0,
+          stagesSummary: this.stageTypes.map(t => ({ type: t, count: 0, hasRunning: false, hasCompleted: false })),
+          activeBatch: null
+        };
+        asset.timeframes.push(tfGroup);
+      }
+      tfGroup.batchCount++;
 
       for (const stage of batch.stages) {
-        const summary = group.stagesSummary.find(s => s.type === stage.stageType);
+        const summary = tfGroup.stagesSummary.find(s => s.type === stage.stageType);
         if (summary) {
           summary.count++;
-          if (stage.status === 1) summary.hasInProgress = true;
+          if (stage.status === 1) summary.hasRunning = true;
           if (stage.status === 2) summary.hasCompleted = true;
         }
       }
+
+      // Track active batch
+      if (!tfGroup.activeBatch || batch.stages.some(s => s.status === 1)) {
+        tfGroup.activeBatch = batch;
+      }
     }
 
-    for (const group of groups.values()) {
-      group.activeBatch = group.batches.find(b =>
-        b.stages.some(s => s.status === 1)
-      ) ?? group.batches[0] ?? null;
+    // Sort timeframes within each asset
+    for (const asset of assetMap.values()) {
+      asset.timeframes.sort((a, b) => a.timeframe - b.timeframe);
     }
 
-    return [...groups.values()].sort((a, b) => a.assetName.localeCompare(b.assetName));
+    return [...assetMap.values()].sort((a, b) => a.assetName.localeCompare(b.assetName));
   });
 
   ngOnInit(): void {
     this.loadData();
   }
 
-  navigateToDetail(group: AssetGroup): void {
-    this.router.navigate(['/sqx/workflow', group.assetId, group.timeframe]);
+  navigateToTimeframe(assetId: string, timeframe: number): void {
+    this.router.navigate(['/sqx/workflow', assetId, timeframe]);
   }
 
-  navigateToAsset(asset: AssetDto, timeframe: number): void {
-    this.router.navigate(['/sqx/workflow', asset.id, timeframe]);
-  }
-
-  getStageDotClass(summary: { count: number; hasInProgress: boolean; hasCompleted: boolean }): string {
-    if (summary.hasInProgress) return 'wf-dot--in-progress';
+  getStageDotClass(summary: { count: number; hasRunning: boolean; hasCompleted: boolean }): string {
+    if (summary.hasRunning) return 'wf-dot--running';
     if (summary.hasCompleted) return 'wf-dot--completed';
     if (summary.count > 0) return 'wf-dot--has-data';
     return 'wf-dot--empty';
@@ -113,8 +129,8 @@ export class AssetOverviewComponent {
 
   getActiveStageLabel(batch: BatchDto | null): string {
     if (!batch) return '—';
-    const inProgress = batch.stages.find(s => s.status === 1);
-    if (inProgress) return this.stageLabels[inProgress.stageType] ?? '—';
+    const running = batch.stages.find(s => s.status === 1);
+    if (running) return this.stageLabels[running.stageType] ?? '—';
     const latest = [...batch.stages].sort((a, b) => b.stageType - a.stageType)[0];
     return latest ? this.stageLabels[latest.stageType] ?? '—' : '—';
   }

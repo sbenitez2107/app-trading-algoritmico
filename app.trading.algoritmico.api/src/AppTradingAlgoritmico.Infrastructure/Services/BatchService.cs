@@ -1,4 +1,5 @@
 using AppTradingAlgoritmico.Application.DTOs.Batches;
+using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Entities;
 using AppTradingAlgoritmico.Domain.Enums;
@@ -43,11 +44,12 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
     }
 
     /// <summary>
-    /// Creates a new batch in the Builder stage with strategies parsed from the uploaded ZIP.
+    /// Creates a new batch in the Builder stage.
+    /// Either a ZIP with .sqx files or a manual strategy count must be provided.
     /// </summary>
-    public async Task<BatchDto> CreateAsync(CreateBatchDto dto, Stream zipFile, CancellationToken ct = default)
+    public async Task<BatchDto> CreateAsync(
+        CreateBatchDto dto, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default)
     {
-        // Validate references
         var assetExists = await db.Assets.AnyAsync(a => a.Id == dto.AssetId, ct);
         if (!assetExists)
             throw new KeyNotFoundException($"Asset {dto.AssetId} not found.");
@@ -56,12 +58,9 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         if (!bbExists)
             throw new KeyNotFoundException($"BuildingBlock {dto.BuildingBlockId} not found.");
 
-        // Parse strategies from ZIP
-        var parsedStrategies = await parser.ParseZipAsync(zipFile, ct);
-        if (parsedStrategies.Count == 0)
-            throw new ArgumentException("ZIP file contains no valid .sqx strategy files.");
+        // Parse ZIP or use manual count
+        var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
 
-        // Create batch
         var batch = new Batch
         {
             Name = dto.Name,
@@ -71,23 +70,22 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             CreatedAt = DateTime.UtcNow
         };
 
-        // Create Builder stage with strategies
         var builderStage = new BatchStage
         {
             StageType = PipelineStageType.Builder,
-            Status = PipelineStageStatus.InProgress,
-            InputCount = parsedStrategies.Count,
-            OutputCount = parsedStrategies.Count,
+            Status = PipelineStageStatus.Pending,
+            InputCount = count,
+            OutputCount = count,
             Order = (int)PipelineStageType.Builder,
             CreatedAt = DateTime.UtcNow
         };
 
-        foreach (var parsed in parsedStrategies)
+        foreach (var s in strategies)
         {
             builderStage.Strategies.Add(new Strategy
             {
-                Name = parsed.Name,
-                Pseudocode = parsed.Pseudocode,
+                Name = s.Name,
+                Pseudocode = s.Pseudocode,
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -96,61 +94,55 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         db.Batches.Add(batch);
         await db.SaveChangesAsync(ct);
 
-        // Reload with navigation properties
         return await GetByIdAsync(batch.Id, ct);
     }
 
     /// <summary>
-    /// Advances a batch to the next pipeline stage with strategies from the uploaded ZIP.
+    /// Advances a batch to the next pipeline stage.
+    /// Either a ZIP with .sqx files or a manual strategy count must be provided.
     /// </summary>
-    public async Task<BatchDto> AdvanceAsync(Guid batchId, Stream zipFile, CancellationToken ct = default)
+    public async Task<BatchDto> AdvanceAsync(
+        Guid batchId, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default)
     {
         var batch = await db.Batches
             .Include(b => b.Stages)
             .FirstOrDefaultAsync(b => b.Id == batchId, ct)
             ?? throw new KeyNotFoundException($"Batch {batchId} not found.");
 
-        // Find the latest stage
         var currentStage = batch.Stages.OrderByDescending(s => s.Order).FirstOrDefault()
             ?? throw new InvalidOperationException("Batch has no stages.");
 
-        // Determine next stage type
-        var nextStageType = GetNextStageType(currentStage.StageType);
-        if (nextStageType is null)
-            throw new InvalidOperationException($"Batch is already at the final stage ({currentStage.StageType}).");
+        var nextStageType = GetNextStageType(currentStage.StageType)
+            ?? throw new InvalidOperationException($"Batch is already at the final stage ({currentStage.StageType}).");
 
-        // Check no duplicate stage
-        if (batch.Stages.Any(s => s.StageType == nextStageType.Value))
-            throw new InvalidOperationException($"Batch already has a {nextStageType.Value} stage.");
+        if (batch.Stages.Any(s => s.StageType == nextStageType))
+            throw new InvalidOperationException($"Batch already has a {nextStageType} stage.");
 
-        // Parse strategies from ZIP
-        var parsedStrategies = await parser.ParseZipAsync(zipFile, ct);
-        if (parsedStrategies.Count == 0)
-            throw new ArgumentException("ZIP file contains no valid .sqx strategy files.");
+        var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
 
         // Mark current stage as completed
         currentStage.Status = PipelineStageStatus.Completed;
-        currentStage.OutputCount = parsedStrategies.Count;
+        currentStage.OutputCount = count;
         currentStage.UpdatedAt = DateTime.UtcNow;
 
         // Create new stage
         var newStage = new BatchStage
         {
             BatchId = batchId,
-            StageType = nextStageType.Value,
-            Status = PipelineStageStatus.InProgress,
-            InputCount = parsedStrategies.Count,
-            OutputCount = parsedStrategies.Count,
-            Order = (int)nextStageType.Value,
+            StageType = nextStageType,
+            Status = PipelineStageStatus.Pending,
+            InputCount = count,
+            OutputCount = count,
+            Order = (int)nextStageType,
             CreatedAt = DateTime.UtcNow
         };
 
-        foreach (var parsed in parsedStrategies)
+        foreach (var s in strategies)
         {
             newStage.Strategies.Add(new Strategy
             {
-                Name = parsed.Name,
-                Pseudocode = parsed.Pseudocode,
+                Name = s.Name,
+                Pseudocode = s.Pseudocode,
                 CreatedAt = DateTime.UtcNow
             });
         }
@@ -158,7 +150,66 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         db.BatchStages.Add(newStage);
         await db.SaveChangesAsync(ct);
 
-        // Reload with navigation properties
+        return await GetByIdAsync(batchId, ct);
+    }
+
+    /// <summary>
+    /// Resolves strategies from ZIP file or manual count. At least one must be provided.
+    /// </summary>
+    private async Task<(int count, IList<ParsedStrategyDto> strategies)> ResolveStrategies(
+        Stream? zipFile, int? strategyCount, CancellationToken ct)
+    {
+        if (zipFile is not null)
+        {
+            var parsed = await parser.ParseZipAsync(zipFile, ct);
+            if (parsed.Count == 0)
+                throw new ArgumentException("ZIP file contains no valid .sqx strategy files.");
+            return (parsed.Count, parsed);
+        }
+
+        if (strategyCount.HasValue && strategyCount.Value >= 0)
+            return (strategyCount.Value, []);
+
+        throw new ArgumentException("Either a ZIP file with strategies or a strategy count must be provided.");
+    }
+
+    /// <summary>
+    /// Deletes a stage and reverts to the previous one. Only if stage is not Completed.
+    /// Cannot delete the Builder stage (first stage).
+    /// </summary>
+    public async Task<BatchDto> RollbackStageAsync(Guid batchId, Guid stageId, CancellationToken ct = default)
+    {
+        var batch = await db.Batches
+            .Include(b => b.Stages).ThenInclude(s => s.Strategies)
+            .FirstOrDefaultAsync(b => b.Id == batchId, ct)
+            ?? throw new KeyNotFoundException($"Batch {batchId} not found.");
+
+        var stage = batch.Stages.FirstOrDefault(s => s.Id == stageId)
+            ?? throw new KeyNotFoundException($"Stage {stageId} not found.");
+
+        if (stage.Status == PipelineStageStatus.Completed)
+            throw new InvalidOperationException("Cannot delete a completed stage.");
+
+        if (stage.StageType == PipelineStageType.Builder)
+            throw new InvalidOperationException("Cannot delete the Builder stage.");
+
+        // Find previous stage and revert it from Completed to Pending
+        var prevStage = batch.Stages
+            .Where(s => s.Order < stage.Order)
+            .OrderByDescending(s => s.Order)
+            .FirstOrDefault();
+
+        if (prevStage is not null)
+        {
+            prevStage.Status = PipelineStageStatus.Pending;
+            prevStage.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Remove the stage and its strategies
+        db.Strategies.RemoveRange(stage.Strategies);
+        db.BatchStages.Remove(stage);
+        await db.SaveChangesAsync(ct);
+
         return await GetByIdAsync(batchId, ct);
     }
 

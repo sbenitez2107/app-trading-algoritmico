@@ -41,20 +41,24 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
         }
     }
 
-    /// <summary>Creates a new batch in the Builder stage with strategies from a ZIP of .sqx files.</summary>
+    /// <summary>
+    /// Creates a new batch in the Builder stage.
+    /// Provide either a ZIP file with .sqx strategies or a manual strategyCount.
+    /// </summary>
     [HttpPost]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(BatchDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<BatchDto>> Create(
         [FromForm] CreateBatchDto dto,
-        [FromForm] IFormFile file,
+        [FromForm] IFormFile? file,
+        [FromForm] int? strategyCount,
         CancellationToken ct)
     {
-        using var stream = file.OpenReadStream();
+        Stream? stream = file?.OpenReadStream();
         try
         {
-            var result = await service.CreateAsync(dto, stream, ct);
+            var result = await service.CreateAsync(dto, stream, strategyCount, ct);
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
         catch (KeyNotFoundException ex)
@@ -66,9 +70,16 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
             logger.LogWarning("Batch creation failed: {Message}", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
+        finally
+        {
+            stream?.Dispose();
+        }
     }
 
-    /// <summary>Advances a batch to the next pipeline stage with strategies from a ZIP of .sqx files.</summary>
+    /// <summary>
+    /// Advances a batch to the next pipeline stage.
+    /// Provide either a ZIP file with .sqx strategies or a manual strategyCount.
+    /// </summary>
     [HttpPost("{id:guid}/advance")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(BatchDto), StatusCodes.Status200OK)]
@@ -76,13 +87,14 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BatchDto>> Advance(
         Guid id,
-        [FromForm] IFormFile file,
+        [FromForm] IFormFile? file,
+        [FromForm] int? strategyCount,
         CancellationToken ct)
     {
-        using var stream = file.OpenReadStream();
+        Stream? stream = file?.OpenReadStream();
         try
         {
-            var result = await service.AdvanceAsync(id, stream, ct);
+            var result = await service.AdvanceAsync(id, stream, strategyCount, ct);
             return Ok(result);
         }
         catch (KeyNotFoundException)
@@ -96,6 +108,32 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
         catch (ArgumentException ex)
         {
             logger.LogWarning("Batch advance failed: {Message}", ex.Message);
+            return BadRequest(new { message = ex.Message });
+        }
+        finally
+        {
+            stream?.Dispose();
+        }
+    }
+
+    /// <summary>Deletes a stage and reverts to the previous one. Only if not Completed.</summary>
+    [HttpDelete("{batchId:guid}/stages/{stageId:guid}")]
+    [ProducesResponseType(typeof(BatchDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BatchDto>> RollbackStage(Guid batchId, Guid stageId, CancellationToken ct)
+    {
+        try
+        {
+            var result = await service.RollbackStageAsync(batchId, stageId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
             return BadRequest(new { message = ex.Message });
         }
     }

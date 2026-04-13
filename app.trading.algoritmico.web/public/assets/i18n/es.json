@@ -99,10 +99,12 @@
       "BATCH_NAME_PLACEHOLDER": "ej. Corrida Marzo 2026",
       "SELECT_BB": "Building Block",
       "SELECT_BB_PLACEHOLDER": "Seleccioná un building block...",
-      "ZIP_FILE": "ZIP de Estrategias (.zip con archivos .sqx)",
-      "FILE_REQUIRED": "Seleccioná un archivo ZIP con estrategias.",
+      "STRATEGY_COUNT": "Cantidad de Estrategias",
+      "STRATEGY_COUNT_PLACEHOLDER": "ej. 500",
+      "ZIP_FILE_OPTIONAL": "ZIP de Estrategias (opcional)",
+      "FILE_OR_COUNT_REQUIRED": "Ingresá la cantidad de estrategias o subí un archivo ZIP.",
       "ADVANCE": "Avanzar Etapa",
-      "ADVANCE_DESC": "Subí un ZIP con las estrategias que pasaron el filtro de esta etapa.",
+      "ADVANCE_DESC": "Ingresá la cantidad de estrategias que pasaron, o subí un ZIP con los archivos .sqx.",
       "BACK_TO_PIPELINE": "Volver al Pipeline",
       "INPUT": "Entrada",
       "OUTPUT": "Salida",
@@ -111,13 +113,20 @@
       "ALL_STRATEGIES": "Todas las Estrategias",
       "STRATEGY_NAME": "Estrategia",
       "VIEW_LOGIC": "Ver lógica de trading",
+      "TOTALS": "Totales",
+      "START_RUNNING": "Iniciar ejecución",
+      "STOP_RUNNING": "Detener ejecución",
+      "EDIT_STAGE": "Editar Etapa",
+      "DELETE_STAGE": "Eliminar Etapa",
+      "DELETE_STAGE_CONFIRM": "Esto eliminará esta etapa y volverá a la anterior. Esta acción no se puede deshacer.",
       "NEW_ASSET": "Nuevo Activo",
       "ASSET_NAME": "Nombre del Activo",
       "ASSET_NAME_PLACEHOLDER": "ej. Oro, Nasdaq, DAX",
       "ASSET_SYMBOL": "Símbolo",
       "ASSET_SYMBOL_PLACEHOLDER": "ej. XAUUSD, NQ, DE40",
       "AVAILABLE_ASSETS": "Activos Disponibles",
-      "SELECT_TF": "Seleccioná un timeframe para comenzar:"
+      "SELECT_TF": "Seleccioná un timeframe para comenzar:",
+      "ADD_TIMEFRAME": "Agregar timeframe:"
     }
   }
 }
