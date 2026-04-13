@@ -63,6 +63,16 @@ feat(catalog): add product filtering
 
 Execute these steps IN ORDER before creating a commit:
 
+### Step 0: Run Pre-Commit Checklist (MANDATORY)
+
+Before doing anything else, execute the **pre-commit** skill:
+`.agents/skills/pre-commit/SKILL.md`
+
+This skill must complete successfully (all gates ✅) before proceeding to Step 1.
+**Do not skip this step for any reason.**
+
+---
+
 ### Step 1: Identify Branch
 ```bash
 git branch --show-current
