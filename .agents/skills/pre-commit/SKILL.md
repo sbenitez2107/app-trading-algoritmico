@@ -7,7 +7,7 @@ description: >
   Trigger: Always, before running git-commit skill.
 metadata:
   author: code-assistant
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Pre-Commit Checklist
@@ -125,6 +125,42 @@ Do **not** update README for internal refactors, test changes, or documentation-
 
 ---
 
+## Step 7 — Sync Engram Memory (MANDATORY)
+
+After all previous steps pass, save a memory entry to Engram capturing what this commit introduced.
+
+Call `mem_save` with:
+- **title**: Short and searchable — same spirit as the commit subject line.
+- **type**: `decision` | `pattern` | `bugfix` | `architecture` | `discovery` | `config`
+- **project**: `app-trading-algoritmico`
+- **topic_key**: Use a stable key for evolving topics (e.g., `workflow/pre-commit`, `feature/sqx-pipeline`, `architecture/batch-service`). Reuse the same key on subsequent commits to the same topic — this upserts instead of duplicating.
+- **content** (structured):
+  - **What**: One sentence — what this commit introduced or changed.
+  - **Why**: What motivated it (user request, bug, performance issue, convention).
+  - **Where**: Files or paths most affected.
+  - **Learned**: Gotchas, edge cases, non-obvious decisions — omit if none.
+
+### When to save vs. skip:
+- **Save**: new feature, bug fix, architectural decision, new pattern, config change, non-obvious discovery.
+- **Skip**: pure formatting, whitespace, dead code removal with no behavior change, typo fixes in docs.
+
+### Example:
+```
+title: "AG Grid batch list in /sqx/workflow"
+type: "pattern"
+project: "app-trading-algoritmico"
+topic_key: "feature/sqx-batch-grid"
+content:
+  What: Added AG Grid Community v35 batch list below asset cards with autoHeight, pagination 10/20/30/50, colored uppercase header.
+  Why: Replace custom hand-rolled table with sortable, filterable, paginated grid.
+  Where: asset-overview.component.ts/.html/.scss, app.config.ts
+  Learned: AG Grid 35 requires ModuleRegistry.registerModules([AllCommunityModule]) — without it, error #272 and blank grid.
+```
+
+**Rule**: If `mem_save` fails, log the error and proceed with commit anyway — memory sync is not a blocker.
+
+---
+
 ## Completion Gate
 
 Before handing off to `git-commit` skill, confirm:
@@ -137,8 +173,9 @@ Before handing off to `git-commit` skill, confirm:
 | AGENTS.md updated | ✅ / N/A |
 | SKILL.md files updated | ✅ / N/A |
 | README.md updated | ✅ / N/A |
+| Engram memory synced | ✅ / N/A |
 
-If any mandatory step shows ❌, **do not commit**. Fix and re-run.
+If any mandatory step (1–6) shows ❌, **do not commit**. Step 7 failure is non-blocking.
 
 ---
 
@@ -149,3 +186,4 @@ If any mandatory step shows ❌, **do not commit**. Fix and re-run.
 - ❌ Creating a new skill without registering it in `AGENTS.md`.
 - ❌ Updating a skill's behavior without bumping its version in frontmatter.
 - ❌ Committing commented-out code "just in case" — use git history for that.
+- ❌ Skipping Engram sync on significant changes — the next session starts blind without it.
