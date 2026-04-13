@@ -15,82 +15,87 @@
 
   @if (!isLoading()) {
 
-    <!-- Asset Cards -->
-    @if (assetGroups().length > 0 || assetsWithoutBatches().length > 0) {
-      <div class="wf-cards">
+    <!-- Cards with drag & drop -->
+    @if (orderedCards().length > 0) {
+      <div class="wf-cards"
+           cdkDropList
+           cdkDropListOrientation="mixed"
+           [cdkDropListData]="orderedCards()"
+           (cdkDropListDropped)="onCardDrop($event)">
 
-        <!-- Assets with batches -->
-        @for (group of assetGroups(); track group.assetId) {
-          <div class="wf-card">
-            <div class="wf-card__header">
-              <div class="wf-card__asset">
-                <span class="wf-card__symbol">{{ group.assetSymbol }}</span>
-                <span class="wf-card__name">{{ group.assetName }}</span>
-              </div>
-              <span class="wf-card__batch-count">{{ group.totalBatches }} {{ 'SQX.WORKFLOW.BATCHES' | translate }}</span>
-            </div>
+        @for (card of orderedCards(); track card.id) {
 
-            <!-- Timeframes with batches -->
-            @for (tf of group.timeframes; track tf.timeframe) {
-              <div class="wf-card__tf-row" (click)="navigateToTimeframe(group.assetId, tf.timeframe)">
-                <div class="wf-card__tf-info">
-                  <span class="wf-card__tf-badge">{{ timeframeLabels[tf.timeframe] }}</span>
-                  <span class="wf-card__tf-count">{{ tf.batchCount }} {{ 'SQX.WORKFLOW.BATCHES' | translate }}</span>
+          @if (card.kind === 'withBatches') {
+            <div class="wf-card" cdkDrag>
+              <div class="wf-card__drag-placeholder" *cdkDragPlaceholder></div>
+
+              <div class="wf-card__header">
+                <div class="wf-card__asset">
+                  <span class="wf-card__symbol">{{ card.group.assetSymbol }}</span>
+                  <span class="wf-card__name">{{ card.group.assetName }}</span>
                 </div>
-                <div class="wf-card__pipeline">
-                  @for (stage of tf.stagesSummary; track stage.type) {
-                    <span class="wf-dot" [class]="getStageDotClass(stage)"></span>
+                <span class="wf-card__batch-count">{{ card.group.totalBatches }} {{ 'SQX.WORKFLOW.BATCHES' | translate }}</span>
+              </div>
+
+              @for (tf of card.group.timeframes; track tf.timeframe) {
+                <div class="wf-card__tf-row" (click)="navigateToTimeframe(card.group.assetId, tf.timeframe)">
+                  <div class="wf-card__tf-info">
+                    <span class="wf-card__tf-badge">{{ timeframeLabels[tf.timeframe] }}</span>
+                    <span class="wf-card__tf-count">{{ tf.batchCount }} {{ 'SQX.WORKFLOW.BATCHES' | translate }}</span>
+                  </div>
+                  <div class="wf-card__pipeline">
+                    @for (stage of tf.stagesSummary; track stage.type) {
+                      <span class="wf-dot" [class]="getStageDotClass(stage)"></span>
+                    }
+                  </div>
+                  @if (tf.activeBatch) {
+                    <span class="wf-card__tf-active">
+                      {{ tf.activeBatch.buildingBlockName }} &rarr; {{ getActiveStageLabel(tf.activeBatch) }}
+                    </span>
                   }
                 </div>
-                @if (tf.activeBatch) {
-                  <span class="wf-card__tf-active">
-                    {{ tf.activeBatch.buildingBlockName }} &rarr; {{ getActiveStageLabel(tf.activeBatch) }}
-                  </span>
-                }
-              </div>
-            }
+              }
 
-            <!-- Add new timeframe -->
-            <div class="wf-card__tf-select">
-              <span class="wf-card__tf-hint">{{ 'SQX.WORKFLOW.ADD_TIMEFRAME' | translate }}</span>
-              <div class="wf-card__tf-buttons">
-                @for (tf of timeframeOptions; track tf.value) {
-                  <button class="wf-card__tf-btn" (click)="navigateToTimeframe(group.assetId, tf.value)">
-                    {{ tf.label }}
-                  </button>
-                }
+              <div class="wf-card__tf-select">
+                <span class="wf-card__tf-hint">{{ 'SQX.WORKFLOW.ADD_TIMEFRAME' | translate }}</span>
+                <div class="wf-card__tf-buttons">
+                  @for (tf of timeframeOptions; track tf.value) {
+                    <button class="wf-card__tf-btn" (click)="navigateToTimeframe(card.group.assetId, tf.value)">
+                      {{ tf.label }}
+                    </button>
+                  }
+                </div>
               </div>
             </div>
-          </div>
+          } @else {
+            <div class="wf-card wf-card--empty" cdkDrag>
+              <div class="wf-card__drag-placeholder" *cdkDragPlaceholder></div>
+
+              <div class="wf-card__header">
+                <div class="wf-card__asset">
+                  <span class="wf-card__symbol">{{ card.asset.symbol }}</span>
+                  <span class="wf-card__name">{{ card.asset.name }}</span>
+                </div>
+              </div>
+              <div class="wf-card__tf-select">
+                <span class="wf-card__tf-hint">{{ 'SQX.WORKFLOW.SELECT_TF' | translate }}</span>
+                <div class="wf-card__tf-buttons">
+                  @for (tf of timeframeOptions; track tf.value) {
+                    <button class="wf-card__tf-btn" (click)="navigateToTimeframe(card.asset.id, tf.value)">
+                      {{ tf.label }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
         }
-
-        <!-- Assets without batches -->
-        @for (asset of assetsWithoutBatches(); track asset.id) {
-          <div class="wf-card wf-card--empty">
-            <div class="wf-card__header">
-              <div class="wf-card__asset">
-                <span class="wf-card__symbol">{{ asset.symbol }}</span>
-                <span class="wf-card__name">{{ asset.name }}</span>
-              </div>
-            </div>
-            <div class="wf-card__tf-select">
-              <span class="wf-card__tf-hint">{{ 'SQX.WORKFLOW.SELECT_TF' | translate }}</span>
-              <div class="wf-card__tf-buttons">
-                @for (tf of timeframeOptions; track tf.value) {
-                  <button class="wf-card__tf-btn" (click)="navigateToTimeframe(asset.id, tf.value)">
-                    {{ tf.label }}
-                  </button>
-                }
-              </div>
-            </div>
-          </div>
-        }
-
       </div>
     }
 
     <!-- Empty state -->
-    @if (assetGroups().length === 0 && assetsWithoutBatches().length === 0) {
+    @if (orderedCards().length === 0) {
       <div class="wf-overview__empty">
         <p>{{ 'SQX.WORKFLOW.EMPTY' | translate }}</p>
         <button class="wf-overview__btn-new" (click)="openAssetModal()">

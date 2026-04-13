@@ -1,3 +1,54 @@
 <div class="home">
-  <!-- Componentes eliminados temporalmente -->
+
+  <!-- Strategy Workflow Running -->
+  <section class="home__section">
+    <h2 class="home__section-title">{{ 'HOME.RUNNING_TITLE' | translate }}</h2>
+
+    @if (isLoading()) {
+      <div class="home__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</div>
+    } @else if (runningStages().length === 0) {
+      <div class="home__empty">
+        <span class="home__empty-icon">○</span>
+        <p>{{ 'HOME.NO_RUNNING' | translate }}</p>
+      </div>
+    } @else {
+      <div class="home__running-grid">
+        @for (item of runningStages(); track item.stageId) {
+          <div class="run-card" (click)="goToPipeline(item)">
+            <div class="run-card__header">
+              <div class="run-card__asset">
+                <span class="run-card__symbol">{{ item.assetSymbol }}</span>
+                <span class="run-card__tf">{{ item.timeframeLabel }}</span>
+              </div>
+              <span class="run-card__stage-badge">{{ item.stageLabel }}</span>
+            </div>
+
+            <div class="run-card__body">
+              <span class="run-card__bb">{{ item.buildingBlockName }}</span>
+              <div class="run-card__counts">
+                @if (item.stageType === 0) {
+                  <span class="run-card__count">{{ item.outputCount }}</span>
+                  <span class="run-card__count-label">{{ 'HOME.STRATEGIES' | translate }}</span>
+                } @else {
+                  <span class="run-card__count">{{ item.inputCount }} &rarr; {{ item.outputCount }}</span>
+                  <span class="run-card__count-label">{{ 'HOME.IN_OUT' | translate }}</span>
+                }
+              </div>
+            </div>
+
+            <div class="run-card__footer">
+              @if (item.startedAt) {
+                <span class="run-card__elapsed">⏱ {{ item.elapsed }}</span>
+              }
+              <button class="run-card__detail-btn" (click)="goToStage(item, $event)"
+                [title]="'HOME.VIEW_STAGE_DETAIL' | translate">
+                {{ 'HOME.VIEW_DETAIL' | translate }} →
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
 </div>

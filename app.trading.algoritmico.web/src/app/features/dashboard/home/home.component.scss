@@ -1,136 +1,160 @@
-:host {
-  display: block;
-}
+:host { display: block; }
 
 .home {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
-  max-width: 48rem;
+  gap: var(--spacing-xl);
 
-  &__kpi-grid {
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  &__section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__loading {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+  }
+
+  &__empty {
+    background: var(--bg-surface);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--text-muted);
+
+    p { margin-top: var(--spacing-sm); font-size: 0.9375rem; }
+  }
+
+  &__empty-icon {
+    font-size: 2rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+
+  &__running-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
     gap: var(--spacing-md);
   }
 }
 
-// ─── KPI Card ────────────────────────────────────────
-.c-kpi-card {
+// Run card
+.run-card {
   background: var(--bg-surface);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid #3b82f6;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
 
-  &__title {
+  &:hover {
+    border-color: #3b82f6;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__asset {
+    display: flex;
+    align-items: baseline;
+    gap: var(--spacing-xs);
+  }
+
+  &__symbol {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  &__tf {
+    padding: 0.125rem 0.375rem;
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--color-primary);
+    border-radius: var(--radius-sm);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  &__stage-badge {
+    padding: 0.125rem 0.5rem;
+    background: rgba(59, 130, 246, 0.15);
+    color: #3b82f6;
+    border-radius: var(--radius-sm);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__bb {
     font-size: 0.8125rem;
-    color: var(--text-muted);
+    color: var(--text-main);
     font-weight: 500;
   }
 
-  &__value {
-    font-size: 1.375rem;
-    font-weight: 700;
-    color: var(--text-main);
-
-    &--gain {
-      color: var(--color-gain);
-    }
-
-    &--stable {
-      color: var(--text-muted);
-    }
-  }
-}
-
-// ─── Activity Card ───────────────────────────────────
-.c-activity-card {
-  position: relative;
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-  min-height: 12rem;
-  box-shadow: var(--shadow-md);
-
-  &__bg {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #0d2137 0%, #0a3d4a 50%, #0d2137 100%);
-  }
-
-  &__content {
-    position: relative;
-    padding: var(--spacing-lg);
-    height: 100%;
+  &__counts {
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 12rem;
+    align-items: baseline;
+    gap: var(--spacing-xs);
   }
 
-  &__badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.75rem;
-    background: rgba(34, 197, 94, 0.2);
-    color: var(--color-gain);
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
+  &__count {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #3b82f6;
+  }
+
+  &__count-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
     letter-spacing: 0.05em;
-    align-self: flex-end;
   }
 
   &__footer {
     display: flex;
-    align-items: flex-end;
     justify-content: space-between;
-    gap: var(--spacing-md);
-  }
-
-  &__tasks {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
-
-  &__tasks-label {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-
-  &__progress {
-    height: 0.375rem;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-
-  &__progress-bar {
-    height: 100%;
-    background: var(--color-primary);
-    border-radius: 999px;
-    transition: width var(--transition-base);
-  }
-
-  &__arrow {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
-    display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background var(--transition-fast);
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-sm);
+  }
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
+  &__elapsed {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  &__detail-btn {
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    margin-left: auto;
+
+    &:hover { background: rgba(59, 130, 246, 0.1); }
   }
 }

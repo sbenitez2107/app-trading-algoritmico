@@ -27,6 +27,14 @@
       "TASKS_LABEL": "{{completed}}/{{total}} Tasks"
     }
   },
+  "HOME": {
+    "RUNNING_TITLE": "Strategy Workflow Running",
+    "NO_RUNNING": "No processes currently running",
+    "STRATEGIES": "strategies",
+    "IN_OUT": "in / passed",
+    "VIEW_DETAIL": "Stage detail",
+    "VIEW_STAGE_DETAIL": "Go to stage detail"
+  },
   "LAYOUT": {
     "SIDEBAR": {
       "COLLAPSE": "Collapse",
@@ -119,6 +127,8 @@
       "EDIT_STAGE": "Edit Stage",
       "DELETE_STAGE": "Delete Stage",
       "DELETE_STAGE_CONFIRM": "This will delete this stage and revert to the previous one. This action cannot be undone.",
+      "DELETE_BATCH": "Delete Batch",
+      "DELETE_BATCH_CONFIRM": "This will permanently delete this batch and all its stages and strategies. This action cannot be undone.",
       "NEW_ASSET": "New Asset",
       "ASSET_NAME": "Asset Name",
       "ASSET_NAME_PLACEHOLDER": "e.g. Oro, Nasdaq, DAX",

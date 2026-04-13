@@ -108,6 +108,8 @@
 
     &--actions {
       align-items: center;
+      flex-direction: row;
+      gap: 0.25rem;
     }
   }
 
@@ -216,6 +218,11 @@
 
     &:hover {
       background: rgba(59, 130, 246, 0.15);
+    }
+
+    &--danger {
+      color: var(--color-loss);
+      &:hover { background: rgba(239, 68, 68, 0.15); }
     }
   }
 }

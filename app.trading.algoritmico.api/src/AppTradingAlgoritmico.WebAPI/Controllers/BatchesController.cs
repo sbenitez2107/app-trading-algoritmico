@@ -116,6 +116,23 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
         }
     }
 
+    /// <summary>Deletes an entire batch including all its stages and strategies.</summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await service.DeleteAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
     /// <summary>Deletes a stage and reverts to the previous one. Only if not Completed.</summary>
     [HttpDelete("{batchId:guid}/stages/{stageId:guid}")]
     [ProducesResponseType(typeof(BatchDto), StatusCodes.Status200OK)]

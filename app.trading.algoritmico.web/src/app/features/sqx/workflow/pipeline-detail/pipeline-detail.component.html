@@ -113,6 +113,11 @@
                 ⏭
               </button>
             }
+            <button class="pl-grid__advance-btn pl-grid__advance-btn--danger"
+              (click)="confirmDeleteBatch(batch, $event)"
+              [title]="'SQX.WORKFLOW.DELETE_BATCH' | translate">
+              🗑️
+            </button>
           </div>
         </div>
       }
@@ -179,6 +184,21 @@
         <div class="pl-modal__actions">
           <button class="pl-modal__btn pl-modal__btn--cancel" (click)="cancelDeleteStage()">{{ 'COMMON.ACTIONS.CANCEL' | translate }}</button>
           <button class="pl-modal__btn pl-modal__btn--danger" (click)="executeDeleteStage()">{{ 'COMMON.ACTIONS.DELETE' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Batch Confirmation -->
+  @if (deleteBatchTarget()) {
+    <div class="pl-modal-backdrop" (click)="cancelDeleteBatch()">
+      <div class="pl-modal" (click)="$event.stopPropagation()">
+        <h3 class="pl-modal__title">{{ 'SQX.WORKFLOW.DELETE_BATCH' | translate }}</h3>
+        <p class="pl-modal__subtitle">{{ deleteBatchTarget()!.buildingBlockName }}@if (deleteBatchTarget()!.name) { — {{ deleteBatchTarget()!.name }} }</p>
+        <p class="pl-modal__warning">{{ 'SQX.WORKFLOW.DELETE_BATCH_CONFIRM' | translate }}</p>
+        <div class="pl-modal__actions">
+          <button class="pl-modal__btn pl-modal__btn--cancel" (click)="cancelDeleteBatch()">{{ 'COMMON.ACTIONS.CANCEL' | translate }}</button>
+          <button class="pl-modal__btn pl-modal__btn--danger" (click)="executeDeleteBatch()">{{ 'COMMON.ACTIONS.DELETE' | translate }}</button>
         </div>
       </div>
     </div>

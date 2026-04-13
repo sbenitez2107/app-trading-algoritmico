@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Drag & drop reordering for asset cards
 - Risk management dashboard
 - Deployment tracker (demo/live accounts)
 - Prop firm challenge phase tracker (FTMO, The Trading Pits)
@@ -18,6 +17,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated KPI extraction from .sqx strategy files
 - Per-stage configuration for Strategy Workflow pipeline
 - Date tracking (start/end) per pipeline stage
+
+---
+
+## [0.4.0] - 2026-04-13
+
+### Added
+- **Home Dashboard — Strategy Workflow Running**: New section showing all currently running batch stages across assets. Each card displays Asset+Timeframe, BuildingBlock, Stage, counts (Builder shows total, others show input/passed), and elapsed time since stage was set to Running. Click navigates to Pipeline Detail; "Stage detail →" button navigates to Stage Detail.
+- **Drag & drop asset cards**: Reorder cards in Strategy Workflow overview by dragging. Order persists in localStorage (`bent_asset_card_order`). Uses `@angular/cdk/drag-drop` with `cdkDropListOrientation="mixed"` for grid layout. New cards appear at end of saved order.
+- **Delete batch**: Trash button (🗑️) next to advance button in pipeline grid. Confirmation modal before deletion. Cascades delete to all stages and strategies. `DELETE /api/batches/{id}` endpoint.
+- **`RunningStartedAt` in BatchStageSummaryDto**: Pipeline summary now includes the running start timestamp for elapsed time calculation in dashboards.
+
+### Changed
+- **Performance**: `BatchService.GetAllAsync` and `GetByIdAsync` now use direct LINQ projection to DTO instead of `.Include()` chains. Eliminates cartesian explosion. Response time reduced from **54s to 0.97s** (~55x faster) for typical batch counts.
+
+### Removed
+- Dead code: unused `ToDto(Batch b)` helper method (replaced by inline projection).
+
+### Notes
+- DB running in Docker WSL2 adds minor network latency; combined with optimized queries, this is now negligible.
 
 ---
 

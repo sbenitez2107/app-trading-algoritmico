@@ -7,5 +7,6 @@ public record BatchStageSummaryDto(
     PipelineStageType StageType,
     PipelineStageStatus Status,
     int InputCount,
-    int OutputCount
+    int OutputCount,
+    DateTime? RunningStartedAt
 );

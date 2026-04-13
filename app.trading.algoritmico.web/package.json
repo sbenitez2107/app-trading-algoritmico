@@ -1,6 +1,6 @@
 {
   "name": "app-trading-algoritmico-web",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -11,6 +11,7 @@
   "private": true,
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
+    "@angular/cdk": "^21.2.6",
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",
     "@angular/core": "^21.2.0",

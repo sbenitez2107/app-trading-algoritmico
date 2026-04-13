@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
+import { CdkDropList, CdkDrag, CdkDragDrop, CdkDragPlaceholder, moveItemInArray } from '@angular/cdk/drag-drop';
 import { forkJoin } from 'rxjs';
 import { BatchService, BatchDto, STAGE_TYPE_LABELS, STAGE_STATUS_LABELS, TIMEFRAME_LABELS } from '../../../../core/services/batch.service';
 import { AssetService, AssetDto } from '../../../../core/services/asset.service';
@@ -22,10 +23,16 @@ interface AssetGroup {
   totalBatches: number;
 }
 
+type CardItem =
+  | { kind: 'withBatches'; id: string; group: AssetGroup }
+  | { kind: 'empty'; id: string; asset: AssetDto };
+
+const STORAGE_KEY = 'bent_asset_card_order';
+
 @Component({
   selector: 'app-asset-overview',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TranslateModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule, CdkDropList, CdkDrag, CdkDragPlaceholder],
   templateUrl: './asset-overview.component.html',
   styleUrl: './asset-overview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -42,6 +49,7 @@ export class AssetOverviewComponent {
   showAssetModal = signal(false);
   isCreatingAsset = signal(false);
   assetError = signal<string | null>(null);
+  savedOrder = signal<string[]>(this.loadOrder());
 
   assetForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -63,7 +71,6 @@ export class AssetOverviewComponent {
     const assetMap = new Map<string, AssetGroup>();
 
     for (const batch of batchList) {
-      // Group by asset
       if (!assetMap.has(batch.assetId)) {
         assetMap.set(batch.assetId, {
           assetId: batch.assetId,
@@ -76,7 +83,6 @@ export class AssetOverviewComponent {
       const asset = assetMap.get(batch.assetId)!;
       asset.totalBatches++;
 
-      // Group by timeframe within asset
       let tfGroup = asset.timeframes.find(t => t.timeframe === batch.timeframe);
       if (!tfGroup) {
         tfGroup = {
@@ -98,13 +104,11 @@ export class AssetOverviewComponent {
         }
       }
 
-      // Track active batch
       if (!tfGroup.activeBatch || batch.stages.some(s => s.status === 1)) {
         tfGroup.activeBatch = batch;
       }
     }
 
-    // Sort timeframes within each asset
     for (const asset of assetMap.values()) {
       asset.timeframes.sort((a, b) => a.timeframe - b.timeframe);
     }
@@ -112,8 +116,44 @@ export class AssetOverviewComponent {
     return [...assetMap.values()].sort((a, b) => a.assetName.localeCompare(b.assetName));
   });
 
+  readonly assetsWithoutBatches = computed(() => {
+    const batchAssetIds = new Set(this.batches().map(b => b.assetId));
+    return this.assets().filter(a => !batchAssetIds.has(a.id));
+  });
+
+  readonly orderedCards = computed<CardItem[]>(() => {
+    const withBatches: CardItem[] = this.assetGroups().map(g => ({
+      kind: 'withBatches' as const, id: g.assetId, group: g
+    }));
+    const empty: CardItem[] = this.assetsWithoutBatches().map(a => ({
+      kind: 'empty' as const, id: a.id, asset: a
+    }));
+
+    const all = [...withBatches, ...empty];
+    const order = this.savedOrder();
+    if (order.length === 0) return all;
+
+    const byId = new Map(all.map(c => [c.id, c]));
+    const ordered: CardItem[] = [];
+    for (const id of order) {
+      const item = byId.get(id);
+      if (item) { ordered.push(item); byId.delete(id); }
+    }
+    for (const remaining of byId.values()) {
+      ordered.push(remaining);
+    }
+    return ordered;
+  });
+
   ngOnInit(): void {
     this.loadData();
+  }
+
+  onCardDrop(event: CdkDragDrop<CardItem[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const cards = [...this.orderedCards()];
+    moveItemInArray(cards, event.previousIndex, event.currentIndex);
+    this.persistOrder(cards.map(c => c.id));
   }
 
   navigateToTimeframe(assetId: string, timeframe: number): void {
@@ -135,7 +175,6 @@ export class AssetOverviewComponent {
     return latest ? this.stageLabels[latest.stageType] ?? '—' : '—';
   }
 
-  // Asset modal
   openAssetModal(): void {
     this.assetForm.reset();
     this.assetError.set(null);
@@ -177,11 +216,17 @@ export class AssetOverviewComponent {
     }
   }
 
-  // Assets without batches (show them as standalone cards to allow navigation)
-  readonly assetsWithoutBatches = computed(() => {
-    const batchAssetIds = new Set(this.batches().map(b => b.assetId));
-    return this.assets().filter(a => !batchAssetIds.has(a.id));
-  });
+  private loadOrder(): string[] {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+
+  private persistOrder(ids: string[]): void {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    this.savedOrder.set(ids);
+  }
 
   private loadData(): void {
     this.isLoading.set(true);

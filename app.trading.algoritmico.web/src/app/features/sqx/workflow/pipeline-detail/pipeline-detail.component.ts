@@ -197,6 +197,27 @@ export class PipelineDetailComponent {
     return stage.status !== 2 && stage.stageType !== 0; // Not Completed and not Builder
   }
 
+  // Delete full batch
+  deleteBatchTarget = signal<BatchDto | null>(null);
+
+  confirmDeleteBatch(batch: BatchDto, event: MouseEvent): void {
+    event.stopPropagation();
+    this.deleteBatchTarget.set(batch);
+  }
+
+  executeDeleteBatch(): void {
+    const target = this.deleteBatchTarget();
+    if (!target) return;
+    this.batchService.delete(target.id).subscribe({
+      next: () => { this.deleteBatchTarget.set(null); this.loadBatches(); },
+      error: () => this.deleteBatchTarget.set(null)
+    });
+  }
+
+  cancelDeleteBatch(): void {
+    this.deleteBatchTarget.set(null);
+  }
+
   navigateToStage(batch: BatchDto, stage: BatchStageSummaryDto): void {
     this.router.navigate([
       '/sqx/workflow', this.assetId, this.timeframe,

@@ -9,6 +9,7 @@ export interface BatchStageSummaryDto {
   status: number;
   inputCount: number;
   outputCount: number;
+  runningStartedAt: string | null;
 }
 
 export interface BatchDto {
@@ -85,5 +86,9 @@ export class BatchService {
 
   rollbackStage(batchId: string, stageId: string): Observable<BatchDto> {
     return this.http.delete<BatchDto>(`${this.base}/${batchId}/stages/${stageId}`);
+  }
+
+  delete(batchId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${batchId}`);
   }
 }

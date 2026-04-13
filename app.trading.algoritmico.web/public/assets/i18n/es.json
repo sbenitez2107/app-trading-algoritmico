@@ -27,6 +27,14 @@
       "TASKS_LABEL": "{{completed}}/{{total}} Tareas"
     }
   },
+  "HOME": {
+    "RUNNING_TITLE": "Strategy Workflow Running",
+    "NO_RUNNING": "No hay procesos corriendo",
+    "STRATEGIES": "estrategias",
+    "IN_OUT": "entrada / pasaron",
+    "VIEW_DETAIL": "Detalle de etapa",
+    "VIEW_STAGE_DETAIL": "Ir al detalle de la etapa"
+  },
   "LAYOUT": {
     "SIDEBAR": {
       "COLLAPSE": "Contraer",
@@ -119,6 +127,8 @@
       "EDIT_STAGE": "Editar Etapa",
       "DELETE_STAGE": "Eliminar Etapa",
       "DELETE_STAGE_CONFIRM": "Esto eliminará esta etapa y volverá a la anterior. Esta acción no se puede deshacer.",
+      "DELETE_BATCH": "Eliminar Remesa",
+      "DELETE_BATCH_CONFIRM": "Esto eliminará permanentemente esta remesa con todas sus etapas y estrategias. Esta acción no se puede deshacer.",
       "NEW_ASSET": "Nuevo Activo",
       "ASSET_NAME": "Nombre del Activo",
       "ASSET_NAME_PLACEHOLDER": "ej. Oro, Nasdaq, DAX",

@@ -13,12 +13,7 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
     public async Task<IEnumerable<BatchDto>> GetAllAsync(
         Guid? assetId = null, Timeframe? timeframe = null, CancellationToken ct = default)
     {
-        var query = db.Batches
-            .AsNoTracking()
-            .Include(b => b.Asset)
-            .Include(b => b.BuildingBlock)
-            .Include(b => b.Stages)
-            .AsQueryable();
+        var query = db.Batches.AsNoTracking();
 
         if (assetId.HasValue)
             query = query.Where(b => b.AssetId == assetId.Value);
@@ -26,21 +21,48 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         if (timeframe.HasValue)
             query = query.Where(b => b.Timeframe == timeframe.Value);
 
-        var batches = await query.OrderByDescending(b => b.CreatedAt).ToListAsync(ct);
-        return batches.Select(ToDto);
+        // Project directly to DTO to avoid cartesian explosion from Include on Stages.
+        // This generates efficient SQL with only needed columns (no pseudocode/xmlconfig).
+        return await query
+            .OrderByDescending(b => b.CreatedAt)
+            .Select(b => new BatchDto(
+                b.Id,
+                b.Name,
+                b.AssetId,
+                b.Asset.Name,
+                b.Asset.Symbol,
+                b.Timeframe,
+                b.BuildingBlockId,
+                b.BuildingBlock.Name,
+                b.Stages
+                    .OrderBy(s => s.Order)
+                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt)),
+                b.CreatedAt))
+            .ToListAsync(ct);
     }
 
     public async Task<BatchDto> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var batch = await db.Batches
+        var dto = await db.Batches
             .AsNoTracking()
-            .Include(b => b.Asset)
-            .Include(b => b.BuildingBlock)
-            .Include(b => b.Stages)
-            .FirstOrDefaultAsync(b => b.Id == id, ct)
+            .Where(b => b.Id == id)
+            .Select(b => new BatchDto(
+                b.Id,
+                b.Name,
+                b.AssetId,
+                b.Asset.Name,
+                b.Asset.Symbol,
+                b.Timeframe,
+                b.BuildingBlockId,
+                b.BuildingBlock.Name,
+                b.Stages
+                    .OrderBy(s => s.Order)
+                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt)),
+                b.CreatedAt))
+            .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException($"Batch {id} not found.");
 
-        return ToDto(batch);
+        return dto;
     }
 
     /// <summary>
@@ -213,6 +235,23 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         return await GetByIdAsync(batchId, ct);
     }
 
+    /// <summary>
+    /// Deletes an entire batch including all its stages and strategies.
+    /// </summary>
+    public async Task DeleteAsync(Guid batchId, CancellationToken ct = default)
+    {
+        var batch = await db.Batches
+            .Include(b => b.Stages).ThenInclude(s => s.Strategies)
+            .FirstOrDefaultAsync(b => b.Id == batchId, ct)
+            ?? throw new KeyNotFoundException($"Batch {batchId} not found.");
+
+        foreach (var stage in batch.Stages)
+            db.Strategies.RemoveRange(stage.Strategies);
+        db.BatchStages.RemoveRange(batch.Stages);
+        db.Batches.Remove(batch);
+        await db.SaveChangesAsync(ct);
+    }
+
     private static PipelineStageType? GetNextStageType(PipelineStageType current)
     {
         return current switch
@@ -226,20 +265,4 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         };
     }
 
-    private static BatchDto ToDto(Batch b)
-    {
-        return new BatchDto(
-            b.Id,
-            b.Name,
-            b.AssetId,
-            b.Asset.Name,
-            b.Asset.Symbol,
-            b.Timeframe,
-            b.BuildingBlockId,
-            b.BuildingBlock.Name,
-            b.Stages
-                .OrderBy(s => s.Order)
-                .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount)),
-            b.CreatedAt);
-    }
 }

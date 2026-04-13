@@ -10,4 +10,5 @@ public interface IBatchService
     Task<BatchDto> CreateAsync(CreateBatchDto dto, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default);
     Task<BatchDto> AdvanceAsync(Guid batchId, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default);
     Task<BatchDto> RollbackStageAsync(Guid batchId, Guid stageId, CancellationToken ct = default);
+    Task DeleteAsync(Guid batchId, CancellationToken ct = default);
 }
