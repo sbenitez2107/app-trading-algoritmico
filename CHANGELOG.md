@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.4.1] - 2026-04-13
 
 ### Added
 - **Pre-commit skill v1.1**: Mandatory checklist that runs before every `git commit`. Steps: dead code cleanup (staged files only), unit tests (Angular + .NET), CHANGELOG.md update, AGENTS.md registration check, affected SKILL.md version bumps, README.md update when user-facing behavior changes, Engram memory sync (`mem_save` with topic_key). Registered in root `AGENTS.md` and wired as Step 0 in `universal-skills/git-commit/SKILL.md`.
