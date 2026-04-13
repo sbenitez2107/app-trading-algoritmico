@@ -106,6 +106,27 @@
 
   }
 
+  <!-- Batch Grid (AG Grid) -->
+  @if (!isLoading() && allBatchRows().length > 0) {
+    <div class="wf-batch-section">
+      <h3 class="wf-overview__section-title">{{ 'SQX.WORKFLOW.BATCH_LIST_TITLE' | translate }} ({{ allBatchRows().length }})</h3>
+      <ag-grid-angular
+        class="wf-ag-grid"
+        [theme]="gridTheme"
+        [rowData]="allBatchRows()"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [pagination]="true"
+        [paginationPageSize]="10"
+        [paginationPageSizeSelector]="[10, 20, 30, 50]"
+        [suppressCellFocus]="true"
+        [rowClass]="'wf-ag-row'"
+        domLayout="autoHeight"
+        (rowClicked)="onRowClicked($event)"
+      />
+    </div>
+  }
+
   <!-- Create Asset Modal -->
   @if (showAssetModal()) {
     <div class="wf-modal-backdrop" (click)="onAssetModalBackdrop($event)">

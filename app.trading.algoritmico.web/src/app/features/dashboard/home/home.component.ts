@@ -21,6 +21,23 @@ interface RunningStageItem {
   elapsed: string;
 }
 
+interface PendingStageItem {
+  batchId: string;
+  stageId: string;
+  assetId: string;
+  assetSymbol: string;
+  assetName: string;
+  timeframe: number;
+  timeframeLabel: string;
+  buildingBlockName: string;
+  stageType: number;
+  stageLabel: string;
+  inputCount: number;
+  outputCount: number;
+  since: string | null;
+  age: string;
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -35,6 +52,38 @@ export class HomeComponent {
 
   batches = signal<BatchDto[]>([]);
   isLoading = signal(true);
+
+  readonly pendingStages = computed<PendingStageItem[]>(() => {
+    const items: PendingStageItem[] = [];
+    for (const batch of this.batches()) {
+      for (const stage of batch.stages) {
+        if (stage.status === 0) {
+          const since = stage.updatedAt ?? null;
+          items.push({
+            batchId: batch.id,
+            stageId: stage.id,
+            assetId: batch.assetId,
+            assetSymbol: batch.assetSymbol,
+            assetName: batch.assetName,
+            timeframe: batch.timeframe,
+            timeframeLabel: TIMEFRAME_LABELS[batch.timeframe] ?? '—',
+            buildingBlockName: batch.buildingBlockName,
+            stageType: stage.stageType,
+            stageLabel: STAGE_TYPE_LABELS[stage.stageType] ?? '—',
+            inputCount: stage.inputCount,
+            outputCount: stage.outputCount,
+            since,
+            age: this.getElapsed(since)
+          });
+        }
+      }
+    }
+    return items.sort((a, b) => {
+      const aTime = a.since ? new Date(a.since).getTime() : 0;
+      const bTime = b.since ? new Date(b.since).getTime() : 0;
+      return aTime - bTime; // oldest first
+    });
+  });
 
   readonly runningStages = computed<RunningStageItem[]>(() => {
     const items: RunningStageItem[] = [];
@@ -73,11 +122,11 @@ export class HomeComponent {
     });
   }
 
-  goToPipeline(item: RunningStageItem): void {
+  goToPipeline(item: RunningStageItem | PendingStageItem): void {
     this.router.navigate(['/sqx/workflow', item.assetId, item.timeframe]);
   }
 
-  goToStage(item: RunningStageItem, event: MouseEvent): void {
+  goToStage(item: RunningStageItem | PendingStageItem, event: MouseEvent): void {
     event.stopPropagation();
     this.router.navigate(['/sqx/workflow', item.assetId, item.timeframe, 'batch', item.batchId, 'stage', item.stageType]);
   }

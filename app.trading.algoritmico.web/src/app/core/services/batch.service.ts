@@ -10,6 +10,7 @@ export interface BatchStageSummaryDto {
   inputCount: number;
   outputCount: number;
   runningStartedAt: string | null;
+  updatedAt: string | null;
 }
 
 export interface BatchDto {

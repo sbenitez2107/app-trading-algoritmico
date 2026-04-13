@@ -135,7 +135,23 @@ export class PipelineDetailComponent {
   canAdvance(batch: BatchDto): boolean {
     if (batch.stages.length === 0) return false;
     const latest = [...batch.stages].sort((a, b) => b.stageType - a.stageType)[0];
-    return latest.stageType < 4;
+    if (latest.stageType >= 4) return false;
+    // Demo must be completed before advancing to Live
+    if (latest.stageType === 3) return latest.status === 2;
+    return true;
+  }
+
+  canCompleteDemo(batch: BatchDto, stage: BatchStageSummaryDto): boolean {
+    if (stage.stageType !== 3 || stage.status === 2) return false;
+    const latest = [...batch.stages].sort((a, b) => b.stageType - a.stageType)[0];
+    return latest.id === stage.id;
+  }
+
+  completeDemo(batch: BatchDto, stage: BatchStageSummaryDto, event: MouseEvent): void {
+    event.stopPropagation();
+    this.stageService.update(batch.id, stage.id, { status: 2 }).subscribe({
+      next: () => this.loadBatches()
+    });
   }
 
   // Toggle Pending ↔ Running

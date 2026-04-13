@@ -36,7 +36,7 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
                 b.BuildingBlock.Name,
                 b.Stages
                     .OrderBy(s => s.Order)
-                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt)),
+                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt, s.UpdatedAt)),
                 b.CreatedAt))
             .ToListAsync(ct);
     }
@@ -57,7 +57,7 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
                 b.BuildingBlock.Name,
                 b.Stages
                     .OrderBy(s => s.Order)
-                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt)),
+                    .Select(s => new BatchStageSummaryDto(s.Id, s.StageType, s.Status, s.InputCount, s.OutputCount, s.RunningStartedAt, s.UpdatedAt)),
                 b.CreatedAt))
             .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException($"Batch {id} not found.");
@@ -142,10 +142,19 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
 
         var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
 
-        // Mark current stage as completed
-        currentStage.Status = PipelineStageStatus.Completed;
-        currentStage.OutputCount = count;
-        currentStage.UpdatedAt = DateTime.UtcNow;
+        // Demo stage must be completed explicitly before advancing to Live
+        if (currentStage.StageType == PipelineStageType.Demo)
+        {
+            if (currentStage.Status != PipelineStageStatus.Completed)
+                throw new InvalidOperationException("The Demo stage must be marked as completed before advancing to Live.");
+            currentStage.UpdatedAt = DateTime.UtcNow;
+        }
+        else
+        {
+            currentStage.Status = PipelineStageStatus.Completed;
+            currentStage.OutputCount = count;
+            currentStage.UpdatedAt = DateTime.UtcNow;
+        }
 
         // Create new stage
         var newStage = new BatchStage

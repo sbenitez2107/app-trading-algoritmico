@@ -5,6 +5,8 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { CdkDropList, CdkDrag, CdkDragDrop, CdkDragPlaceholder, moveItemInArray } from '@angular/cdk/drag-drop';
 import { forkJoin } from 'rxjs';
+import { AgGridAngular } from 'ag-grid-angular';
+import { ColDef, ICellRendererParams, RowClickedEvent, themeQuartz } from 'ag-grid-community';
 import { BatchService, BatchDto, STAGE_TYPE_LABELS, STAGE_STATUS_LABELS, TIMEFRAME_LABELS } from '../../../../core/services/batch.service';
 import { AssetService, AssetDto } from '../../../../core/services/asset.service';
 
@@ -27,12 +29,30 @@ type CardItem =
   | { kind: 'withBatches'; id: string; group: AssetGroup }
   | { kind: 'empty'; id: string; asset: AssetDto };
 
+interface BatchRow {
+  batchId: string;
+  assetId: string;
+  assetSymbol: string;
+  assetName: string;
+  timeframe: number;
+  timeframeLabel: string;
+  buildingBlockName: string;
+  batchName: string | null;
+  latestStageType: number;
+  latestStageLabel: string;
+  latestStatus: number;
+  latestStatusLabel: string;
+  inputCount: number;
+  outputCount: number;
+  createdAt: string;
+}
+
 const STORAGE_KEY = 'bent_asset_card_order';
 
 @Component({
   selector: 'app-asset-overview',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TranslateModule, CdkDropList, CdkDrag, CdkDragPlaceholder],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule, CdkDropList, CdkDrag, CdkDragPlaceholder, AgGridAngular],
   templateUrl: './asset-overview.component.html',
   styleUrl: './asset-overview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -50,6 +70,110 @@ export class AssetOverviewComponent {
   isCreatingAsset = signal(false);
   assetError = signal<string | null>(null);
   savedOrder = signal<string[]>(this.loadOrder());
+
+  // AG Grid
+  readonly gridTheme = themeQuartz;
+
+  readonly defaultColDef: ColDef<BatchRow> = {
+    sortable: true,
+    filter: true,
+    resizable: true,
+    suppressHeaderMenuButton: true,
+    floatingFilter: true,
+  };
+
+  readonly columnDefs: ColDef<BatchRow>[] = [
+    {
+      headerName: 'Asset',
+      field: 'assetSymbol',
+      flex: 1,
+      minWidth: 120,
+      cellRenderer: (p: ICellRendererParams<BatchRow>) => {
+        const el = document.createElement('div');
+        el.className = 'wf-ag-asset';
+        el.innerHTML = `<span class="wf-ag-asset__symbol">${p.data!.assetSymbol}</span>`
+                     + `<span class="wf-ag-asset__name">${p.data!.assetName}</span>`;
+        return el;
+      },
+      getQuickFilterText: p => `${p.data!.assetSymbol} ${p.data!.assetName}`,
+    },
+    {
+      headerName: 'TF',
+      field: 'timeframeLabel',
+      width: 90,
+      cellRenderer: (p: ICellRendererParams<BatchRow>) => {
+        const el = document.createElement('span');
+        el.className = 'wf-ag-tf';
+        el.textContent = p.data!.timeframeLabel;
+        return el;
+      },
+    },
+    {
+      headerName: 'Building Block',
+      field: 'buildingBlockName',
+      flex: 1,
+      minWidth: 140,
+    },
+    {
+      headerName: 'Name',
+      field: 'batchName',
+      flex: 1,
+      minWidth: 120,
+      cellClass: 'wf-ag-muted',
+      valueFormatter: p => p.value ?? '—',
+    },
+    {
+      headerName: 'Stage',
+      field: 'latestStageLabel',
+      width: 110,
+      cellRenderer: (p: ICellRendererParams<BatchRow>) => {
+        const el = document.createElement('span');
+        el.className = 'wf-ag-stage';
+        el.textContent = p.data!.latestStageLabel;
+        return el;
+      },
+      comparator: (_, __, a, b) => (a.data?.latestStageType ?? 0) - (b.data?.latestStageType ?? 0),
+    },
+    {
+      headerName: 'Status',
+      field: 'latestStatusLabel',
+      width: 120,
+      cellRenderer: (p: ICellRendererParams<BatchRow>) => {
+        const status = p.data!.latestStatus;
+        const cls = status === 0 ? 'wf-ag-status--pending'
+                  : status === 1 ? 'wf-ag-status--running'
+                  : 'wf-ag-status--completed';
+        const el = document.createElement('span');
+        el.className = `wf-ag-status ${cls}`;
+        el.textContent = p.data!.latestStatusLabel;
+        return el;
+      },
+      comparator: (_, __, a, b) => (a.data?.latestStatus ?? 0) - (b.data?.latestStatus ?? 0),
+    },
+    {
+      headerName: 'Strategies',
+      field: 'outputCount',
+      width: 120,
+      filter: false,
+      cellClass: 'wf-ag-muted',
+      valueFormatter: p => {
+        const d = p.data!;
+        return d.latestStageType === 0 ? String(d.outputCount) : `${d.inputCount} → ${d.outputCount}`;
+      },
+    },
+    {
+      headerName: 'Created',
+      field: 'createdAt',
+      width: 110,
+      filter: false,
+      cellClass: 'wf-ag-muted',
+      valueFormatter: p => {
+        const d = new Date(p.value);
+        return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear().toString().slice(2)}`;
+      },
+      sort: 'desc',
+    },
+  ];
 
   assetForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
@@ -144,6 +268,34 @@ export class AssetOverviewComponent {
     }
     return ordered;
   });
+
+  readonly allBatchRows = computed<BatchRow[]>(() =>
+    this.batches().map(b => {
+      const latest = [...b.stages].sort((a, z) => z.stageType - a.stageType)[0];
+      return {
+        batchId: b.id,
+        assetId: b.assetId,
+        assetSymbol: b.assetSymbol,
+        assetName: b.assetName,
+        timeframe: b.timeframe,
+        timeframeLabel: TIMEFRAME_LABELS[b.timeframe] ?? '—',
+        buildingBlockName: b.buildingBlockName,
+        batchName: b.name,
+        latestStageType: latest?.stageType ?? -1,
+        latestStageLabel: latest ? (STAGE_TYPE_LABELS[latest.stageType] ?? '—') : '—',
+        latestStatus: latest?.status ?? -1,
+        latestStatusLabel: latest ? (STAGE_STATUS_LABELS[latest.status] ?? '—') : '—',
+        inputCount: latest?.inputCount ?? 0,
+        outputCount: latest?.outputCount ?? 0,
+        createdAt: b.createdAt
+      };
+    })
+  );
+
+  onRowClicked(event: RowClickedEvent<BatchRow>): void {
+    const row = event.data;
+    if (row) this.router.navigate(['/sqx/workflow', row.assetId, row.timeframe]);
+  }
 
   ngOnInit(): void {
     this.loadData();
