@@ -75,7 +75,8 @@
   "SQX": {
     "SIDEBAR": {
       "STRATEGY_WORKFLOW": "Strategy Workflow",
-      "BUILDING_BLOCKS": "Building Blocks"
+      "BUILDING_BLOCKS": "Building Blocks",
+      "STRATEGY_ANALYZER": "Strategy Rules Analyzer"
     },
     "BUILDING_BLOCKS": {
       "TITLE": "Building Blocks",
@@ -97,6 +98,23 @@
         "FILE": "Archivo de Config (.sqb)",
         "ERROR": "Ocurrió un error. Intentá nuevamente."
       }
+    },
+    "ANALYZER": {
+      "TITLE": "Strategy Rules Analyzer",
+      "SUBTITLE": "Checklist de reglas para validar estrategias post-Optimizer antes de seleccionar para BT o Demo.",
+      "ADD_RULE": "Nueva Regla",
+      "EDIT_RULE": "Editar Regla",
+      "DELETE_RULE": "Eliminar Regla",
+      "DELETE_CONFIRM": "¿Estás seguro de eliminar esta regla?",
+      "NAME": "Nombre",
+      "NAME_PLACEHOLDER": "ej. KPI Thresholds",
+      "DESCRIPTION": "Descripción",
+      "DESCRIPTION_PLACEHOLDER": "Describí los criterios de validación...",
+      "PRIORITY": "Prioridad",
+      "IS_ACTIVE": "Activa",
+      "NO_RULES": "No hay reglas definidas todavía. Creá la primera.",
+      "SAVE": "Guardar",
+      "CANCEL": "Cancelar"
     },
     "WORKFLOW": {
       "TITLE": "Strategy Workflow",

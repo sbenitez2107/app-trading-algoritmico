@@ -63,6 +63,9 @@ public static class DependencyInjection
         services.AddScoped<IBatchStageService, BatchStageService>();
         services.AddScoped<IStrategyService, StrategyService>();
 
+        // Analyzer
+        services.AddScoped<IAnalyzerRuleService, AnalyzerRuleService>();
+
         return services;
     }
 }

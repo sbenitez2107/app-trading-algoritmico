@@ -85,16 +85,9 @@ export class AssetOverviewComponent {
   readonly columnDefs: ColDef<BatchRow>[] = [
     {
       headerName: 'Asset',
-      field: 'assetSymbol',
+      field: 'assetName',
       flex: 1,
       minWidth: 120,
-      cellRenderer: (p: ICellRendererParams<BatchRow>) => {
-        const el = document.createElement('div');
-        el.className = 'wf-ag-asset';
-        el.innerHTML = `<span class="wf-ag-asset__symbol">${p.data!.assetSymbol}</span>`
-                     + `<span class="wf-ag-asset__name">${p.data!.assetName}</span>`;
-        return el;
-      },
       getQuickFilterText: p => `${p.data!.assetSymbol} ${p.data!.assetName}`,
     },
     {

@@ -1,0 +1,88 @@
+<div class="sa-list">
+  <!-- Header -->
+  <div class="sa-list__header">
+    <div>
+      <h2 class="sa-list__title">{{ 'SQX.ANALYZER.TITLE' | translate }}</h2>
+      <p class="sa-list__subtitle">{{ 'SQX.ANALYZER.SUBTITLE' | translate }}</p>
+    </div>
+    <button class="sa-list__new-btn" (click)="openCreate()">
+      + {{ 'SQX.ANALYZER.ADD_RULE' | translate }}
+    </button>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <p class="sa-list__loading">{{ 'COMMON.STATUS.LOADING' | translate }}</p>
+  }
+
+  <!-- Rules checklist -->
+  @if (!isLoading() && rules().length > 0) {
+    <div class="sa-checklist">
+      @for (rule of rules(); track rule.id) {
+        <div class="sa-rule" [class.sa-rule--inactive]="!rule.isActive">
+          <div class="sa-rule__priority">{{ rule.priority }}</div>
+          <div class="sa-rule__content">
+            <div class="sa-rule__header">
+              <h3 class="sa-rule__name">{{ rule.name }}</h3>
+              @if (!rule.isActive) {
+                <span class="sa-rule__badge sa-rule__badge--inactive">Inactive</span>
+              }
+            </div>
+            <p class="sa-rule__description">{{ rule.description }}</p>
+          </div>
+          <div class="sa-rule__actions">
+            <button class="sa-rule__action-btn" (click)="openEdit(rule)" title="Edit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="sa-rule__action-btn sa-rule__action-btn--delete" (click)="confirmDelete(rule)" title="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!isLoading() && rules().length === 0) {
+    <div class="sa-list__empty">
+      <p>{{ 'SQX.ANALYZER.NO_RULES' | translate }}</p>
+      <button class="sa-list__new-btn" (click)="openCreate()">
+        + {{ 'SQX.ANALYZER.ADD_RULE' | translate }}
+      </button>
+    </div>
+  }
+
+  <!-- Delete confirmation modal -->
+  @if (deleteTarget()) {
+    <div class="sa-modal-backdrop" (click)="cancelDelete()">
+      <div class="sa-modal" (click)="$event.stopPropagation()">
+        <p>{{ 'SQX.ANALYZER.DELETE_CONFIRM' | translate }}</p>
+        <p class="sa-modal__rule-name">{{ deleteTarget()!.name }}</p>
+        <div class="sa-modal__actions">
+          <button class="sa-modal__btn sa-modal__btn--cancel" (click)="cancelDelete()">
+            {{ 'COMMON.ACTIONS.CANCEL' | translate }}
+          </button>
+          <button class="sa-modal__btn sa-modal__btn--delete" (click)="executeDelete()">
+            {{ 'COMMON.ACTIONS.DELETE' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Create/Edit modal -->
+  @if (showModal()) {
+    <app-analyzer-rule-form
+      [rule]="editingRule()"
+      (saved)="onSaved()"
+      (cancelled)="closeModal()"
+    />
+  }
+</div>

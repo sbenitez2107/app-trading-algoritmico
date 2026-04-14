@@ -21,5 +21,10 @@ export const SQX_ROUTES: Routes = [
     loadComponent: () =>
       import('./building-blocks/building-blocks-list/building-blocks-list.component').then(m => m.BuildingBlocksListComponent)
   },
+  {
+    path: 'strategy-analyzer',
+    loadComponent: () =>
+      import('./strategy-analyzer/strategy-analyzer.component').then(m => m.StrategyAnalyzerComponent),
+  },
   { path: '', redirectTo: 'workflow', pathMatch: 'full' }
 ];

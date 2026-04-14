@@ -14,6 +14,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Batch> Batches => Set<Batch>();
     public DbSet<BatchStage> BatchStages => Set<BatchStage>();
     public DbSet<Strategy> Strategies => Set<Strategy>();
+    public DbSet<AnalyzerRule> AnalyzerRules => Set<AnalyzerRule>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

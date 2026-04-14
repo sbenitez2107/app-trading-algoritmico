@@ -69,9 +69,9 @@ The root `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en
 - Do **not** add an entry for: pure formatting, whitespace-only changes, or dead code removal with no behavioral change.
 
 ### How to update:
-1. Determine the version bump (current project version: **0.4.1**):
-   - `feat`: minor bump (e.g., 0.4.1 → 0.5.0)
-   - `fix`, `refactor`, `chore`: patch bump (e.g., 0.4.1 → 0.4.2)
+1. Determine the version bump (current project version: **0.4.2**):
+   - `feat`: minor bump (e.g., 0.4.2 → 0.5.0)
+   - `fix`, `refactor`, `chore`: patch bump (e.g., 0.4.2 → 0.4.3)
    - Breaking change: major bump
 2. Add a new versioned section if the version changed, or add to `[Unreleased]` if accumulating before a release.
 3. Use the correct subsection: `Added`, `Changed`, `Fixed`, `Removed`, `Security`.

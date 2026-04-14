@@ -1,0 +1,54 @@
+<div class="sa-form-backdrop" (click)="onBackdropClick($event)">
+  <div class="sa-form-modal" (click)="$event.stopPropagation()">
+    <h3 class="sa-form-modal__title">
+      {{ (rule ? 'SQX.ANALYZER.EDIT_RULE' : 'SQX.ANALYZER.ADD_RULE') | translate }}
+    </h3>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="sa-form">
+      <div class="sa-form__group">
+        <label class="sa-form__label">{{ 'SQX.ANALYZER.NAME' | translate }}</label>
+        <input class="sa-form__input" formControlName="name"
+          [placeholder]="'SQX.ANALYZER.NAME_PLACEHOLDER' | translate" />
+      </div>
+
+      <div class="sa-form__group">
+        <label class="sa-form__label">{{ 'SQX.ANALYZER.DESCRIPTION' | translate }}</label>
+        <textarea class="sa-form__textarea sa-form__input" formControlName="description" rows="4"
+          [placeholder]="'SQX.ANALYZER.DESCRIPTION_PLACEHOLDER' | translate"></textarea>
+      </div>
+
+      <div class="sa-form__row">
+        <div class="sa-form__group sa-form__group--half">
+          <label class="sa-form__label">{{ 'SQX.ANALYZER.PRIORITY' | translate }}</label>
+          <input class="sa-form__input" type="number" formControlName="priority" min="0" />
+        </div>
+
+        <div class="sa-form__group sa-form__group--half">
+          <label class="sa-form__label">{{ 'SQX.ANALYZER.IS_ACTIVE' | translate }}</label>
+          <label class="sa-form__toggle">
+            <input type="checkbox" formControlName="isActive" />
+            <span class="sa-form__toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      @if (errorMessage()) {
+        <div class="sa-form__error">{{ errorMessage() }}</div>
+      }
+
+      <div class="sa-form__actions">
+        <button type="button" class="sa-form__btn sa-form__btn--cancel" (click)="cancelled.emit()">
+          {{ 'SQX.ANALYZER.CANCEL' | translate }}
+        </button>
+        <button type="submit" class="sa-form__btn sa-form__btn--save"
+          [disabled]="form.invalid || isLoading()">
+          @if (isLoading()) {
+            {{ 'COMMON.STATUS.LOADING' | translate }}
+          } @else {
+            {{ 'SQX.ANALYZER.SAVE' | translate }}
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

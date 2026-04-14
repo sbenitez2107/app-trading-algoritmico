@@ -7,10 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.4.1] - 2026-04-13
+## [0.4.2] - 2026-04-13
 
 ### Added
-- **Pre-commit skill v1.1**: Mandatory checklist that runs before every `git commit`. Steps: dead code cleanup (staged files only), unit tests (Angular + .NET), CHANGELOG.md update, AGENTS.md registration check, affected SKILL.md version bumps, README.md update when user-facing behavior changes, Engram memory sync (`mem_save` with topic_key). Registered in root `AGENTS.md` and wired as Step 0 in `universal-skills/git-commit/SKILL.md`.
+- **Strategy Rules Analyzer**: New SQX menu item at `/sqx/strategy-analyzer`. CRUD for global validation rules (checklist) used to evaluate strategies post-Optimizer before selecting for BT or Demo. Backend: `AnalyzerRule` entity, EF migration, REST API (`/api/analyzer-rules`), seed with 6 initial rules. Frontend: checklist view with priority ordering, create/edit modal, delete confirmation.
+- **Pre-commit skill v1.2**: Mandatory checklist before every `git commit` with Engram memory sync as Step 7.
+
+### Changed
+- **Batch list Asset column**: Now shows only the asset name (Oro, Nasdaq, DAX) instead of the symbol+name combination.
+- **App version**: Bumped to 0.4.2 in environment files and sidebar UI.
+
+### Fixed
+- **Analyzer rule service URL**: Corrected to use `API_BASE_URL` injection token with `/api/` prefix instead of `environment.apiUrl` directly.
 
 ### Planned
 - Risk management dashboard
