@@ -33,7 +33,6 @@ npm-debug.log*
 pnpm-debug.log*
 
 # Angular environment overrides
-app.trading.algoritmico.web/src/environments/environment.development.ts
 app.trading.algoritmico.web/src/environments/environment.local.ts
 
 # ===========================
