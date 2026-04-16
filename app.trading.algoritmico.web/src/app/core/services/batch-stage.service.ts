@@ -17,6 +17,7 @@ export interface BatchStageDetailDto {
 export interface UpdateBatchStageDto {
   status?: number;
   notes?: string;
+  inputCount?: number;
   outputCount?: number;
 }
 

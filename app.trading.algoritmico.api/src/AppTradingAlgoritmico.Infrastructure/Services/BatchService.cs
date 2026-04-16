@@ -218,9 +218,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         var stage = batch.Stages.FirstOrDefault(s => s.Id == stageId)
             ?? throw new KeyNotFoundException($"Stage {stageId} not found.");
 
-        if (stage.Status == PipelineStageStatus.Completed)
-            throw new InvalidOperationException("Cannot delete a completed stage.");
-
         if (stage.StageType == PipelineStageType.Builder)
             throw new InvalidOperationException("Cannot delete the Builder stage.");
 

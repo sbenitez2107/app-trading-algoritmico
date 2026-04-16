@@ -177,9 +177,12 @@ export class PipelineDetailComponent {
   saveEditStage(): void {
     const target = this.editingStage();
     if (!target) return;
-    this.stageService.update(target.batch.id, target.stage.id, {
-      outputCount: this.editCount()
-    }).subscribe({ next: () => { this.editingStage.set(null); this.loadBatches(); } });
+    const isBuilder = target.stage.stageType === 0;
+    const dto = isBuilder
+      ? { inputCount: this.editCount() }
+      : { outputCount: this.editCount() };
+    this.stageService.update(target.batch.id, target.stage.id, dto)
+      .subscribe({ next: () => { this.editingStage.set(null); this.loadBatches(); } });
   }
 
   cancelEditStage(): void {
@@ -205,12 +208,12 @@ export class PipelineDetailComponent {
     this.deleteTarget.set(null);
   }
 
-  canEditOrDelete(stage: BatchStageSummaryDto): boolean {
-    return stage.status !== 2; // Not Completed
+  canEdit(stage: BatchStageSummaryDto): boolean {
+    return true; // Allow editing strategy counts on any status
   }
 
   canDeleteStage(stage: BatchStageSummaryDto): boolean {
-    return stage.status !== 2 && stage.stageType !== 0; // Not Completed and not Builder
+    return stage.stageType !== 0; // Any status allowed, only Builder is protected
   }
 
   // Delete full batch

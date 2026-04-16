@@ -95,11 +95,11 @@
                   @if (canCompleteDemo(batch, stage)) {
                     <button class="pl-grid__mini-btn pl-grid__mini-btn--complete" (click)="completeDemo(batch, stage, $event)" [title]="'SQX.WORKFLOW.COMPLETE_DEMO' | translate">✅</button>
                   }
-                  @if (canEditOrDelete(stage)) {
+                  @if (canEdit(stage)) {
                     <button class="pl-grid__mini-btn" (click)="openEditStage(batch, stage, $event)" title="Edit">✏️</button>
                   }
                   @if (canDeleteStage(stage)) {
-                    <button class="pl-grid__mini-btn pl-grid__mini-btn--danger" (click)="confirmDeleteStage(batch, stage, $event)" title="Delete">🗑️</button>
+                    <button class="pl-grid__mini-btn pl-grid__mini-btn--danger" (click)="confirmDeleteStage(batch, stage, $event)" title="Rollback">⏪</button>
                   }
                 </div>
               } @else {

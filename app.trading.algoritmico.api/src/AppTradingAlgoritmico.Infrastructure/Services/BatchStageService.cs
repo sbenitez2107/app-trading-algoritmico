@@ -40,6 +40,9 @@ public sealed class BatchStageService(AppDbContext db) : IBatchStageService
         if (dto.Notes is not null)
             stage.Notes = dto.Notes;
 
+        if (dto.InputCount.HasValue)
+            stage.InputCount = dto.InputCount.Value;
+
         if (dto.OutputCount.HasValue)
             stage.OutputCount = dto.OutputCount.Value;
 
