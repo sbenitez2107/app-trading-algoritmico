@@ -41,7 +41,7 @@ Skills that apply to ALL projects in this monorepo:
 | **grid-standard** | Standard Prizm Grid Protocol | `.agents/skills/grid-standard/SKILL.md` |
 | **job-orchestrator** | Scheduling background jobs | `.agents/skills/job-orchestrator/SKILL.md` |
 | **perform-testing** | Running Unit/Integration/E2E tests | `.agents/skills/perform-testing/SKILL.md` |
-| **pre-commit** | Mandatory checklist before every git commit (dead code, tests, docs) | `.agents/skills/pre-commit/SKILL.md` |
+| **commit** | Full commit workflow: version bump, tests, dead code, docs, Engram, git commit | `.agents/skills/commit/SKILL.md` |
 | **root-orchestrator** | Coordinating full-stack dev | `.agents/skills/root-orchestrator/SKILL.md` |
 | **visual-qa** | Visual stress testing & layouts | `.agents/skills/visual-qa/SKILL.md` |
 | **trading-domain** | IMOX domain knowledge router (pipeline, SQX, selection criteria) | `.agents/skills/trading-domain/SKILL.md` |
