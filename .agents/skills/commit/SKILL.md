@@ -1,18 +1,34 @@
 ---
 name: commit
 description: >
-  Full commit workflow: reads current version, calculates bump, runs tests,
-  detects dead code, updates version files, CHANGELOG, docs, syncs Engram,
-  and executes git commit. Replaces manual pre-commit checklist.
+  Full commit workflow: guard check, version bump, dead code + debug artifacts +
+  security scan, formatting, tests, type safety, version files, CHANGELOG, docs,
+  Engram sync, and git commit.
 metadata:
   author: code-assistant
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Commit Skill
 
 Invoke with `/commit`. Executes every step in order. Do NOT skip any step.
 Do NOT run `git commit` manually — this skill owns the commit.
+
+---
+
+## Step 0 — Guard: Verify Staged Changes
+
+Run:
+```bash
+git diff --cached --name-only
+```
+
+If the output is **empty** → **STOP immediately**. Do not proceed.
+
+Output to user:
+> "Nothing staged. Run `git add <files>` and then `/commit` again."
+
+Only continue if at least one file is staged.
 
 ---
 
@@ -23,7 +39,7 @@ Read the current version from:
 app.trading.algoritmico.web/src/environments/environment.ts
 ```
 
-Extract the `version` field value (e.g., `'0.4.2'`). This is the **base version** for all calculations in this session.
+Extract the `version` field value (e.g., `'0.4.3'`). This is the **base version** for all calculations in this session.
 
 ---
 
@@ -45,10 +61,10 @@ From the staged file list and diff, determine:
 2. **Version bump rule**:
    | Type | Bump | Example |
    |------|------|---------|
-   | `feat` | **minor** | `0.4.2` → `0.5.0` |
-   | `fix` | **patch** | `0.4.2` → `0.4.3` |
-   | `chore` / `refactor` / `docs` | **patch** | `0.4.2` → `0.4.3` |
-   | Breaking change | **major** | `0.4.2` → `1.0.0` |
+   | `feat` | **minor** | `0.4.3` → `0.5.0` |
+   | `fix` | **patch** | `0.4.3` → `0.4.4` |
+   | `chore` / `refactor` / `docs` | **patch** | `0.4.3` → `0.4.4` |
+   | Breaking change | **major** | `0.4.3` → `1.0.0` |
 
 3. Calculate the **new version** string (e.g., `0.5.0`).
 
@@ -56,22 +72,67 @@ From the staged file list and diff, determine:
 
 ---
 
-## Step 3 — Dead Code Cleanup
+## Step 3 — Dead Code, Debug Artifacts & Security Scan
 
-Scan ONLY the staged files (`git diff --cached --name-only`). Remove:
+Scan ONLY the staged files (`git diff --cached --name-only`).
 
+### 3a — Dead Code
+Remove:
 - **Unused imports**: any `import` / `using` whose symbol is never referenced.
 - **Unreachable code**: code after `return`/`throw` that cannot execute.
-- **Commented-out code blocks**: blocks left as comments (not explanatory comments).
+- **Commented-out code blocks**: blocks of code left as comments (not explanatory comments).
 - **Unused variables, signals, or fields**: declared but never read.
 - **TODO/FIXME leftovers**: temporary markers never resolved.
 
-**Rule**: If dead code is found → clean it and re-stage the file before continuing.
-**Rule**: Do NOT touch files outside the current diff.
+### 3b — Debug Artifacts
+Scan staged `.ts` and `.cs` files for:
+- `console.log(`, `console.warn(`, `console.error(` — unless inside a dedicated logging service or explicitly intentional.
+- `debugger;` statements.
+
+**Rule**: If found → flag to user and remove unless there is an explicit justification to keep.
+
+### 3c — Security Scan
+Scan all staged files for:
+- Hardcoded secret patterns: `password = "`, `apiKey = "`, `token = "`, `secret = "`, `connectionString = "`, `Authorization: Bearer <literal>`.
+- Hardcoded non-localhost URLs in non-environment files (e.g., `https://api.prod.com` inside a component).
+- Any `TODO: remove` or `FIXME: security` markers.
+
+**Rule**: If any secret or hardcoded credential is found → **STOP**. Flag to user. Do not commit until resolved.
+**Rule**: Non-localhost URLs in non-environment files → flag to user and ask whether to move to environment config.
+
+**Rule (general)**: Do NOT touch files outside the current diff.
+**Rule**: If changes are made → re-stage the affected files before continuing.
 
 ---
 
-## Step 4 — Run Tests
+## Step 4 — Code Formatting
+
+### Frontend — if any `.ts`, `.html`, or `.scss` files are staged:
+
+Run Prettier check on staged frontend files only:
+```bash
+npx prettier --check <staged .ts/.html/.scss files — space-separated>
+```
+
+If formatting issues are found:
+```bash
+npx prettier --write <same files>
+git add <same files>
+```
+
+### Backend — if any `.cs` files are staged:
+
+```bash
+dotnet format app.trading.algoritmico.api/AppTradingAlgoritmico.sln --include <staged .cs files — space-separated>
+```
+
+If `dotnet format` made changes → re-stage the modified files.
+
+**Rule**: Formatting must pass (or be auto-fixed) before continuing. This step is **blocking**.
+
+---
+
+## Step 5 — Run Tests
 
 ### Backend — run if any `.cs` files are staged:
 ```bash
@@ -93,7 +154,31 @@ Report result as:
 
 ---
 
-## Step 5 — Update Version Files
+## Step 6 — Type Safety & Static Analysis
+
+### Frontend — if any `.ts` or `.html` files are staged:
+
+Run TypeScript compiler check (no output files produced):
+```bash
+cd app.trading.algoritmico.web && npx tsc --noEmit
+```
+
+**Rule**: ANY type error → **BLOCKED**. Fix before continuing.
+
+### Backend — if any `.cs` files are staged:
+
+Build treating warnings as errors:
+```bash
+cd app.trading.algoritmico.api && dotnet build /warnaserror
+```
+
+**Rule**: ANY warning-elevated-to-error → **BLOCKED**. Fix before continuing.
+
+> **Note**: If warnings predate this commit (not introduced by staged files), report them to the user and ask: fix now or add to backlog? Do not block the commit for pre-existing warnings unless they are in the staged files.
+
+---
+
+## Step 7 — Update Version Files
 
 Update the version string in ALL of these files to the new version calculated in Step 2:
 
@@ -107,7 +192,7 @@ Stage the updated files after editing.
 
 ---
 
-## Step 6 — Update CHANGELOG.md
+## Step 8 — Update CHANGELOG.md
 
 File: `CHANGELOG.md` (root)
 
@@ -129,7 +214,7 @@ Stage the updated file after editing.
 
 ---
 
-## Step 7 — Update AGENTS.md (if applicable)
+## Step 9 — Update AGENTS.md (if applicable)
 
 Update `AGENTS.md` (root, API, or Web) when:
 - A new skill was created → add it to the Skills table.
@@ -140,7 +225,7 @@ Update `AGENTS.md` (root, API, or Web) when:
 
 ---
 
-## Step 8 — Update Affected SKILL.md Files (if applicable)
+## Step 10 — Update Affected SKILL.md Files (if applicable)
 
 If the commit modifies behavior governed by an existing skill:
 - Open the relevant `SKILL.md` and update patterns, commands, or examples.
@@ -148,7 +233,7 @@ If the commit modifies behavior governed by an existing skill:
 
 ---
 
-## Step 9 — Update README.md (if applicable)
+## Step 11 — Update README.md (if applicable)
 
 Update root `README.md` when:
 - A user-facing feature was added.
@@ -159,7 +244,7 @@ Do NOT update README for internal refactors, test changes, or agent files.
 
 ---
 
-## Step 10 — Sync Engram Memory
+## Step 12 — Sync Engram Memory
 
 Call `mem_save` with:
 - **title**: Short, searchable — same spirit as the commit subject.
@@ -181,12 +266,12 @@ Call `mem_save` with:
 
 ---
 
-## Step 11 — Git Commit
+## Step 13 — Git Commit
 
 Stage any remaining modified files from previous steps, then commit:
 
 ```bash
-git add <files updated in steps 5-9>
+git add <files updated in steps 7-11>
 git commit -m "<conventional commit message>"
 ```
 
@@ -209,29 +294,49 @@ Scope: optional, e.g. `pipeline`, `auth`, `agents`, `changelog`
 
 ## Completion Gate
 
-| Step | Description | Status |
-|------|-------------|--------|
-| 1 | Version read | ✅ |
-| 2 | Bump calculated | ✅ / announced |
-| 3 | Dead code removed | ✅ / N/A |
-| 4 | Tests pass | ✅ / N/A |
-| 5 | Version files updated | ✅ |
-| 6 | CHANGELOG updated | ✅ / N/A |
-| 7 | AGENTS.md updated | ✅ / N/A |
-| 8 | SKILL.md files updated | ✅ / N/A |
-| 9 | README updated | ✅ / N/A |
-| 10 | Engram synced | ✅ / N/A |
-| 11 | git commit executed | ✅ |
+| Step | Description | Mandatory |
+|------|-------------|-----------|
+| 0 | Staged changes verified | ALWAYS |
+| 1 | Version read | ALWAYS |
+| 2 | Bump calculated & announced | ALWAYS |
+| 3 | Dead code, debug artifacts, secrets | ✅ / N/A |
+| 4 | Code formatting | ✅ / N/A |
+| 5 | Tests pass | ✅ / N/A |
+| 6 | Type safety & static analysis | ✅ / N/A |
+| 7 | Version files updated | ALWAYS |
+| 8 | CHANGELOG updated | ✅ / N/A |
+| 9 | AGENTS.md updated | ✅ / N/A |
+| 10 | SKILL.md files updated | ✅ / N/A |
+| 11 | README updated | ✅ / N/A |
+| 12 | Engram synced | ✅ / N/A |
+| 13 | git commit executed | ALWAYS |
 
-Steps 3–10 can be N/A based on the nature of the changes. Steps 1, 2, 5, and 11 are ALWAYS mandatory.
+Steps 3–12 can be N/A based on the nature of the changes.
+Steps 0, 1, 2, 7, and 13 are **ALWAYS mandatory**.
 
 ---
 
 ## Anti-Patterns
 
+- ❌ Running with nothing staged — Step 0 catches this.
 - ❌ Skipping tests because "it's a small change".
 - ❌ Hardcoding the version — always read it from `environment.ts` first.
+- ❌ Leaving `console.log` or `debugger` in production code.
+- ❌ Committing hardcoded secrets or credentials.
 - ❌ Creating a skill without registering it in `AGENTS.md`.
 - ❌ Committing commented-out code "just in case".
 - ❌ Running `git commit` manually — always use `/commit`.
 - ❌ Adding CHANGELOG entries for agent/skill-only changes with no product impact.
+
+---
+
+## Note: ESLint (not yet installed)
+
+ESLint is not configured in this project. When `@angular-eslint/schematics` is installed
+and configured, add a lint step between Step 4 (formatting) and Step 5 (tests):
+
+```bash
+cd app.trading.algoritmico.web && npx ng lint
+```
+
+At that point, bump this skill version and add it to the step sequence.
