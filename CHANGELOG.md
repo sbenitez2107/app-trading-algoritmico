@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **IMOX Knowledge Base**: Agent knowledge base at `.agents/knowledge/imox/` with 10 IMOX Academy documents (SQX config, mining workflow, validation protocol, asset profiles, money management). New `trading-domain` skill routes agents to the correct documents before domain decisions.
+
+### Changed
+- **Pipeline stage editing**: Builder stage now correctly edits `inputCount` (strategy count created). Edit button available on all stages regardless of status.
+- **Pipeline rollback**: Completed stages can now be rolled back. Previously blocked by status check. Rollback button changed to ⏪ icon.
+
+---
+
 ## [0.4.2] - 2026-04-13
 
 ### Added
