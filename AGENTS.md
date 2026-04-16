@@ -44,6 +44,7 @@ Skills that apply to ALL projects in this monorepo:
 | **pre-commit** | Mandatory checklist before every git commit (dead code, tests, docs) | `.agents/skills/pre-commit/SKILL.md` |
 | **root-orchestrator** | Coordinating full-stack dev | `.agents/skills/root-orchestrator/SKILL.md` |
 | **visual-qa** | Visual stress testing & layouts | `.agents/skills/visual-qa/SKILL.md` |
+| **trading-domain** | IMOX domain knowledge router (pipeline, SQX, selection criteria) | `.agents/skills/trading-domain/SKILL.md` |
 
 ### 🌐 Agent Capabilities
 
@@ -130,6 +131,7 @@ Direct database access via CLI commands (e.g., `dotnet ef`, `sqlcmd`, migration 
 ## 📚 ADDITIONAL CONTEXT
 - `.github/context/` - Technical documentation (Host)
 - `.github/copilot-instructions.md` - GitHub Copilot instructions (Host)
+- `.agents/knowledge/imox/INDEX.md` - IMOX Academy domain knowledge (trading concepts, SQX config, strategy selection criteria, workflows)
 
 ## 📚 LINGUISTIC STANDARDS
 - **Mandatory Language**: All documentation files (`skill.md`, `README.md`, `CHANGELOG.md`) and code comments MUST be written in **English**.
