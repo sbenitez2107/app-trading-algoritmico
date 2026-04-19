@@ -31,4 +31,6 @@ public class TradingAccount : BaseEntity
 
     /// <summary>Whether this account is active for use</summary>
     public bool IsEnabled { get; set; } = true;
+
+    public ICollection<Strategy> Strategies { get; set; } = [];
 }

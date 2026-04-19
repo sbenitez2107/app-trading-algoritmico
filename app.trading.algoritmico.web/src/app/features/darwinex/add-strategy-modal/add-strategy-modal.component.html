@@ -1,0 +1,68 @@
+<div class="modal-backdrop" (click)="onCancel()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal__header">
+      <h2 class="modal__title">Add Strategy</h2>
+      <button class="modal__close" type="button" (click)="onCancel()" aria-label="Close">
+        &times;
+      </button>
+    </header>
+
+    <div class="modal__body">
+      @if (error()) {
+        <div class="modal__error" role="alert">{{ error() }}</div>
+      }
+
+      <div class="form-field">
+        <label class="form-field__label" for="strategy-name">Strategy Name</label>
+        <input
+          id="strategy-name"
+          class="form-field__input"
+          type="text"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+          placeholder="Enter strategy name"
+          autocomplete="off"
+        />
+      </div>
+
+      <div class="form-field">
+        <label class="form-field__label" for="sqx-file">SQX File</label>
+        <input
+          id="sqx-file"
+          class="form-field__input"
+          type="file"
+          accept=".sqx"
+          (change)="onSqxFileChange($event)"
+        />
+        @if (sqxFile()) {
+          <span class="form-field__hint">{{ sqxFile()!.name }}</span>
+        }
+      </div>
+
+      <div class="form-field">
+        <label class="form-field__label" for="html-file">HTML Report</label>
+        <input
+          id="html-file"
+          class="form-field__input"
+          type="file"
+          accept=".html"
+          (change)="onHtmlFileChange($event)"
+        />
+        @if (htmlFile()) {
+          <span class="form-field__hint">{{ htmlFile()!.name }}</span>
+        }
+      </div>
+    </div>
+
+    <footer class="modal__footer">
+      <button class="btn btn--secondary" type="button" (click)="onCancel()">Cancel</button>
+      <button class="btn btn--primary" type="button" [disabled]="!canSubmit()" (click)="submit()">
+        @if (isSubmitting()) {
+          Uploading...
+        } @else {
+          Add Strategy
+        }
+      </button>
+    </footer>
+  </div>
+</div>

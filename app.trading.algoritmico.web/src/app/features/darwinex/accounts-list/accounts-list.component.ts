@@ -1,10 +1,10 @@
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   TradingAccountDto,
   TradingAccountService,
-  AccountType
+  AccountType,
 } from '../../../core/services/trading-account.service';
 import { AccountFormComponent } from '../account-form/account-form.component';
 
@@ -14,7 +14,7 @@ import { AccountFormComponent } from '../account-form/account-form.component';
   imports: [CommonModule, AccountFormComponent],
   templateUrl: './accounts-list.component.html',
   styleUrl: './accounts-list.component.scss',
-  changeDetection: ChangeDetectionStrategy.Default
+  changeDetection: ChangeDetectionStrategy.Default,
 })
 export class AccountsListComponent implements OnInit {
   accounts: TradingAccountDto[] = [];
@@ -30,8 +30,9 @@ export class AccountsListComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private service: TradingAccountService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -45,7 +46,7 @@ export class AccountsListComponent implements OnInit {
   loadAccounts(): void {
     this.isLoading = true;
     this.service.getAll(this.broker, this.accountType).subscribe({
-      next: data => {
+      next: (data) => {
         this.accounts = data;
         this.isLoading = false;
         this.cdr.markForCheck();
@@ -53,7 +54,7 @@ export class AccountsListComponent implements OnInit {
       error: () => {
         this.isLoading = false;
         this.cdr.markForCheck();
-      }
+      },
     });
   }
 
@@ -73,9 +74,9 @@ export class AccountsListComponent implements OnInit {
   }
 
   onSaved(account: TradingAccountDto): void {
-    const idx = this.accounts.findIndex(a => a.id === account.id);
+    const idx = this.accounts.findIndex((a) => a.id === account.id);
     if (idx >= 0) {
-      this.accounts = this.accounts.map(a => a.id === account.id ? account : a);
+      this.accounts = this.accounts.map((a) => (a.id === account.id ? account : a));
     } else {
       this.accounts = [account, ...this.accounts];
     }
@@ -86,11 +87,11 @@ export class AccountsListComponent implements OnInit {
   toggleAccount(account: TradingAccountDto): void {
     this.service.toggle(account.id).subscribe({
       next: () => {
-        this.accounts = this.accounts.map(a =>
-          a.id === account.id ? { ...a, isEnabled: !a.isEnabled } : a
+        this.accounts = this.accounts.map((a) =>
+          a.id === account.id ? { ...a, isEnabled: !a.isEnabled } : a,
         );
         this.cdr.markForCheck();
-      }
+      },
     });
   }
 
@@ -103,11 +104,18 @@ export class AccountsListComponent implements OnInit {
     if (!this.accountToDelete) return;
     this.service.delete(this.accountToDelete.id).subscribe({
       next: () => {
-        this.accounts = this.accounts.filter(a => a.id !== this.accountToDelete?.id);
+        this.accounts = this.accounts.filter((a) => a.id !== this.accountToDelete?.id);
         this.showDeleteConfirm = false;
         this.accountToDelete = null;
         this.cdr.markForCheck();
-      }
+      },
     });
+  }
+
+  navigateToDetail(account: TradingAccountDto, event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.closest('button')) return;
+    if (account.accountType !== 0) return;
+    this.router.navigate(['/darwinex/demo', account.id]);
   }
 }

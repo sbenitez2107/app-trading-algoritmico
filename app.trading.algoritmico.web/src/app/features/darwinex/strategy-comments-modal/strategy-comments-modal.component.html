@@ -1,0 +1,63 @@
+<div class="modal-backdrop" (click)="onClose()">
+  <div
+    class="modal modal--comments"
+    (click)="$event.stopPropagation()"
+    role="dialog"
+    aria-modal="true"
+  >
+    <header class="modal__header">
+      <div class="modal__title-group">
+        <h2 class="modal__title">Comments</h2>
+        <span class="modal__subtitle">{{ strategyName() }}</span>
+      </div>
+      <button class="modal__close" type="button" (click)="onClose()" aria-label="Close">
+        &times;
+      </button>
+    </header>
+
+    <div class="modal__body">
+      @if (isLoading()) {
+        <p class="comments__loading">Loading comments...</p>
+      } @else if (comments().length === 0) {
+        <p class="comments__empty">No comments yet. Be the first to add one.</p>
+      } @else {
+        <ul class="comments__list">
+          @for (comment of comments(); track comment.id) {
+            <li class="comment">
+              <div class="comment__meta">
+                <span class="comment__author">{{ comment.createdBy || 'Unknown' }}</span>
+                <span class="comment__date">{{ formatDate(comment.createdAt) }}</span>
+              </div>
+              <p class="comment__content">{{ comment.content }}</p>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (error()) {
+        <div class="comments__error" role="alert">{{ error() }}</div>
+      }
+    </div>
+
+    <footer class="modal__footer modal__footer--column">
+      <textarea
+        class="comments__textarea"
+        placeholder="Write a comment..."
+        [value]="newContent()"
+        (input)="onContentInput($any($event.target).value)"
+        rows="3"
+      ></textarea>
+      <div class="modal__footer-actions">
+        <button class="btn btn--secondary" type="button" (click)="onClose()">Close</button>
+        <button
+          class="btn btn--primary"
+          type="button"
+          [disabled]="!canSubmit()"
+          (click)="onSubmit()"
+        >
+          {{ isSubmitting() ? 'Adding...' : 'Add comment' }}
+        </button>
+      </div>
+    </footer>
+  </div>
+</div>

@@ -10,6 +10,8 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="FluentAssertions" Version="8.3.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
@@ -24,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AppTradingAlgoritmico.Application\AppTradingAlgoritmico.Application.csproj" />
     <ProjectReference Include="..\..\src\AppTradingAlgoritmico.Infrastructure\AppTradingAlgoritmico.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\AppTradingAlgoritmico.WebAPI\AppTradingAlgoritmico.WebAPI.csproj" />
   </ItemGroup>
 
 </Project>

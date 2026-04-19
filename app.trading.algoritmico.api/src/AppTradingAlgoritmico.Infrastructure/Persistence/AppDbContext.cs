@@ -14,7 +14,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Batch> Batches => Set<Batch>();
     public DbSet<BatchStage> BatchStages => Set<BatchStage>();
     public DbSet<Strategy> Strategies => Set<Strategy>();
+    public DbSet<StrategyMonthlyPerformance> StrategyMonthlyPerformances => Set<StrategyMonthlyPerformance>();
     public DbSet<AnalyzerRule> AnalyzerRules => Set<AnalyzerRule>();
+    public DbSet<StrategyGridPreset> StrategyGridPresets => Set<StrategyGridPreset>();
+    public DbSet<StrategyComment> StrategyComments => Set<StrategyComment>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

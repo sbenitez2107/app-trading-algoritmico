@@ -1,0 +1,57 @@
+schema: spec-driven
+
+context: |
+  Monorepo: app.trading.algoritmico.api (.NET 10, Clean Architecture, CQRS, EF Core, REST + GraphQL/HotChocolate)
+  and app.trading.algoritmico.web (Angular 21, Signals, Standalone Components, SCSS/BEM, Vitest).
+  Single-user personal trading platform. Dark-first UI. pnpm + dotnet. ngx-translate (EN + ES).
+  Convention files in .claude/conventions/ indexed by _index.md.
+
+strict_tdd: true
+
+testing:
+  strict_tdd_mode: enabled
+  backend:
+    runner: xUnit
+    command: dotnet test
+    unit: true
+    integration_tool_installed: false
+    coverage: coverlet
+    mocks: Moq
+    assertions: FluentAssertions
+  frontend:
+    runner: Vitest
+    command: pnpm --dir app.trading.algoritmico.web test
+    unit: true
+    dom_testing: jsdom
+    e2e: false
+    coverage: vitest-builtin
+  quality:
+    formatter_frontend: prettier
+    type_checker_frontend: tsc
+    formatter_backend: dotnet format
+    linter_frontend: not-detected
+    linter_backend: warnings-as-errors
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Identify affected modules/packages (Domain/Application/Infrastructure/WebAPI + Angular feature)
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for cross-layer flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group tasks by phase (data model, backend, frontend, migration, tests)
+    - Use hierarchical numbering (1.1, 1.2, ...)
+    - Keep tasks small enough to complete in one session
+  apply:
+    - Follow .claude/conventions/ patterns before writing code
+    - Read backend-core/backend-data/frontend-core as applicable
+    - All commits via the /commit skill; no Co-Authored-By lines
+  verify:
+    - Run dotnet test (backend) and pnpm test (frontend) where scenarios dictate
+    - Compare implementation against every spec scenario
+  archive:
+    - Warn before merging destructive deltas (large removals)

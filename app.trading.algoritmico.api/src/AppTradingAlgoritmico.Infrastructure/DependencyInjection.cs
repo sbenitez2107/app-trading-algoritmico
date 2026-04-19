@@ -57,6 +57,7 @@ public static class DependencyInjection
 
         // Strategy Workflow
         services.AddScoped<ISqxParserService, SqxParserService>();
+        services.AddScoped<IHtmlReportParserService, HtmlReportParserService>();
         services.AddScoped<IAssetService, AssetService>();
         services.AddScoped<IBuildingBlockService, BuildingBlockService>();
         services.AddScoped<IBatchService, BatchService>();
@@ -65,6 +66,9 @@ public static class DependencyInjection
 
         // Analyzer
         services.AddScoped<IAnalyzerRuleService, AnalyzerRuleService>();
+
+        // Grid Presets
+        services.AddScoped<IGridPresetService, GridPresetService>();
 
         return services;
     }

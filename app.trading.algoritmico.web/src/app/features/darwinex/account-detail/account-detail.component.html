@@ -1,0 +1,146 @@
+<div class="account-detail">
+  <header class="account-detail__header">
+    <div class="account-detail__header-left">
+      <button
+        class="btn btn--ghost btn--icon"
+        type="button"
+        (click)="navigateBack()"
+        title="Back to demo accounts"
+      >
+        &#8592;
+      </button>
+      <h1 class="account-detail__title">
+        @if (account()) {
+          Strategies &mdash; {{ account()!.name }}
+        } @else {
+          Account Strategies
+        }
+      </h1>
+    </div>
+    <div class="account-detail__actions">
+      <div class="preset-toolbar">
+        <button class="btn btn--secondary" type="button" (click)="togglePresetsDropdown()">
+          Presets &#9662;
+        </button>
+        @if (showPresetsDropdown()) {
+          <div class="preset-dropdown">
+            @if (presets().length === 0) {
+              <p class="preset-dropdown__empty">No presets yet</p>
+            } @else {
+              @for (preset of presets(); track preset.id) {
+                <div class="preset-dropdown__item">
+                  <button
+                    class="preset-dropdown__apply"
+                    type="button"
+                    (click)="applyPreset(preset)"
+                  >
+                    {{ preset.name }}
+                  </button>
+                  <button
+                    class="preset-dropdown__delete"
+                    type="button"
+                    title="Delete preset"
+                    (click)="deletePreset(preset.id)"
+                  >
+                    &#x1F5D1;
+                  </button>
+                </div>
+              }
+            }
+            <div class="preset-dropdown__divider"></div>
+            <button class="preset-dropdown__save-btn" type="button" (click)="openSavePresetModal()">
+              + Save current as&hellip;
+            </button>
+          </div>
+        }
+      </div>
+      <button class="btn btn--secondary" type="button" (click)="toggleColumnPicker()">
+        Columns
+      </button>
+      <button class="btn btn--primary" type="button" (click)="openAddStrategyModal()">
+        Add Strategy
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="account-detail__error" role="alert">{{ error() }}</div>
+  }
+
+  <div class="account-detail__content">
+    <div class="account-detail__grid-wrapper">
+      @if (isLoading()) {
+        <div class="account-detail__loading">Loading strategies...</div>
+      } @else {
+        <ag-grid-angular
+          class="account-detail__grid"
+          [theme]="gridTheme"
+          [rowData]="strategies()"
+          [columnDefs]="columnDefs()"
+          [defaultColDef]="defaultColDef"
+          [animateRows]="true"
+        />
+      }
+    </div>
+
+    @if (showColumnPicker()) {
+      <aside class="column-picker">
+        <h3 class="column-picker__title">Visible Columns</h3>
+        <ul class="column-picker__list">
+          @for (col of allKpiCols; track col.field) {
+            <li class="column-picker__item">
+              <label class="column-picker__label">
+                <input
+                  type="checkbox"
+                  [checked]="visibleColumns().includes(col.field)"
+                  (change)="toggleColumn(col.field)"
+                />
+                {{ col.headerName }}
+              </label>
+            </li>
+          }
+        </ul>
+      </aside>
+    }
+  </div>
+
+  @if (showModal()) {
+    <app-add-strategy-modal
+      [accountId]="accountId"
+      (strategyCreated)="onStrategyCreated($event)"
+      (cancelled)="closeModal()"
+    />
+  }
+
+  @if (showSavePresetModal()) {
+    <app-save-preset-modal (save)="savePreset($event)" (cancelled)="closeSavePresetModal()" />
+  }
+
+  @if (showDeleteConfirm()) {
+    <div class="confirm-backdrop" (click)="cancelDelete()">
+      <div
+        class="confirm-dialog"
+        (click)="$event.stopPropagation()"
+        role="dialog"
+        aria-modal="true"
+      >
+        <h2 class="confirm-dialog__title">Delete Strategy</h2>
+        <p class="confirm-dialog__message">
+          Are you sure you want to permanently delete this strategy? This action cannot be undone.
+        </p>
+        <div class="confirm-dialog__actions">
+          <button class="btn btn--secondary" type="button" (click)="cancelDelete()">Cancel</button>
+          <button class="btn btn--danger" type="button" (click)="confirmDelete()">Delete</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (showCommentsModal() && selectedStrategyForComments()) {
+    <app-strategy-comments-modal
+      [strategyId]="selectedStrategyForComments()!.id"
+      [strategyName]="selectedStrategyForComments()!.name"
+      (close)="closeCommentsModal()"
+    />
+  }
+</div>

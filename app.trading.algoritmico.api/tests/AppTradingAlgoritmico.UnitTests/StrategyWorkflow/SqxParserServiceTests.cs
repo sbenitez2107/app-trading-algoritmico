@@ -10,53 +10,51 @@ public class SqxParserServiceTests
     private readonly SqxParserService _sut = new();
 
     [Fact]
-    public async Task ParseZipAsync_WithValidSqxFiles_ReturnsStrategies()
+    public async Task ExtractPseudocodeAsync_WithValidSqxFile_ReturnsPseudocode()
     {
         // Arrange
-        using var zipStream = CreateTestZipWithSqxFiles(["Strategy_1", "Strategy_2"]);
+        using var sqxStream = CreateTestSqxStream("Strategy_1");
 
         // Act
-        var result = await _sut.ParseZipAsync(zipStream);
+        var result = await _sut.ExtractPseudocodeAsync(sqxStream);
 
         // Assert
-        result.Should().HaveCount(2);
-        result[0].Name.Should().Be("Strategy_1");
-        result[1].Name.Should().Be("Strategy_2");
+        result.Should().NotBeNullOrEmpty();
+        result.Should().Contain("Engine: MetaTrader4");
     }
 
     [Fact]
-    public async Task ParseZipAsync_WithNoSqxFiles_ReturnsEmpty()
+    public async Task ExtractPseudocodeAsync_WithNoSettingsXml_ReturnsNull()
     {
-        // Arrange
-        using var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+        // Arrange — sqx that has no settings.xml inside
+        using var sqxStream = new MemoryStream();
+        using (var archive = new ZipArchive(sqxStream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            var entry = archive.CreateEntry("readme.txt");
+            var entry = archive.CreateEntry("other.xml");
             using var writer = new StreamWriter(entry.Open());
-            writer.Write("Not a strategy file");
+            writer.Write("<data/>");
         }
-        zipStream.Position = 0;
+        sqxStream.Position = 0;
 
         // Act
-        var result = await _sut.ParseZipAsync(zipStream);
+        var result = await _sut.ExtractPseudocodeAsync(sqxStream);
 
         // Assert
-        result.Should().BeEmpty();
+        result.Should().BeNull();
     }
 
     [Fact]
-    public async Task ParseZipAsync_ExtractsPseudocodeFromSettingsXml()
+    public async Task ExtractPseudocodeAsync_WithInvalidStream_ReturnsNull()
     {
-        // Arrange
-        using var zipStream = CreateTestZipWithSqxFiles(["TestStrategy"]);
+        // Arrange — not a zip file
+        var bytes = Encoding.UTF8.GetBytes("not a zip");
+        using var stream = new MemoryStream(bytes);
 
         // Act
-        var result = await _sut.ParseZipAsync(zipStream);
+        var result = await _sut.ExtractPseudocodeAsync(stream);
 
         // Assert
-        result.Should().HaveCount(1);
-        result[0].Pseudocode.Should().NotBeNullOrEmpty();
-        result[0].Pseudocode.Should().Contain("Engine: MetaTrader4");
+        result.Should().BeNull();
     }
 
     [Fact]
@@ -93,32 +91,18 @@ public class SqxParserServiceTests
         result.Should().BeNull();
     }
 
-    /// <summary>Creates a test ZIP containing .sqx files (each .sqx is itself a ZIP with settings.xml).</summary>
-    private static MemoryStream CreateTestZipWithSqxFiles(string[] strategyNames)
+    /// <summary>Creates a test .sqx stream (a ZIP containing settings.xml).</summary>
+    private static MemoryStream CreateTestSqxStream(string strategyName)
     {
-        var outerStream = new MemoryStream();
-        using (var outerArchive = new ZipArchive(outerStream, ZipArchiveMode.Create, leaveOpen: true))
+        var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            foreach (var name in strategyNames)
-            {
-                // Create inner .sqx ZIP
-                using var innerStream = new MemoryStream();
-                using (var innerArchive = new ZipArchive(innerStream, ZipArchiveMode.Create, leaveOpen: true))
-                {
-                    var settingsEntry = innerArchive.CreateEntry("settings.xml");
-                    using var writer = new StreamWriter(settingsEntry.Open(), Encoding.UTF8);
-                    writer.Write(CreateMinimalSettingsXml(name));
-                }
-                innerStream.Position = 0;
-
-                // Add inner ZIP as .sqx entry in outer ZIP
-                var sqxEntry = outerArchive.CreateEntry($"{name}.sqx");
-                using var sqxWriter = sqxEntry.Open();
-                innerStream.CopyTo(sqxWriter);
-            }
+            var settingsEntry = archive.CreateEntry("settings.xml");
+            using var writer = new StreamWriter(settingsEntry.Open(), Encoding.UTF8);
+            writer.Write(CreateMinimalSettingsXml(strategyName));
         }
-        outerStream.Position = 0;
-        return outerStream;
+        stream.Position = 0;
+        return stream;
     }
 
     private static MemoryStream CreateTestSqbFile(string xmlContent)

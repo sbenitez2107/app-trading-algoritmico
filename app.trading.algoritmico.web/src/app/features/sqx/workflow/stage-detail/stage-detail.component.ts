@@ -3,11 +3,25 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
-import { BatchService, STAGE_TYPE_LABELS, STAGE_STATUS_LABELS, TIMEFRAME_LABELS } from '../../../../core/services/batch.service';
-import { BatchStageService, BatchStageDetailDto } from '../../../../core/services/batch-stage.service';
+import {
+  BatchService,
+  STAGE_TYPE_LABELS,
+  STAGE_STATUS_LABELS,
+  TIMEFRAME_LABELS,
+} from '../../../../core/services/batch.service';
+import {
+  BatchStageService,
+  BatchStageDetailDto,
+} from '../../../../core/services/batch-stage.service';
 import { StrategyService, StrategyDto } from '../../../../core/services/strategy.service';
 
-type KpiKey = 'returnDrawdownRatio' | 'sharpeRatio' | 'winRate' | 'profitFactor' | 'netProfit' | 'maxDrawdown';
+type KpiKey =
+  | 'returnDrawdownRatio'
+  | 'sharpeRatio'
+  | 'winningPercentage'
+  | 'profitFactor'
+  | 'totalProfit'
+  | 'drawdown';
 
 @Component({
   selector: 'app-stage-detail',
@@ -15,7 +29,7 @@ type KpiKey = 'returnDrawdownRatio' | 'sharpeRatio' | 'winRate' | 'profitFactor'
   imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './stage-detail.component.html',
   styleUrl: './stage-detail.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StageDetailComponent {
   private readonly route = inject(ActivatedRoute);
@@ -43,18 +57,18 @@ export class StageDetailComponent {
   readonly timeframeLabels = TIMEFRAME_LABELS;
 
   readonly kpiOptions: { key: KpiKey; label: string }[] = [
-    { key: 'returnDrawdownRatio', label: 'Ret DD/Ratio' },
+    { key: 'returnDrawdownRatio', label: 'Return / DD Ratio' },
     { key: 'sharpeRatio', label: 'Sharpe Ratio' },
-    { key: 'winRate', label: 'Win Rate' },
+    { key: 'winningPercentage', label: 'Winning Percentage' },
     { key: 'profitFactor', label: 'Profit Factor' },
-    { key: 'netProfit', label: 'Net Profit' },
-    { key: 'maxDrawdown', label: 'Max Drawdown' }
+    { key: 'totalProfit', label: 'Total Profit' },
+    { key: 'drawdown', label: 'Drawdown' },
   ];
 
   readonly topStrategies = computed(() => {
     const key = this.rankBy();
     return [...this.strategies()]
-      .filter(s => s[key] !== null && s[key] !== undefined)
+      .filter((s) => s[key] !== null && s[key] !== undefined)
       .sort((a, b) => ((b[key] as number) ?? 0) - ((a[key] as number) ?? 0))
       .slice(0, 10);
   });
@@ -69,7 +83,7 @@ export class StageDetailComponent {
   }
 
   togglePseudocode(strategyId: string): void {
-    this.expandedStrategy.update(v => v === strategyId ? null : strategyId);
+    this.expandedStrategy.update((v) => (v === strategyId ? null : strategyId));
   }
 
   onKpiChange(strategy: StrategyDto, field: string, event: Event): void {
@@ -79,10 +93,8 @@ export class StageDetailComponent {
 
     this.strategyService.updateKpis(strategy.id, { [field]: numValue }).subscribe({
       next: (updated) => {
-        this.strategies.update(list =>
-          list.map(s => s.id === updated.id ? updated : s)
-        );
-      }
+        this.strategies.update((list) => list.map((s) => (s.id === updated.id ? updated : s)));
+      },
     });
   }
 
@@ -96,10 +108,14 @@ export class StageDetailComponent {
 
   getStatusClass(status: number): string {
     switch (status) {
-      case 0: return 'sd-status--pending';
-      case 1: return 'sd-status--running';
-      case 2: return 'sd-status--completed';
-      default: return '';
+      case 0:
+        return 'sd-status--pending';
+      case 1:
+        return 'sd-status--running';
+      case 2:
+        return 'sd-status--completed';
+      default:
+        return '';
     }
   }
 
@@ -114,7 +130,7 @@ export class StageDetailComponent {
     this.batchService.getById(this.batchId).subscribe({
       next: (batch) => {
         this.bbName.set(batch.buildingBlockName);
-        const matchingStage = batch.stages.find(s => s.stageType === this.stageType);
+        const matchingStage = batch.stages.find((s) => s.stageType === this.stageType);
         if (!matchingStage) {
           this.isLoading.set(false);
           return;
@@ -124,7 +140,7 @@ export class StageDetailComponent {
 
         // Load stage detail
         this.stageService.getDetail(this.batchId, this.stageId).subscribe({
-          next: (stageDetail) => this.stage.set(stageDetail)
+          next: (stageDetail) => this.stage.set(stageDetail),
         });
 
         // Load strategies
@@ -134,10 +150,10 @@ export class StageDetailComponent {
             this.totalCount.set(result.totalCount);
             this.isLoading.set(false);
           },
-          error: () => this.isLoading.set(false)
+          error: () => this.isLoading.set(false),
         });
       },
-      error: () => this.isLoading.set(false)
+      error: () => this.isLoading.set(false),
     });
   }
 }

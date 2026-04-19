@@ -84,3 +84,6 @@ TEST*.xml
 *.flv
 *.mov
 *.wmv
+
+# Local test data — SQX .sqx/.html pairs used for manual smoke tests
+/strategies/

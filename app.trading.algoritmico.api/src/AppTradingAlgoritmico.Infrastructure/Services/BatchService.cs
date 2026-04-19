@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using AppTradingAlgoritmico.Application.DTOs.Batches;
 using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.Interfaces;
@@ -8,7 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
-public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IBatchService
+public sealed class BatchService(
+    AppDbContext db,
+    ISqxParserService sqxParser,
+    IHtmlReportParserService htmlParser) : IBatchService
 {
     public async Task<IEnumerable<BatchDto>> GetAllAsync(
         Guid? assetId = null, Timeframe? timeframe = null, CancellationToken ct = default)
@@ -21,8 +25,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         if (timeframe.HasValue)
             query = query.Where(b => b.Timeframe == timeframe.Value);
 
-        // Project directly to DTO to avoid cartesian explosion from Include on Stages.
-        // This generates efficient SQL with only needed columns (no pseudocode/xmlconfig).
         return await query
             .OrderByDescending(b => b.CreatedAt)
             .Select(b => new BatchDto(
@@ -65,10 +67,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         return dto;
     }
 
-    /// <summary>
-    /// Creates a new batch in the Builder stage.
-    /// Either a ZIP with .sqx files or a manual strategy count must be provided.
-    /// </summary>
     public async Task<BatchDto> CreateAsync(
         CreateBatchDto dto, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default)
     {
@@ -80,7 +78,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         if (!bbExists)
             throw new KeyNotFoundException($"BuildingBlock {dto.BuildingBlockId} not found.");
 
-        // Parse ZIP or use manual count
         var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
 
         var batch = new Batch
@@ -102,15 +99,8 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             CreatedAt = DateTime.UtcNow
         };
 
-        foreach (var s in strategies)
-        {
-            builderStage.Strategies.Add(new Strategy
-            {
-                Name = s.Name,
-                Pseudocode = s.Pseudocode,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
+        foreach (var imported in strategies)
+            builderStage.Strategies.Add(HydrateStrategy(imported));
 
         batch.Stages.Add(builderStage);
         db.Batches.Add(batch);
@@ -119,10 +109,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         return await GetByIdAsync(batch.Id, ct);
     }
 
-    /// <summary>
-    /// Advances a batch to the next pipeline stage.
-    /// Either a ZIP with .sqx files or a manual strategy count must be provided.
-    /// </summary>
     public async Task<BatchDto> AdvanceAsync(
         Guid batchId, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default)
     {
@@ -142,7 +128,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
 
         var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
 
-        // Demo stage must be completed explicitly before advancing to Live
         if (currentStage.StageType == PipelineStageType.Demo)
         {
             if (currentStage.Status != PipelineStageStatus.Completed)
@@ -156,7 +141,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             currentStage.UpdatedAt = DateTime.UtcNow;
         }
 
-        // Create new stage
         var newStage = new BatchStage
         {
             BatchId = batchId,
@@ -168,15 +152,8 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             CreatedAt = DateTime.UtcNow
         };
 
-        foreach (var s in strategies)
-        {
-            newStage.Strategies.Add(new Strategy
-            {
-                Name = s.Name,
-                Pseudocode = s.Pseudocode,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
+        foreach (var imported in strategies)
+            newStage.Strategies.Add(HydrateStrategy(imported));
 
         db.BatchStages.Add(newStage);
         await db.SaveChangesAsync(ct);
@@ -186,16 +163,17 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
 
     /// <summary>
     /// Resolves strategies from ZIP file or manual count. At least one must be provided.
+    /// ZIP is expected to contain .sqx + .html pairs matched by base filename.
     /// </summary>
-    private async Task<(int count, IList<ParsedStrategyDto> strategies)> ResolveStrategies(
+    private async Task<(int count, IList<ImportedStrategyDto> strategies)> ResolveStrategies(
         Stream? zipFile, int? strategyCount, CancellationToken ct)
     {
         if (zipFile is not null)
         {
-            var parsed = await parser.ParseZipAsync(zipFile, ct);
-            if (parsed.Count == 0)
+            var imported = await ImportFromZipAsync(zipFile, ct);
+            if (imported.Count == 0)
                 throw new ArgumentException("ZIP file contains no valid .sqx strategy files.");
-            return (parsed.Count, parsed);
+            return (imported.Count, imported);
         }
 
         if (strategyCount.HasValue && strategyCount.Value >= 0)
@@ -204,10 +182,78 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         throw new ArgumentException("Either a ZIP file with strategies or a strategy count must be provided.");
     }
 
-    /// <summary>
-    /// Deletes a stage and reverts to the previous one. Only if stage is not Completed.
-    /// Cannot delete the Builder stage (first stage).
-    /// </summary>
+    private async Task<IList<ImportedStrategyDto>> ImportFromZipAsync(Stream zipStream, CancellationToken ct)
+    {
+        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+
+        var htmlByName = archive.Entries
+            .Where(e => e.FullName.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(e => Path.GetFileNameWithoutExtension(e.Name), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var results = new List<ImportedStrategyDto>();
+
+        foreach (var sqxEntry in archive.Entries)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (!sqxEntry.FullName.EndsWith(".sqx", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var baseName = Path.GetFileNameWithoutExtension(sqxEntry.Name);
+
+            string? pseudocode;
+            using (var sqxStream = sqxEntry.Open())
+            {
+                pseudocode = await sqxParser.ExtractPseudocodeAsync(sqxStream, ct);
+            }
+
+            ParsedReportDto? report = null;
+            if (htmlByName.TryGetValue(baseName, out var htmlEntry))
+            {
+                using var htmlStream = htmlEntry.Open();
+                report = await htmlParser.ParseAsync(htmlStream, ct);
+            }
+
+            results.Add(new ImportedStrategyDto(baseName, pseudocode, report));
+        }
+
+        return results;
+    }
+
+    private static Strategy HydrateStrategy(ImportedStrategyDto imported)
+    {
+        var entity = new Strategy
+        {
+            Name = imported.Name,
+            Pseudocode = imported.Pseudocode,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        if (imported.Report is { } report)
+        {
+            entity.Symbol = report.Symbol;
+            entity.Timeframe = report.Timeframe;
+            entity.BacktestFrom = report.BacktestFrom;
+            entity.BacktestTo = report.BacktestTo;
+
+            StrategyKpiMapper.ApplyKpis(entity, report.Kpis);
+
+            foreach (var mp in report.MonthlyPerformance)
+            {
+                entity.MonthlyPerformance.Add(new StrategyMonthlyPerformance
+                {
+                    Year = mp.Year,
+                    Month = mp.Month,
+                    Profit = mp.Profit,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        return entity;
+    }
+
     public async Task<BatchDto> RollbackStageAsync(Guid batchId, Guid stageId, CancellationToken ct = default)
     {
         var batch = await db.Batches
@@ -221,7 +267,6 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
         if (stage.StageType == PipelineStageType.Builder)
             throw new InvalidOperationException("Cannot delete the Builder stage.");
 
-        // Find previous stage and revert it from Completed to Pending
         var prevStage = batch.Stages
             .Where(s => s.Order < stage.Order)
             .OrderByDescending(s => s.Order)
@@ -233,17 +278,15 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             prevStage.UpdatedAt = DateTime.UtcNow;
         }
 
-        // Remove the stage and its strategies
-        db.Strategies.RemoveRange(stage.Strategies);
+        // Only remove pipeline-only strategies — dual-linked strategies (with TradingAccountId set)
+        // are preserved; their BatchStageId will be set to null by EF SetNull behavior at DB level.
+        db.Strategies.RemoveRange(stage.Strategies.Where(s => s.TradingAccountId == null));
         db.BatchStages.Remove(stage);
         await db.SaveChangesAsync(ct);
 
         return await GetByIdAsync(batchId, ct);
     }
 
-    /// <summary>
-    /// Deletes an entire batch including all its stages and strategies.
-    /// </summary>
     public async Task DeleteAsync(Guid batchId, CancellationToken ct = default)
     {
         var batch = await db.Batches
@@ -252,7 +295,8 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             ?? throw new KeyNotFoundException($"Batch {batchId} not found.");
 
         foreach (var stage in batch.Stages)
-            db.Strategies.RemoveRange(stage.Strategies);
+            // Only remove pipeline-only strategies — dual-linked strategies are preserved (SetNull at DB level)
+            db.Strategies.RemoveRange(stage.Strategies.Where(s => s.TradingAccountId == null));
         db.BatchStages.RemoveRange(batch.Stages);
         db.Batches.Remove(batch);
         await db.SaveChangesAsync(ct);
@@ -270,5 +314,4 @@ public sealed class BatchService(AppDbContext db, ISqxParserService parser) : IB
             _ => null
         };
     }
-
 }

@@ -1,5 +1,4 @@
 <div class="sd">
-
   <!-- Breadcrumb -->
   <div class="sd__breadcrumb">
     <button class="sd__back" (click)="goBack()">
@@ -96,16 +95,75 @@
           @for (s of strategies(); track s.id) {
             <tr>
               <td class="sd__table-name">{{ s.name }}</td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.sharpeRatio" (blur)="onKpiChange(s, 'sharpeRatio', $event)" /></td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.returnDrawdownRatio" (blur)="onKpiChange(s, 'returnDrawdownRatio', $event)" /></td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.winRate" (blur)="onKpiChange(s, 'winRate', $event)" /></td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.profitFactor" (blur)="onKpiChange(s, 'profitFactor', $event)" /></td>
-              <td><input type="number" step="1" class="sd__kpi-input" [value]="s.totalTrades" (blur)="onKpiChange(s, 'totalTrades', $event)" /></td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.netProfit" (blur)="onKpiChange(s, 'netProfit', $event)" /></td>
-              <td><input type="number" step="0.01" class="sd__kpi-input" [value]="s.maxDrawdown" (blur)="onKpiChange(s, 'maxDrawdown', $event)" /></td>
               <td>
-                <button class="sd__expand-btn" (click)="togglePseudocode(s.id)"
-                  [title]="'SQX.WORKFLOW.VIEW_LOGIC' | translate">
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.sharpeRatio"
+                  (blur)="onKpiChange(s, 'sharpeRatio', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.returnDrawdownRatio"
+                  (blur)="onKpiChange(s, 'returnDrawdownRatio', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.winningPercentage"
+                  (blur)="onKpiChange(s, 'winningPercentage', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.profitFactor"
+                  (blur)="onKpiChange(s, 'profitFactor', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="1"
+                  class="sd__kpi-input"
+                  [value]="s.numberOfTrades"
+                  (blur)="onKpiChange(s, 'numberOfTrades', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.totalProfit"
+                  (blur)="onKpiChange(s, 'totalProfit', $event)"
+                />
+              </td>
+              <td>
+                <input
+                  type="number"
+                  step="0.01"
+                  class="sd__kpi-input"
+                  [value]="s.drawdown"
+                  (blur)="onKpiChange(s, 'drawdown', $event)"
+                />
+              </td>
+              <td>
+                <button
+                  class="sd__expand-btn"
+                  (click)="togglePseudocode(s.id)"
+                  [title]="'SQX.WORKFLOW.VIEW_LOGIC' | translate"
+                >
                   {{ expandedStrategy() === s.id ? '▲' : '▼' }}
                 </button>
               </td>
@@ -122,5 +180,4 @@
       </table>
     </div>
   }
-
 </div>

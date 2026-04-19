@@ -7,14 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.5.0] - 2026-04-19
 
 ### Added
 - **IMOX Knowledge Base**: Agent knowledge base at `.agents/knowledge/imox/` with 10 IMOX Academy documents (SQX config, mining workflow, validation protocol, asset profiles, money management). New `trading-domain` skill routes agents to the correct documents before domain decisions.
+- **HTML Report Parser**: Automatic KPI extraction from SQX `.html` reports during EA Import. New `HtmlReportParserService` (AngleSharp 1.1.2) parses ~46 KPIs + monthly performance + backtest metadata (Symbol, Timeframe, BacktestFrom, BacktestTo). `Strategy` entity extended from 7 → 52 KPI columns. New `StrategyMonthlyPerformance` entity with unique (StrategyId, Year, Month) index. `BatchService.ImportFromZipAsync` pairs `.sqx` + `.html` by base filename inside the uploaded ZIP.
+- **Add strategies to Darwinex demo accounts**: Demo trading accounts can now receive strategies uploaded directly (bypassing the SQX pipeline). New endpoints `GET /api/trading-accounts/{id}/strategies` (paginated) and `POST /api/trading-accounts/{id}/strategies` (multipart: name + .sqx + .html report). Backend: `Strategy.BatchStageId` and `Strategy.TradingAccountId` are both nullable FKs with `SetNull` delete behavior; `StrategyService.AddToAccountAsync` parses .sqx (pseudocode) and .html (KPIs) and saves the strategy linked to the account. Frontend: `AccountDetailComponent` with ag-grid strategy table + column picker sidebar, `AddStrategyModalComponent` (modal with signals + `canSubmit` computed), and `AccountsListComponent` row-click navigation to `/darwinex/demo/:accountId` (demo accounts only, ignores button clicks).
+- **Account strategy grid UX**: Title shows the demo account name. Back button navigates to `/darwinex/demo`. Actions column (renamed from unnamed) hosts comments 💬 and delete 🗑️ icons. Trash icon hard-deletes a strategy through a confirmation modal (`DELETE /api/strategies/{id}`). Symbol column tints cell background + left border with a deterministic color per asset (same Symbol → same color). Add Strategy modal auto-suggests the `name` from the first uploaded filename (only if the field is empty). Timeframe column visible between Symbol and KPIs.
+- **Column presets (named, per-user)**: New `StrategyGridPreset` entity (UserId, Name, VisibleColumnsJson, ColumnOrderJson) with unique (UserId, Name). CRUD endpoints under `/api/users/me/grid-presets`. Frontend: preset dropdown in the toolbar + `SavePresetModalComponent` for named captures. Applying a preset updates the `visibleColumns` signal and grid columns re-render.
+- **Strategy comments (append-only bitácora)**: New `StrategyComment` entity for immutable per-strategy notes/observations/parameter-decisions. Endpoints `GET /api/strategies/{id}/comments` (ordered newest-first) and `POST /api/strategies/{id}/comments`. `CreatedBy` is populated from the JWT `NameIdentifier` claim. Frontend: `StrategyCommentsModalComponent` opened from the Actions column shows history + textarea + "Add comment" (disabled while empty). Plain text only; comments cannot be edited or deleted.
+- **Upload limits**: Raised `Kestrel.Limits.MaxRequestBodySize` and `FormOptions.MultipartBodyLengthLimit` to 200MB globally to cover SQX HTML reports with large trade tables.
+- **SDD hybrid workflow bootstrap**: `openspec/` directory created with `config.yaml`, `specs/`, and `changes/archive/`. First SDD change (`add-strategies-to-demo-accounts`) archived with full trail (explore, proposal, specs, design, tasks, apply-progress, verify-report, archive-report).
 
 ### Changed
+- **Strategy KPI field names**: Renamed to match the SQX overview exactly — `NetProfit → TotalProfit`, `WinRate → WinningPercentage`, `MaxDrawdown → Drawdown`, `TotalTrades → NumberOfTrades`. Frontend types + templates synced.
 - **Pipeline stage editing**: Builder stage now correctly edits `inputCount` (strategy count created). Edit button available on all stages regardless of status.
 - **Pipeline rollback**: Completed stages can now be rolled back. Previously blocked by status check. Rollback button changed to ⏪ icon.
+- **Pipeline rollback/delete**: Preserves strategies dual-linked to a trading account (strategies with `TradingAccountId != null` are excluded from cascade removal; EF `SetNull` takes over).
+- **`ISqxParserService`**: Refactored from `ParseZipAsync` to single-file `ExtractPseudocodeAsync(Stream)`. ZIP orchestration (pairing `.sqx` + `.html`) moved to `BatchService`. Unused `ParsedStrategyDto` removed.
+
+### Security
+- No new secrets introduced. Upload limits raised intentionally for SQX report parsing; endpoints remain `[Authorize]`.
 
 ---
 

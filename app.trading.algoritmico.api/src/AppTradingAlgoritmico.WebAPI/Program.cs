@@ -3,11 +3,26 @@ using AppTradingAlgoritmico.Application;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ─── Upload limits ────────────────────────────────────────────────────────────
+// SQX HTML reports can be 15–30MB (full trade tables). Raise both Kestrel and
+// multipart form limits to 200MB to cover pairs with larger .html reports.
+const long MaxUploadBytes = 200_000_000;
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = MaxUploadBytes;
+});
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = MaxUploadBytes;
+    options.ValueLengthLimit = int.MaxValue;
+});
 
 // ─── Serilog ─────────────────────────────────────────────────────────────────
 builder.Host.UseSerilog((ctx, lc) => lc

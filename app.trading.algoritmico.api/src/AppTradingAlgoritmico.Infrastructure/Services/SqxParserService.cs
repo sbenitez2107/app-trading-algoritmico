@@ -1,60 +1,18 @@
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
-using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.Interfaces;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
 public class SqxParserService : ISqxParserService
 {
-    /// <summary>
-    /// Parses a ZIP file containing multiple .sqx strategy files.
-    /// Each .sqx is itself a ZIP containing settings.xml with strategy logic.
-    /// </summary>
-    public Task<IList<ParsedStrategyDto>> ParseZipAsync(Stream zipStream, CancellationToken ct = default)
-    {
-        var results = new List<ParsedStrategyDto>();
-
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-
-        foreach (var entry in archive.Entries)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            if (!entry.FullName.EndsWith(".sqx", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var name = Path.GetFileNameWithoutExtension(entry.Name);
-            var pseudocode = ExtractPseudocodeFromSqx(entry);
-            results.Add(new ParsedStrategyDto(name, pseudocode));
-        }
-
-        return Task.FromResult<IList<ParsedStrategyDto>>(results);
-    }
-
-    /// <summary>
-    /// Parses a .sqb (Building Block) file and extracts the raw XML config.
-    /// </summary>
-    public Task<string?> ParseSqbConfigAsync(Stream sqbStream, CancellationToken ct = default)
-    {
-        using var archive = new ZipArchive(sqbStream, ZipArchiveMode.Read);
-        var configEntry = archive.GetEntry("config.xml");
-        if (configEntry is null)
-            return Task.FromResult<string?>(null);
-
-        using var reader = new StreamReader(configEntry.Open(), Encoding.UTF8);
-        var xml = reader.ReadToEnd();
-        return Task.FromResult<string?>(xml);
-    }
-
-    private static string? ExtractPseudocodeFromSqx(ZipArchiveEntry sqxEntry)
+    public async Task<string?> ExtractPseudocodeAsync(Stream sqxStream, CancellationToken ct = default)
     {
         try
         {
-            using var sqxStream = sqxEntry.Open();
             using var memoryStream = new MemoryStream();
-            sqxStream.CopyTo(memoryStream);
+            await sqxStream.CopyToAsync(memoryStream, ct);
             memoryStream.Position = 0;
 
             using var innerArchive = new ZipArchive(memoryStream, ZipArchiveMode.Read);
@@ -73,6 +31,18 @@ public class SqxParserService : ISqxParserService
         }
     }
 
+    public Task<string?> ParseSqbConfigAsync(Stream sqbStream, CancellationToken ct = default)
+    {
+        using var archive = new ZipArchive(sqbStream, ZipArchiveMode.Read);
+        var configEntry = archive.GetEntry("config.xml");
+        if (configEntry is null)
+            return Task.FromResult<string?>(null);
+
+        using var reader = new StreamReader(configEntry.Open(), Encoding.UTF8);
+        var xml = reader.ReadToEnd();
+        return Task.FromResult<string?>(xml);
+    }
+
     private static string ExtractPseudocodeFromXml(XDocument doc)
     {
         var sb = new StringBuilder();
@@ -83,7 +53,6 @@ public class SqxParserService : ISqxParserService
         var engine = strategy.Attribute("engine")?.Value ?? "Unknown";
         sb.AppendLine($"Engine: {engine}");
 
-        // Money Management
         var mm = strategy.Element("MoneyManagement");
         if (mm is not null)
         {
@@ -91,7 +60,6 @@ public class SqxParserService : ISqxParserService
             sb.AppendLine($"Money Management: {mmType}");
         }
 
-        // Global SL/TP
         var globalSlPt = strategy.Element("GlobalSLPT");
         if (globalSlPt is not null)
         {
@@ -111,14 +79,12 @@ public class SqxParserService : ISqxParserService
             }
         }
 
-        // Rules
         var rules = strategy.Element("Rules");
         if (rules is null)
             return sb.ToString();
 
         foreach (var evt in rules.Elements("Events").Elements("Event"))
         {
-            var eventKey = evt.Attribute("key")?.Value;
             foreach (var rule in evt.Elements("Rule"))
             {
                 var ruleName = rule.Attribute("name")?.Value ?? "Unnamed Rule";
@@ -126,7 +92,6 @@ public class SqxParserService : ISqxParserService
                 sb.AppendLine();
                 sb.AppendLine($"[{ruleName}] ({ruleType})");
 
-                // Extract signals
                 foreach (var signal in rule.Descendants("signal"))
                 {
                     var item = signal.Element("Item");
@@ -141,7 +106,6 @@ public class SqxParserService : ISqxParserService
                     sb.AppendLine($"  Signal: {displayText} {paramValues}");
                 }
 
-                // Extract If/Then conditions and actions
                 ExtractIfThen(rule, sb, "  ");
             }
         }
