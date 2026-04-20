@@ -17,6 +17,11 @@ export interface CreateGridPresetDto {
   columnOrder: string[];
 }
 
+export interface UpdateGridPresetDto {
+  visibleColumns: string[];
+  columnOrder: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class GridPresetService {
   private readonly http = inject(HttpClient);
@@ -29,6 +34,10 @@ export class GridPresetService {
 
   create(dto: CreateGridPresetDto): Observable<GridPresetDto> {
     return this.http.post<GridPresetDto>(this.base, dto);
+  }
+
+  update(id: string, dto: UpdateGridPresetDto): Observable<GridPresetDto> {
+    return this.http.put<GridPresetDto>(`${this.base}/${id}`, dto);
   }
 
   delete(id: string): Observable<void> {

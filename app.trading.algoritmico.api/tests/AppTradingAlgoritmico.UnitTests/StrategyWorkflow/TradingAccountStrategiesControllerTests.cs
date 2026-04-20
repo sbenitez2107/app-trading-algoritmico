@@ -17,6 +17,7 @@ public class TradingAccountStrategiesControllerTests
 {
     private static StrategyDto MakeStrategyDto() => new(
         Guid.NewGuid(), "Strategy1", null,
+        null, null, null, // EntryIndicators, PriceIndicators, IndicatorParameters
         null, null, null, null,
         null, null, null, null, null,
         null, null, null, null, null,

@@ -37,6 +37,14 @@
                     {{ preset.name }}
                   </button>
                   <button
+                    class="preset-dropdown__update"
+                    type="button"
+                    title="Overwrite this preset with current columns"
+                    (click)="updatePreset(preset)"
+                  >
+                    &#x1F4BE;
+                  </button>
+                  <button
                     class="preset-dropdown__delete"
                     type="button"
                     title="Delete preset"
@@ -79,6 +87,7 @@
           [columnDefs]="columnDefs()"
           [defaultColDef]="defaultColDef"
           [animateRows]="true"
+          (gridReady)="onGridReady($event)"
         />
       }
     </div>

@@ -129,6 +129,97 @@ public class GridPresetServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_ExistingPreset_OverwritesColumnsAndPreservesName()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var userId = Guid.NewGuid();
+        var presetId = Guid.NewGuid();
+
+        using (var db = CreateDb(dbName))
+        {
+            db.StrategyGridPresets.Add(new StrategyGridPreset
+            {
+                Id = presetId,
+                Name = "Performance",
+                UserId = userId,
+                VisibleColumnsJson = "[\"totalProfit\"]",
+                ColumnOrderJson = "[\"totalProfit\"]",
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var writeDb = CreateDb(dbName);
+        var sut = new GridPresetService(writeDb);
+        var dto = new UpdateGridPresetDto(
+            ["sharpeRatio", "drawdown"],
+            ["drawdown", "sharpeRatio", "profitFactor"]);
+
+        // Act
+        var result = await sut.UpdateAsync(userId, presetId, dto);
+
+        // Assert
+        result.Id.Should().Be(presetId);
+        result.Name.Should().Be("Performance"); // preserved
+        result.VisibleColumns.Should().BeEquivalentTo(["sharpeRatio", "drawdown"]);
+        result.ColumnOrder.Should().BeEquivalentTo(new[] { "drawdown", "sharpeRatio", "profitFactor" }, o => o.WithStrictOrdering());
+
+        using var verifyDb = CreateDb(dbName);
+        var entity = await verifyDb.StrategyGridPresets.FindAsync(presetId);
+        entity!.UpdatedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NonExistentPreset_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        using var db = CreateDb();
+        var sut = new GridPresetService(db);
+        var dto = new UpdateGridPresetDto(["totalProfit"], ["totalProfit"]);
+
+        // Act
+        var act = () => sut.UpdateAsync(Guid.NewGuid(), Guid.NewGuid(), dto);
+
+        // Assert
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PresetBelongsToOtherUser_ThrowsKeyNotFoundException()
+    {
+        // Arrange
+        var dbName = Guid.NewGuid().ToString();
+        var ownerUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var presetId = Guid.NewGuid();
+
+        using (var db = CreateDb(dbName))
+        {
+            db.StrategyGridPresets.Add(new StrategyGridPreset
+            {
+                Id = presetId,
+                Name = "Performance",
+                UserId = ownerUserId,
+                VisibleColumnsJson = "[\"totalProfit\"]",
+                ColumnOrderJson = "[\"totalProfit\"]",
+                CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var writeDb = CreateDb(dbName);
+        var sut = new GridPresetService(writeDb);
+        var dto = new UpdateGridPresetDto(["drawdown"], ["drawdown"]);
+
+        // Act
+        var act = () => sut.UpdateAsync(otherUserId, presetId, dto);
+
+        // Assert
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
     public async Task DeleteAsync_ExistingPreset_RemovesIt()
     {
         // Arrange

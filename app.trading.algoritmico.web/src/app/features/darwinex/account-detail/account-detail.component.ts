@@ -9,7 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, themeQuartz } from 'ag-grid-community';
+import { ColDef, GridApi, GridReadyEvent, themeQuartz } from 'ag-grid-community';
 import { StrategyService, StrategyDto } from '../../../core/services/strategy.service';
 import {
   TradingAccountService,
@@ -24,6 +24,8 @@ import { symbolToColor } from '../../../shared/utils/symbol-color';
 export interface KpiColDef {
   field: keyof StrategyDto;
   headerName: string;
+  /** When true, skip the numeric toFixed(2) formatter — the value is a plain string. */
+  text?: boolean;
 }
 
 export const ALL_KPI_COLS: KpiColDef[] = [
@@ -73,6 +75,9 @@ export const ALL_KPI_COLS: KpiColDef[] = [
   { field: 'averageConsecutiveLosses', headerName: 'Avg Consec. Losses' },
   { field: 'averageBarsInWins', headerName: 'Avg Bars in Wins' },
   { field: 'averageBarsInLosses', headerName: 'Avg Bars in Losses' },
+  { field: 'entryIndicators', headerName: 'Entry Indicators', text: true },
+  { field: 'priceIndicators', headerName: 'Price Indicators', text: true },
+  { field: 'indicatorParameters', headerName: 'Indicator Params', text: true },
 ];
 
 export const DEFAULT_VISIBLE_COLS: (keyof StrategyDto)[] = [
@@ -83,6 +88,12 @@ export const DEFAULT_VISIBLE_COLS: (keyof StrategyDto)[] = [
   'numberOfTrades',
   'sharpeRatio',
 ];
+
+/**
+ * Column ids always present in the grid — never persisted in presets.
+ * The Actions column's cellRenderer uses field 'id'.
+ */
+export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'timeframe', 'id']);
 
 @Component({
   selector: 'app-account-detail',
@@ -122,6 +133,8 @@ export class AccountDetailComponent implements OnInit {
   readonly showCommentsModal = signal(false);
   readonly selectedStrategyForComments = signal<StrategyDto | null>(null);
 
+  private gridApi: GridApi<StrategyDto> | null = null;
+
   readonly gridTheme = themeQuartz;
   readonly allKpiCols = ALL_KPI_COLS;
 
@@ -158,18 +171,25 @@ export class AccountDetailComponent implements OnInit {
       width: 110,
     };
 
-    const kpiDefs: ColDef<StrategyDto>[] = ALL_KPI_COLS.filter((c) =>
-      visible.includes(c.field),
-    ).map(
-      (c) =>
-        ({
-          field: c.field as string,
-          headerName: c.headerName,
-          width: 150,
-          valueFormatter: (p: { value: number | null }) =>
-            p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—',
-        }) as ColDef<StrategyDto>,
-    );
+    // All KPI columns stay in the grid at all times; visibility is toggled via
+    // the `hide` property. This lets `applyColumnState` reorder any column (the
+    // preset flow relies on this — you cannot reorder a column that isn't in the grid).
+    const kpiDefs: ColDef<StrategyDto>[] = ALL_KPI_COLS.map((c) => {
+      // String columns (indicators) do not use the numeric toFixed formatter.
+      const colDef = {
+        field: c.field as string,
+        headerName: c.headerName,
+        width: 150,
+        hide: !visible.includes(c.field),
+        ...(c.text
+          ? {}
+          : {
+              valueFormatter: (p: { value: number | null }) =>
+                p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—',
+            }),
+      };
+      return colDef as ColDef<StrategyDto>;
+    });
 
     const deleteDef: ColDef<StrategyDto> = {
       headerName: 'Actions',
@@ -213,6 +233,10 @@ export class AccountDetailComponent implements OnInit {
 
   navigateBack(): void {
     this.router.navigate(['/darwinex/demo']);
+  }
+
+  onGridReady(event: GridReadyEvent<StrategyDto>): void {
+    this.gridApi = event.api;
   }
 
   toggleColumn(field: keyof StrategyDto | string): void {
@@ -284,8 +308,35 @@ export class AccountDetailComponent implements OnInit {
   }
 
   applyPreset(preset: GridPresetDto): void {
-    this.visibleColumns.set(preset.visibleColumns as (keyof StrategyDto)[]);
+    const visible = preset.visibleColumns as (keyof StrategyDto)[];
+    this.visibleColumns.set(visible);
     this.showPresetsDropdown.set(false);
+
+    const api = this.gridApi;
+    if (!api) return;
+    const order = preset.columnOrder.length > 0 ? preset.columnOrder : preset.visibleColumns;
+    const visibleSet = new Set(preset.visibleColumns);
+    const orderSet = new Set(order);
+
+    // Defer to the next macrotask so ag-grid has applied the new [columnDefs]
+    // input (driven by the signal update above) before we reorder.
+    setTimeout(() => {
+      const current = api.getColumnState();
+      // Keep fixed cols (name, symbol, timeframe, actions) in their current
+      // position — don't let the preset reorder them.
+      const fixedState = current.filter((s) => FIXED_COL_IDS.has(s.colId));
+      // Preset cols in preset order with correct visibility.
+      const presetState = order.map((colId) => ({ colId, hide: !visibleSet.has(colId) }));
+      // KPI cols not in the preset stay hidden, appended at the end.
+      const remainingState = current
+        .filter((s) => !FIXED_COL_IDS.has(s.colId) && !orderSet.has(s.colId))
+        .map((s) => ({ colId: s.colId, hide: true }));
+
+      api.applyColumnState({
+        state: [...fixedState, ...presetState, ...remainingState],
+        applyOrder: true,
+      });
+    }, 0);
   }
 
   openSavePresetModal(): void {
@@ -298,11 +349,23 @@ export class AccountDetailComponent implements OnInit {
   }
 
   savePreset(name: string): void {
-    const dto = {
-      name,
-      visibleColumns: [...this.visibleColumns()],
-      columnOrder: [...this.visibleColumns()],
-    };
+    // Capture the real column state from ag-grid (accounts for drag-reordering
+    // and for columns toggled via the picker). Fall back to the signal if the
+    // grid api isn't ready yet.
+    const api = this.gridApi;
+    let visibleColumns: string[];
+    let columnOrder: string[];
+
+    if (api) {
+      const state = api.getColumnState().filter((s) => !FIXED_COL_IDS.has(s.colId));
+      columnOrder = state.map((s) => s.colId);
+      visibleColumns = state.filter((s) => !s.hide).map((s) => s.colId);
+    } else {
+      visibleColumns = [...this.visibleColumns()];
+      columnOrder = [...this.visibleColumns()];
+    }
+
+    const dto = { name, visibleColumns, columnOrder };
     this.gridPresetService.create(dto).subscribe({
       next: (preset) => {
         this.presets.update((list) => [...list, preset]);
@@ -311,6 +374,33 @@ export class AccountDetailComponent implements OnInit {
       error: (err) => {
         this.error.set(err?.error?.message ?? err?.message ?? 'Failed to save preset.');
         this.showSavePresetModal.set(false);
+      },
+    });
+  }
+
+  updatePreset(preset: GridPresetDto): void {
+    // Same capture logic as savePreset: prefer the live grid state so drag-reorder
+    // is persisted; fall back to the signal if the grid isn't ready yet.
+    const api = this.gridApi;
+    let visibleColumns: string[];
+    let columnOrder: string[];
+
+    if (api) {
+      const state = api.getColumnState().filter((s) => !FIXED_COL_IDS.has(s.colId));
+      columnOrder = state.map((s) => s.colId);
+      visibleColumns = state.filter((s) => !s.hide).map((s) => s.colId);
+    } else {
+      visibleColumns = [...this.visibleColumns()];
+      columnOrder = [...this.visibleColumns()];
+    }
+
+    this.gridPresetService.update(preset.id, { visibleColumns, columnOrder }).subscribe({
+      next: (updated) => {
+        this.presets.update((list) => list.map((p) => (p.id === updated.id ? updated : p)));
+        this.showPresetsDropdown.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? err?.message ?? 'Failed to update preset.');
       },
     });
   }

@@ -202,10 +202,10 @@ public sealed class BatchService(
 
             var baseName = Path.GetFileNameWithoutExtension(sqxEntry.Name);
 
-            string? pseudocode;
+            ParsedSqxMetadataDto? sqxMetadata;
             using (var sqxStream = sqxEntry.Open())
             {
-                pseudocode = await sqxParser.ExtractPseudocodeAsync(sqxStream, ct);
+                sqxMetadata = await sqxParser.ExtractStrategyMetadataAsync(sqxStream, ct);
             }
 
             ParsedReportDto? report = null;
@@ -215,7 +215,13 @@ public sealed class BatchService(
                 report = await htmlParser.ParseAsync(htmlStream, ct);
             }
 
-            results.Add(new ImportedStrategyDto(baseName, pseudocode, report));
+            results.Add(new ImportedStrategyDto(
+                baseName,
+                sqxMetadata?.Pseudocode,
+                sqxMetadata?.EntryIndicators,
+                sqxMetadata?.PriceIndicators,
+                sqxMetadata?.IndicatorParameters,
+                report));
         }
 
         return results;
@@ -227,6 +233,9 @@ public sealed class BatchService(
         {
             Name = imported.Name,
             Pseudocode = imported.Pseudocode,
+            EntryIndicators = imported.EntryIndicators,
+            PriceIndicators = imported.PriceIndicators,
+            IndicatorParameters = imported.IndicatorParameters,
             CreatedAt = DateTime.UtcNow
         };
 

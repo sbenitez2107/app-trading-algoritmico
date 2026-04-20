@@ -26,6 +26,7 @@ public sealed class StrategyService(
             .Take(pageSize)
             .Select(x => new StrategyDto(
                 x.Id, x.Name, x.Pseudocode,
+                x.EntryIndicators, x.PriceIndicators, x.IndicatorParameters,
                 x.Symbol, x.Timeframe, x.BacktestFrom, x.BacktestTo,
                 x.TotalProfit, x.ProfitInPips, x.YearlyAvgProfit, x.YearlyAvgReturn, x.Cagr,
                 x.NumberOfTrades, x.SharpeRatio, x.ProfitFactor, x.ReturnDrawdownRatio, x.WinningPercentage,
@@ -62,6 +63,7 @@ public sealed class StrategyService(
             .Take(pageSize)
             .Select(x => new StrategyDto(
                 x.Id, x.Name, x.Pseudocode,
+                x.EntryIndicators, x.PriceIndicators, x.IndicatorParameters,
                 x.Symbol, x.Timeframe, x.BacktestFrom, x.BacktestTo,
                 x.TotalProfit, x.ProfitInPips, x.YearlyAvgProfit, x.YearlyAvgReturn, x.Cagr,
                 x.NumberOfTrades, x.SharpeRatio, x.ProfitFactor, x.ReturnDrawdownRatio, x.WinningPercentage,
@@ -86,14 +88,17 @@ public sealed class StrategyService(
         if (!accountExists)
             throw new KeyNotFoundException($"TradingAccount {accountId} not found.");
 
-        var pseudocode = await sqxParser.ExtractPseudocodeAsync(sqxStream, ct);
+        var sqxMetadata = await sqxParser.ExtractStrategyMetadataAsync(sqxStream, ct);
         var report = await htmlParser.ParseAsync(htmlStream, ct)
             ?? throw new ArgumentException("Invalid SQX HTML report.");
 
         var entity = new Strategy
         {
             Name = name,
-            Pseudocode = pseudocode,
+            Pseudocode = sqxMetadata?.Pseudocode,
+            EntryIndicators = sqxMetadata?.EntryIndicators,
+            PriceIndicators = sqxMetadata?.PriceIndicators,
+            IndicatorParameters = sqxMetadata?.IndicatorParameters,
             TradingAccountId = accountId,
             BatchStageId = null,
             Symbol = report.Symbol,

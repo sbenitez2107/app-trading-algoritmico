@@ -19,6 +19,15 @@ public class StrategyConfiguration : IEntityTypeConfiguration<Strategy>
         builder.Property(x => x.Pseudocode)
             .HasColumnType("nvarchar(max)");
 
+        builder.Property(x => x.EntryIndicators)
+            .HasMaxLength(1000);
+
+        builder.Property(x => x.PriceIndicators)
+            .HasMaxLength(1000);
+
+        builder.Property(x => x.IndicatorParameters)
+            .HasColumnType("nvarchar(max)");
+
         builder.Property(x => x.Symbol).HasMaxLength(50);
         builder.Property(x => x.Timeframe).HasMaxLength(20);
 

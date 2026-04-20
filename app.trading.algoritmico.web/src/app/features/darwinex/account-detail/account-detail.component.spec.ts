@@ -20,6 +20,9 @@ function makeStrategy(id = '1'): StrategyDto {
     id,
     name: `Strategy ${id}`,
     pseudocode: null,
+    entryIndicators: null,
+    priceIndicators: null,
+    indicatorParameters: null,
     symbol: null,
     timeframe: null,
     backtestFrom: null,
@@ -124,6 +127,7 @@ describe('AccountDetailComponent', () => {
     gridPresetServiceMock = {
       getAll: vi.fn().mockReturnValue(of([])),
       create: vi.fn(),
+      update: vi.fn(),
       delete: vi.fn(),
     };
 
@@ -207,18 +211,23 @@ describe('AccountDetailComponent', () => {
     fixture.detectChanges();
     const comp = fixture.componentInstance;
 
-    // Find a col not in visibleColumns by default
+    // Find a col not in visibleColumns by default. All KPI cols are in columnDefs
+    // at all times (with hide toggled), so assert on the hide flag not presence.
     const nonDefault = ALL_KPI_COLS.find((c) => !DEFAULT_VISIBLE_COLS.includes(c.field))!;
-    const fieldsBefore = comp.columnDefs().map((c: { field?: string }) => c.field);
-    expect(fieldsBefore).not.toContain(nonDefault.field);
+    const beforeDef = comp
+      .columnDefs()
+      .find((c: { field?: string }) => c.field === nonDefault.field) as { hide?: boolean };
+    expect(beforeDef?.hide).toBe(true);
 
     // Act
     comp.toggleColumn(nonDefault.field);
 
     // Assert
     expect(comp.visibleColumns()).toContain(nonDefault.field);
-    const fieldsAfter = comp.columnDefs().map((c: { field?: string }) => c.field);
-    expect(fieldsAfter).toContain(nonDefault.field);
+    const afterDef = comp
+      .columnDefs()
+      .find((c: { field?: string }) => c.field === nonDefault.field) as { hide?: boolean };
+    expect(afterDef?.hide).toBe(false);
   });
 
   it('toggleColumn_RemovesColumnWhenVisible', () => {
@@ -502,6 +511,171 @@ describe('AccountDetailComponent', () => {
     expect(gridPresetServiceMock.create).toHaveBeenCalled();
     expect(comp.presets()).toContain(newPreset);
     expect(comp.showSavePresetModal()).toBe(false);
+  });
+
+  it('savePreset_CapturesOrderFromGridApi', () => {
+    // Arrange
+    const newPreset = makePreset();
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+    (gridPresetServiceMock.create as ReturnType<typeof vi.fn>).mockReturnValue(of(newPreset));
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // Simulate the grid emitting ready with a fake API. Order reflects a drag
+    // reorder: sharpeRatio moved before totalProfit. Fixed cols and one hidden col included.
+    const fakeApi = {
+      getColumnState: () => [
+        { colId: 'name', hide: false }, // fixed — must be filtered
+        { colId: 'symbol', hide: false }, // fixed
+        { colId: 'timeframe', hide: false }, // fixed
+        { colId: 'sharpeRatio', hide: false },
+        { colId: 'totalProfit', hide: false },
+        { colId: 'profitFactor', hide: true }, // hidden — excluded from visible but kept in order
+        { colId: 'id', hide: false }, // Actions — fixed
+      ],
+      applyColumnState: vi.fn(),
+    };
+    comp.onGridReady({ api: fakeApi } as never);
+
+    // Act
+    comp.savePreset('My View');
+
+    // Assert
+    const createCall = (gridPresetServiceMock.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(createCall.name).toBe('My View');
+    expect(createCall.columnOrder).toEqual(['sharpeRatio', 'totalProfit', 'profitFactor']);
+    expect(createCall.visibleColumns).toEqual(['sharpeRatio', 'totalProfit']);
+  });
+
+  it('applyPreset_CallsApplyColumnStateWithFullOrderedState', async () => {
+    // Arrange
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    const applyColumnState = vi.fn();
+    // Grid has fixed cols + 2 user cols currently visible + 1 hidden KPI.
+    const fakeApi = {
+      getColumnState: () => [
+        { colId: 'name', hide: false },
+        { colId: 'symbol', hide: false },
+        { colId: 'timeframe', hide: false },
+        { colId: 'totalProfit', hide: false },
+        { colId: 'drawdown', hide: true },
+        { colId: 'id', hide: false },
+      ],
+      applyColumnState,
+    };
+    comp.onGridReady({ api: fakeApi } as never);
+
+    const preset: GridPresetDto = {
+      ...makePreset(),
+      visibleColumns: ['sharpeRatio', 'totalProfit'],
+      columnOrder: ['sharpeRatio', 'totalProfit', 'profitFactor'],
+    };
+
+    // Act
+    comp.applyPreset(preset);
+    // Flush the setTimeout(0) queued by applyPreset
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Assert: state must contain fixed cols (unchanged), then preset cols in preset order,
+    // then any remaining non-preset KPI cols hidden at the end.
+    expect(applyColumnState).toHaveBeenCalledTimes(1);
+    const arg = applyColumnState.mock.calls[0][0];
+    expect(arg.applyOrder).toBe(true);
+    expect(arg.state).toEqual([
+      // fixed cols preserved
+      { colId: 'name', hide: false },
+      { colId: 'symbol', hide: false },
+      { colId: 'timeframe', hide: false },
+      { colId: 'id', hide: false },
+      // preset cols in preset order
+      { colId: 'sharpeRatio', hide: false },
+      { colId: 'totalProfit', hide: false },
+      { colId: 'profitFactor', hide: true },
+      // remaining KPI cols, hidden
+      { colId: 'drawdown', hide: true },
+    ]);
+  });
+
+  it('updatePreset_SendsCapturedStateToService_ReplacesInList', async () => {
+    // Arrange
+    const existingPreset = makePreset();
+    const updated: GridPresetDto = {
+      ...existingPreset,
+      visibleColumns: ['sharpeRatio', 'drawdown'],
+      columnOrder: ['drawdown', 'sharpeRatio'],
+    };
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+    (gridPresetServiceMock.getAll as ReturnType<typeof vi.fn>).mockReturnValue(
+      of([existingPreset]),
+    );
+    (gridPresetServiceMock.update as ReturnType<typeof vi.fn>).mockReturnValue(of(updated));
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // Wire a fake grid api so updatePreset captures the reordered state
+    const fakeApi = {
+      getColumnState: () => [
+        { colId: 'name', hide: false },
+        { colId: 'drawdown', hide: false },
+        { colId: 'sharpeRatio', hide: false },
+        { colId: 'profitFactor', hide: true },
+        { colId: 'id', hide: false },
+      ],
+      applyColumnState: vi.fn(),
+    };
+    comp.onGridReady({ api: fakeApi } as never);
+
+    // Act
+    comp.updatePreset(existingPreset);
+
+    // Assert
+    const updateCall = (gridPresetServiceMock.update as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(updateCall[0]).toBe(existingPreset.id);
+    expect(updateCall[1]).toEqual({
+      visibleColumns: ['drawdown', 'sharpeRatio'],
+      columnOrder: ['drawdown', 'sharpeRatio', 'profitFactor'],
+    });
+    expect(comp.presets()).toEqual([updated]);
+    expect(comp.showPresetsDropdown()).toBe(false);
+  });
+
+  it('updatePreset_SetsErrorOnFailure', () => {
+    // Arrange
+    const existingPreset = makePreset();
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+    (gridPresetServiceMock.getAll as ReturnType<typeof vi.fn>).mockReturnValue(
+      of([existingPreset]),
+    );
+    (gridPresetServiceMock.update as ReturnType<typeof vi.fn>).mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found' })),
+    );
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // Act
+    comp.updatePreset(existingPreset);
+
+    // Assert
+    expect(comp.error()).toBeTruthy();
   });
 
   it('deletePreset_CallsGridPresetServiceDelete', () => {

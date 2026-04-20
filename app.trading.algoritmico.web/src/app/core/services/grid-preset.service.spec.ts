@@ -2,7 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { API_BASE_URL } from '../../app.config';
-import { GridPresetService, CreateGridPresetDto, GridPresetDto } from './grid-preset.service';
+import {
+  GridPresetService,
+  CreateGridPresetDto,
+  GridPresetDto,
+  UpdateGridPresetDto,
+} from './grid-preset.service';
 
 function makePreset(): GridPresetDto {
   return {
@@ -61,6 +66,23 @@ describe('GridPresetService', () => {
     // Assert
     const req = httpTesting.expectOne('http://localhost:5001/api/users/me/grid-presets');
     expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(dto);
+    req.flush(makePreset());
+  });
+
+  it('update_SendsPutRequestWithDto', () => {
+    // Arrange
+    const dto: UpdateGridPresetDto = {
+      visibleColumns: ['sharpeRatio'],
+      columnOrder: ['sharpeRatio', 'profitFactor'],
+    };
+
+    // Act
+    service.update('preset-123', dto).subscribe();
+
+    // Assert
+    const req = httpTesting.expectOne('http://localhost:5001/api/users/me/grid-presets/preset-123');
+    expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual(dto);
     req.flush(makePreset());
   });

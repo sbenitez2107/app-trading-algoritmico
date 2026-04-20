@@ -112,6 +112,66 @@ public class GridPresetsControllerTests
     }
 
     [Fact]
+    public async Task UpdatePreset_ExistingPreset_Returns200WithUpdated()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var presetId = Guid.NewGuid();
+        var dto = new UpdateGridPresetDto(["sharpeRatio"], ["sharpeRatio", "profitFactor"]);
+        var updated = new GridPresetDto(presetId, "Performance", ["sharpeRatio"], ["sharpeRatio", "profitFactor"], DateTime.UtcNow);
+
+        var serviceMock = new Mock<IGridPresetService>();
+        serviceMock.Setup(s => s.UpdateAsync(userId, presetId, dto, default))
+                   .ReturnsAsync(updated);
+
+        var sut = CreateSut(serviceMock, userId);
+
+        // Act
+        var result = await sut.UpdatePreset(presetId, dto, default);
+
+        // Assert
+        var ok = result.Result as OkObjectResult;
+        ok.Should().NotBeNull();
+        ok!.Value.Should().Be(updated);
+    }
+
+    [Fact]
+    public async Task UpdatePreset_NotFound_Returns404()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var presetId = Guid.NewGuid();
+        var dto = new UpdateGridPresetDto(["sharpeRatio"], ["sharpeRatio"]);
+
+        var serviceMock = new Mock<IGridPresetService>();
+        serviceMock.Setup(s => s.UpdateAsync(userId, presetId, dto, default))
+                   .ThrowsAsync(new KeyNotFoundException("not found"));
+
+        var sut = CreateSut(serviceMock, userId);
+
+        // Act
+        var result = await sut.UpdatePreset(presetId, dto, default);
+
+        // Assert
+        result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task UpdatePreset_NoUserId_Returns401()
+    {
+        // Arrange
+        var dto = new UpdateGridPresetDto(["sharpeRatio"], ["sharpeRatio"]);
+        var serviceMock = new Mock<IGridPresetService>();
+        var sut = CreateSut(serviceMock, null);
+
+        // Act
+        var result = await sut.UpdatePreset(Guid.NewGuid(), dto, default);
+
+        // Assert
+        result.Result.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Fact]
     public async Task DeletePreset_ExistingPreset_Returns204()
     {
         // Arrange

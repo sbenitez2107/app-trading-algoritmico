@@ -7,6 +7,11 @@ public class Strategy : BaseEntity
     public required string Name { get; set; }
     public string? Pseudocode { get; set; }
 
+    // --- Indicator metadata (extracted from SQX settings.xml) ---
+    public string? EntryIndicators { get; set; }
+    public string? PriceIndicators { get; set; }
+    public string? IndicatorParameters { get; set; }
+
     // --- Backtest metadata (from SQX report header) ---
     public string? Symbol { get; set; }
     public string? Timeframe { get; set; }

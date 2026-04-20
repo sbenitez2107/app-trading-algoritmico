@@ -213,9 +213,13 @@ public class StrategyTestDbContext : DbContext
         // Apply only the Strategy configuration (which wires BatchStage + TradingAccount FKs)
         modelBuilder.ApplyConfiguration(new StrategyConfiguration());
 
-        // SQLite does not support nvarchar(max) — override the column type for Pseudocode
+        // SQLite does not support nvarchar(max) — override column types for TEXT columns
         modelBuilder.Entity<Strategy>()
             .Property(x => x.Pseudocode)
+            .HasColumnType("TEXT");
+
+        modelBuilder.Entity<Strategy>()
+            .Property(x => x.IndicatorParameters)
             .HasColumnType("TEXT");
 
         // Minimal TradingAccount config

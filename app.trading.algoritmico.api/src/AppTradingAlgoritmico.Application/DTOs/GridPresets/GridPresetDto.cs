@@ -13,3 +13,8 @@ public record CreateGridPresetDto(
     string[] VisibleColumns,
     string[] ColumnOrder
 );
+
+public record UpdateGridPresetDto(
+    string[] VisibleColumns,
+    string[] ColumnOrder
+);

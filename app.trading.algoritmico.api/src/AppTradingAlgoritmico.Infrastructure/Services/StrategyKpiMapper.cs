@@ -60,6 +60,7 @@ internal static class StrategyKpiMapper
 
     public static StrategyDto ToDto(Strategy e) => new(
         e.Id, e.Name, e.Pseudocode,
+        e.EntryIndicators, e.PriceIndicators, e.IndicatorParameters,
         e.Symbol, e.Timeframe, e.BacktestFrom, e.BacktestTo,
         e.TotalProfit, e.ProfitInPips, e.YearlyAvgProfit, e.YearlyAvgReturn, e.Cagr,
         e.NumberOfTrades, e.SharpeRatio, e.ProfitFactor, e.ReturnDrawdownRatio, e.WinningPercentage,

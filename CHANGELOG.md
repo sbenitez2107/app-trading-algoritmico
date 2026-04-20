@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.5.0] - 2026-04-19
+## [0.6.0] - 2026-04-20
+
+### Added
+- **Strategy indicator columns**: three new columns extracted from the `.sqx` strategy XML, togglable from the grid column picker: **Entry Indicators** (indicators used in entry signal conditions — `StdDev, ADX` for DAX-style strategies, `LinearRegression, LowestInRange` for classic), **Price Indicators** (indicators used to compute the entry order price — `HighestInRange`, `SessionHigh`, etc.), and **Indicator Params** (compact format `"Name(k1=v1, k2=v2); ..."`). Handles both XML patterns SQX emits: `categoryType="indicator"` with name in `@key`, and `categoryType="simpleRules"` (bundled indicator+comparison like `StdDevRising`) with name in `@mI`. Price indicators are collected from `<Then>` → `<Param key="#Price#">` → Formula descendants (categories `indicator` + `priceValue`). Platform params (`#Chart#`, `#Direction#`, `#Symbol#`, `#Size#`) excluded.
+- **Grid preset update**: save changes over an existing preset without creating a new one. New `PUT /api/users/me/grid-presets/{id}` endpoint preserves the preset name and overwrites `VisibleColumns` + `ColumnOrder`. Frontend: floppy-disk icon 💾 per preset in the dropdown captures the current grid state and calls update.
+- **Grid preset now captures real column order**: save and update both read the live column state from ag-grid (`gridApi.getColumnState()`), including drag-reorder and column-picker visibility. Applying a preset restores both the visibility and the order via `applyColumnState({ state, applyOrder: true })`. All 46 KPI columns remain in the grid at all times (toggled via `hide` property) so `applyColumnState` can reorder hidden columns correctly.
+
+### Fixed
+- **SQX parser was reading the wrong XML file inside the `.sqx` archive**. Switched from `settings.xml` (bulky Walk-Forward results container with `<ResultsGroup>` root) to `strategy_Portfolio.xml` (clean `<StrategyFile><Strategy>…<Rules><signals>` structure). This silently broke pseudocode extraction since the EA Import feature was first introduced (it returned the literal fallback "Unable to parse strategy", 24 chars) and prevented indicator column population. Pseudocode now extracts the full strategy definition (~800+ chars typical), and the 3 indicator columns populate correctly for all strategy styles. A fallback to `settings.xml` is kept for backward compatibility with older .sqx formats.
 
 ### Added
 - **IMOX Knowledge Base**: Agent knowledge base at `.agents/knowledge/imox/` with 10 IMOX Academy documents (SQX config, mining workflow, validation protocol, asset profiles, money management). New `trading-domain` skill routes agents to the correct documents before domain decisions.

@@ -4,6 +4,10 @@ public record StrategyDto(
     Guid Id,
     string Name,
     string? Pseudocode,
+    // Indicator metadata
+    string? EntryIndicators,
+    string? PriceIndicators,
+    string? IndicatorParameters,
     // Backtest metadata
     string? Symbol,
     string? Timeframe,

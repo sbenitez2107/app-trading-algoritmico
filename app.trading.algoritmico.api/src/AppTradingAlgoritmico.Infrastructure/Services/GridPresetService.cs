@@ -45,6 +45,22 @@ public sealed class GridPresetService(AppDbContext db) : IGridPresetService
         return ToDto(entity);
     }
 
+    public async Task<GridPresetDto> UpdateAsync(
+        Guid userId, Guid presetId, UpdateGridPresetDto dto, CancellationToken ct = default)
+    {
+        var entity = await db.StrategyGridPresets
+            .FirstOrDefaultAsync(p => p.Id == presetId && p.UserId == userId, ct)
+            ?? throw new KeyNotFoundException($"Grid preset {presetId} not found for this user.");
+
+        entity.VisibleColumnsJson = JsonSerializer.Serialize(dto.VisibleColumns, JsonOpts);
+        entity.ColumnOrderJson = JsonSerializer.Serialize(dto.ColumnOrder, JsonOpts);
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(ct);
+
+        return ToDto(entity);
+    }
+
     public async Task DeleteAsync(Guid userId, Guid presetId, CancellationToken ct = default)
     {
         var entity = await db.StrategyGridPresets

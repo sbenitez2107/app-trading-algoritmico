@@ -48,6 +48,30 @@ public class GridPresetsController(IGridPresetService presetService) : Controlle
         }
     }
 
+    /// <summary>Overwrites an existing grid preset's columns. Name is preserved.</summary>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(GridPresetDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GridPresetDto>> UpdatePreset(
+        Guid id,
+        [FromBody] UpdateGridPresetDto dto,
+        CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        try
+        {
+            var result = await presetService.UpdateAsync(userId.Value, id, dto, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
     /// <summary>Deletes a grid preset for the current user.</summary>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

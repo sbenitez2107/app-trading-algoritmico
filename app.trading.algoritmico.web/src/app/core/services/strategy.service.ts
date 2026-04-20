@@ -24,6 +24,10 @@ export interface StrategyDto {
   id: string;
   name: string;
   pseudocode: string | null;
+  // Indicator metadata
+  entryIndicators: string | null;
+  priceIndicators: string | null;
+  indicatorParameters: string | null;
   // Backtest metadata
   symbol: string | null;
   timeframe: string | null;
@@ -88,6 +92,9 @@ export type UpdateStrategyKpisDto = Partial<
     | 'id'
     | 'name'
     | 'pseudocode'
+    | 'entryIndicators'
+    | 'priceIndicators'
+    | 'indicatorParameters'
     | 'symbol'
     | 'timeframe'
     | 'backtestFrom'

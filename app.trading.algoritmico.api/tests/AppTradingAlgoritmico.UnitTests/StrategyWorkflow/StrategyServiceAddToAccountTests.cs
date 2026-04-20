@@ -95,8 +95,9 @@ public class StrategyServiceAddToAccountTests
 
         using var db = InMemoryDbContextFactory.Create(dbName);
         var sqxMock = new Mock<ISqxParserService>();
-        sqxMock.Setup(x => x.ExtractPseudocodeAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync("some pseudocode");
+        sqxMock.Setup(x => x.ExtractStrategyMetadataAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new Application.DTOs.Strategies.ParsedSqxMetadataDto(
+                   "some pseudocode", "SMA", "SMA", "SMA(Period=20)"));
 
         var htmlMock = new Mock<IHtmlReportParserService>();
         htmlMock.Setup(x => x.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
@@ -163,8 +164,8 @@ public class StrategyServiceAddToAccountTests
 
         using var db = InMemoryDbContextFactory.Create(dbName);
         var sqxMock = new Mock<ISqxParserService>();
-        sqxMock.Setup(x => x.ExtractPseudocodeAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync("pseudocode");
+        sqxMock.Setup(x => x.ExtractStrategyMetadataAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new Application.DTOs.Strategies.ParsedSqxMetadataDto("pseudocode", null, null, null));
 
         var htmlMock = new Mock<IHtmlReportParserService>();
         htmlMock.Setup(x => x.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
