@@ -172,7 +172,7 @@ describe('AccountDetailComponent', () => {
     fixture.detectChanges();
 
     // Assert
-    expect(strategyServiceMock.getByAccount).toHaveBeenCalledWith('acc-1', 1, 20);
+    expect(strategyServiceMock.getByAccount).toHaveBeenCalledWith('acc-1', 1, 500);
     expect(fixture.componentInstance.strategies()).toEqual(items);
     expect(fixture.componentInstance.isLoading()).toBe(false);
   });

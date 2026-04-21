@@ -429,7 +429,9 @@ export class AccountDetailComponent implements OnInit {
 
   private loadStrategies(): void {
     this.isLoading.set(true);
-    this.strategyService.getByAccount(this.accountId, 1, 20).subscribe({
+    // Client-side pagination via ag-grid: fetch all strategies in one call. 500 covers
+    // any realistic per-account size. If we ever approach this, switch to server-side paging.
+    this.strategyService.getByAccount(this.accountId, 1, 500).subscribe({
       next: (result) => {
         this.strategies.set(result.items);
         this.isLoading.set(false);

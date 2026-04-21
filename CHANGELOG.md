@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-04-21
+
+### Added
+- **Account strategies grid pagination**: ag-grid client-side pagination enabled with page-size selector (20 / 50 / 100). The grid now uses `domLayout="autoHeight"` so it sizes to the visible rows with no internal vertical scroll — page navigation is the primary way to move through the list. `AccountDetailComponent.loadStrategies` fetches up to 500 rows per account in one call (threshold above which we would need server-side paging).
+
+---
+
 ## [0.6.0] - 2026-04-20
 
 ### Added
