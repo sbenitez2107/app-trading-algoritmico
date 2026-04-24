@@ -19,6 +19,9 @@ import { GridPresetService, GridPresetDto } from '../../../core/services/grid-pr
 import { AddStrategyModalComponent } from '../add-strategy-modal/add-strategy-modal.component';
 import { SavePresetModalComponent } from '../save-preset-modal/save-preset-modal.component';
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
+import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
+import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
+import { TradeImportResultDto } from '../../../core/services/trading-account.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 
 export interface KpiColDef {
@@ -104,6 +107,8 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     AddStrategyModalComponent,
     SavePresetModalComponent,
     StrategyCommentsModalComponent,
+    ImportTradesModalComponent,
+    StrategyTradesGridComponent,
   ],
   templateUrl: './account-detail.component.html',
   styleUrl: './account-detail.component.scss',
@@ -132,6 +137,9 @@ export class AccountDetailComponent implements OnInit {
   readonly showSavePresetModal = signal(false);
   readonly showCommentsModal = signal(false);
   readonly selectedStrategyForComments = signal<StrategyDto | null>(null);
+  readonly showImportModal = signal(false);
+  readonly showTradesGrid = signal(false);
+  readonly activeStrategyId = signal<string | null>(null);
 
   private gridApi: GridApi<StrategyDto> | null = null;
 
@@ -203,6 +211,12 @@ export class AccountDetailComponent implements OnInit {
         const container = document.createElement('div');
         container.className = 'grid-actions';
 
+        const tradesBtn = document.createElement('button');
+        tradesBtn.className = 'grid-action-btn';
+        tradesBtn.title = 'View trades';
+        tradesBtn.innerHTML = '&#x1F4CA;';
+        tradesBtn.addEventListener('click', () => this.toggleTradesGrid(params.value));
+
         const commentsBtn = document.createElement('button');
         commentsBtn.className = 'grid-action-btn';
         commentsBtn.title = 'View comments';
@@ -215,6 +229,7 @@ export class AccountDetailComponent implements OnInit {
         deleteBtn.innerHTML = '&#x1F5D1;';
         deleteBtn.addEventListener('click', () => this.requestDelete(params.value));
 
+        container.appendChild(tradesBtn);
         container.appendChild(commentsBtn);
         container.appendChild(deleteBtn);
         return container;
@@ -301,6 +316,24 @@ export class AccountDetailComponent implements OnInit {
   closeCommentsModal(): void {
     this.showCommentsModal.set(false);
     this.selectedStrategyForComments.set(null);
+  }
+
+  openImportModal(): void {
+    this.showImportModal.set(true);
+  }
+
+  closeImportModal(_result: TradeImportResultDto | null): void {
+    this.showImportModal.set(false);
+  }
+
+  toggleTradesGrid(strategyId: string): void {
+    if (this.activeStrategyId() === strategyId && this.showTradesGrid()) {
+      this.showTradesGrid.set(false);
+      this.activeStrategyId.set(null);
+    } else {
+      this.activeStrategyId.set(strategyId);
+      this.showTradesGrid.set(true);
+    }
   }
 
   togglePresetsDropdown(): void {

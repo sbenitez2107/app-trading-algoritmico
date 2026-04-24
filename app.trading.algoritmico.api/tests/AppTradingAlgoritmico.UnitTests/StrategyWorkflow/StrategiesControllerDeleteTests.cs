@@ -20,7 +20,7 @@ public class StrategiesControllerDeleteTests
         serviceMock.Setup(s => s.DeleteAsync(strategyId, default))
                    .Returns(Task.CompletedTask);
 
-        var sut = new StrategiesController(serviceMock.Object);
+        var sut = new StrategiesController(serviceMock.Object, Mock.Of<ITradeImportService>());
 
         // Act
         var result = await sut.Delete(strategyId, default);
@@ -39,7 +39,7 @@ public class StrategiesControllerDeleteTests
         serviceMock.Setup(s => s.DeleteAsync(strategyId, default))
                    .ThrowsAsync(new KeyNotFoundException("Strategy not found."));
 
-        var sut = new StrategiesController(serviceMock.Object);
+        var sut = new StrategiesController(serviceMock.Object, Mock.Of<ITradeImportService>());
 
         // Act
         var result = await sut.Delete(strategyId, default);

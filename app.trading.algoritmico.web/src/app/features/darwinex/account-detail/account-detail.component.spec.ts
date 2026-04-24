@@ -73,6 +73,7 @@ function makeStrategy(id = '1'): StrategyDto {
     averageConsecutiveLosses: null,
     averageBarsInWins: null,
     averageBarsInLosses: null,
+    magicNumber: null,
     createdAt: new Date().toISOString(),
   };
 }

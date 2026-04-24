@@ -28,7 +28,8 @@ public class TradingAccountStrategiesControllerTests
         null, null, null, null, null,
         null, null, null, null, null,
         null, null, null, null, null,
-        DateTime.UtcNow
+        DateTime.UtcNow,
+        null // MagicNumber
     );
 
     [Fact]
@@ -82,7 +83,7 @@ public class TradingAccountStrategiesControllerTests
         var dto = MakeStrategyDto();
 
         var serviceMock = new Mock<IStrategyService>();
-        serviceMock.Setup(s => s.AddToAccountAsync(accountId, "Test", It.IsAny<Stream>(), It.IsAny<Stream>(), default))
+        serviceMock.Setup(s => s.AddToAccountAsync(accountId, "Test", It.IsAny<Stream>(), It.IsAny<Stream>(), null, default))
                    .ReturnsAsync(dto);
 
         var sut = new TradingAccountStrategiesController(serviceMock.Object);
@@ -91,12 +92,40 @@ public class TradingAccountStrategiesControllerTests
         var htmlFile = CreateMockFormFile("test.html", "<html/>");
 
         // Act — spec R2 scenario 1
-        var result = await sut.CreateStrategy(accountId, "Test", sqxFile, htmlFile, default);
+        var result = await sut.CreateStrategy(accountId, "Test", sqxFile, htmlFile, magicNumber: null, default);
 
         // Assert
         var createdResult = result.Result as CreatedAtActionResult;
         createdResult.Should().NotBeNull();
         createdResult!.StatusCode.Should().Be(201);
+    }
+
+    [Fact]
+    public async Task PostStrategy_WithMagicNumber_PassesMagicNumberToService()
+    {
+        // Arrange — spec R-M2: magicNumber form field is forwarded to the service
+        var accountId = Guid.NewGuid();
+        var dto = MakeStrategyDto();
+
+        var serviceMock = new Mock<IStrategyService>();
+        serviceMock.Setup(s => s.AddToAccountAsync(
+                        accountId, "Test", It.IsAny<Stream>(), It.IsAny<Stream>(), 2333376, default))
+                   .ReturnsAsync(dto)
+                   .Verifiable();
+
+        var sut = new TradingAccountStrategiesController(serviceMock.Object);
+
+        // Act
+        var result = await sut.CreateStrategy(
+            accountId, "Test",
+            CreateMockFormFile("test.sqx", "x"),
+            CreateMockFormFile("test.html", "<html/>"),
+            magicNumber: 2333376,
+            default);
+
+        // Assert
+        (result.Result as CreatedAtActionResult)!.StatusCode.Should().Be(201);
+        serviceMock.Verify();
     }
 
     [Fact]
@@ -107,7 +136,7 @@ public class TradingAccountStrategiesControllerTests
         var sut = new TradingAccountStrategiesController(serviceMock.Object);
 
         // Act — spec R2 missing sqx scenario
-        var result = await sut.CreateStrategy(Guid.NewGuid(), "Test", sqxFile: null, htmlFile: CreateMockFormFile("test.html", "<html/>"), default);
+        var result = await sut.CreateStrategy(Guid.NewGuid(), "Test", sqxFile: null, htmlFile: CreateMockFormFile("test.html", "<html/>"), magicNumber: null, default);
 
         // Assert
         result.Result.Should().BeOfType<BadRequestObjectResult>();
@@ -121,7 +150,7 @@ public class TradingAccountStrategiesControllerTests
         var sut = new TradingAccountStrategiesController(serviceMock.Object);
 
         // Act — spec R2 missing html scenario
-        var result = await sut.CreateStrategy(Guid.NewGuid(), "Test", sqxFile: CreateMockFormFile("test.sqx", "content"), htmlFile: null, default);
+        var result = await sut.CreateStrategy(Guid.NewGuid(), "Test", sqxFile: CreateMockFormFile("test.sqx", "content"), htmlFile: null, magicNumber: null, default);
 
         // Assert
         result.Result.Should().BeOfType<BadRequestObjectResult>();
@@ -134,13 +163,13 @@ public class TradingAccountStrategiesControllerTests
         var accountId = Guid.NewGuid();
 
         var serviceMock = new Mock<IStrategyService>();
-        serviceMock.Setup(s => s.AddToAccountAsync(accountId, It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Stream>(), default))
+        serviceMock.Setup(s => s.AddToAccountAsync(accountId, It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Stream>(), It.IsAny<int?>(), default))
                    .ThrowsAsync(new ArgumentException("Invalid SQX HTML report."));
 
         var sut = new TradingAccountStrategiesController(serviceMock.Object);
 
         // Act — spec R2 scenario 4
-        var result = await sut.CreateStrategy(accountId, "Test", CreateMockFormFile("test.sqx", "x"), CreateMockFormFile("test.html", "bad"), default);
+        var result = await sut.CreateStrategy(accountId, "Test", CreateMockFormFile("test.sqx", "x"), CreateMockFormFile("test.html", "bad"), magicNumber: null, default);
 
         // Assert
         result.Result.Should().BeOfType<BadRequestObjectResult>();
@@ -153,13 +182,13 @@ public class TradingAccountStrategiesControllerTests
         var accountId = Guid.NewGuid();
 
         var serviceMock = new Mock<IStrategyService>();
-        serviceMock.Setup(s => s.AddToAccountAsync(accountId, It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Stream>(), default))
+        serviceMock.Setup(s => s.AddToAccountAsync(accountId, It.IsAny<string>(), It.IsAny<Stream>(), It.IsAny<Stream>(), It.IsAny<int?>(), default))
                    .ThrowsAsync(new KeyNotFoundException("account not found"));
 
         var sut = new TradingAccountStrategiesController(serviceMock.Object);
 
         // Act — spec R2 scenario 5
-        var result = await sut.CreateStrategy(accountId, "Test", CreateMockFormFile("test.sqx", "x"), CreateMockFormFile("test.html", "<html/>"), default);
+        var result = await sut.CreateStrategy(accountId, "Test", CreateMockFormFile("test.sqx", "x"), CreateMockFormFile("test.html", "<html/>"), magicNumber: null, default);
 
         // Assert
         result.Result.Should().BeOfType<NotFoundResult>();

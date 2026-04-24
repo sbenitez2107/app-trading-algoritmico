@@ -24,6 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="StrategyWorkflow\Fixtures\*.htm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\AppTradingAlgoritmico.Application\AppTradingAlgoritmico.Application.csproj" />
     <ProjectReference Include="..\..\src\AppTradingAlgoritmico.Infrastructure\AppTradingAlgoritmico.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\AppTradingAlgoritmico.WebAPI\AppTradingAlgoritmico.WebAPI.csproj" />

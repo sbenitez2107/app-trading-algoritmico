@@ -17,7 +17,7 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
 
-    public int ExpiresInSeconds => 
+    public int ExpiresInSeconds =>
         int.Parse(_configuration["Jwt:ExpiryMinutes"] ?? "60") * 60;
 
     public string GenerateAccessToken(ApplicationUser user, IEnumerable<string> roles)

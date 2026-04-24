@@ -65,6 +65,9 @@
       <button class="btn btn--secondary" type="button" (click)="toggleColumnPicker()">
         Columns
       </button>
+      <button class="btn btn--secondary" type="button" (click)="openImportModal()">
+        Import Trades
+      </button>
       <button class="btn btn--primary" type="button" (click)="openAddStrategyModal()">
         Add Strategy
       </button>
@@ -155,5 +158,15 @@
       [strategyName]="selectedStrategyForComments()!.name"
       (close)="closeCommentsModal()"
     />
+  }
+
+  @if (showImportModal()) {
+    <app-import-trades-modal [accountId]="accountId" (closed)="closeImportModal($event)" />
+  }
+
+  @if (showTradesGrid() && activeStrategyId()) {
+    <div class="account-detail__trades-panel">
+      <app-strategy-trades-grid [strategyId]="activeStrategyId()!" />
+    </div>
   }
 </div>

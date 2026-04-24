@@ -18,6 +18,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<AnalyzerRule> AnalyzerRules => Set<AnalyzerRule>();
     public DbSet<StrategyGridPreset> StrategyGridPresets => Set<StrategyGridPreset>();
     public DbSet<StrategyComment> StrategyComments => Set<StrategyComment>();
+    public DbSet<StrategyTrade> StrategyTrades => Set<StrategyTrade>();
+    public DbSet<AccountEquitySnapshot> AccountEquitySnapshots => Set<AccountEquitySnapshot>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

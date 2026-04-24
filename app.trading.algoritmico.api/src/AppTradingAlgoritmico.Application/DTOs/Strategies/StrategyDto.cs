@@ -63,5 +63,7 @@ public record StrategyDto(
     decimal? AverageConsecutiveLosses,
     decimal? AverageBarsInWins,
     decimal? AverageBarsInLosses,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    // MT4 trade import
+    int? MagicNumber
 );

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AppTradingAlgoritmico.Application.DTOs.Strategies;
+using AppTradingAlgoritmico.Application.DTOs.Trades;
 using AppTradingAlgoritmico.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 [ApiController]
 [Authorize]
 [Produces("application/json")]
-public class StrategiesController(IStrategyService service) : ControllerBase
+public class StrategiesController(IStrategyService service, ITradeImportService tradeImportService) : ControllerBase
 {
     /// <summary>Returns paginated strategies for a specific batch stage.</summary>
     [HttpGet("api/batches/{batchId:guid}/stages/{stageId:guid}/strategies")]
@@ -100,5 +101,33 @@ public class StrategiesController(IStrategyService service) : ControllerBase
         {
             return NotFound();
         }
+    }
+
+    /// <summary>
+    /// Returns a paginated list of trades for a strategy, filtered by open/closed status.
+    /// </summary>
+    /// <param name="id">The strategy ID.</param>
+    /// <param name="status">Trade status filter: <c>all</c>, <c>open</c>, or <c>closed</c>. Defaults to <c>all</c>.</param>
+    /// <param name="page">Page number (1-based). Defaults to 1.</param>
+    /// <param name="pageSize">Number of items per page. Defaults to 50.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Paginated <see cref="StrategyTradeDto"/> list ordered by close time descending.</returns>
+    /// <response code="200">Returns paged trades for the strategy.</response>
+    /// <response code="400">Invalid status filter value.</response>
+    [HttpGet("api/strategies/{id:guid}/trades")]
+    [ProducesResponseType(typeof(PagedResult<StrategyTradeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<StrategyTradeDto>>> GetTrades(
+        [FromRoute] Guid id,
+        [FromQuery] string status = "all",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        if (!Enum.TryParse<TradeStatusFilter>(status, ignoreCase: true, out var filter))
+            return BadRequest($"Invalid status '{status}'. Valid values: all, open, closed.");
+
+        var result = await tradeImportService.GetByStrategyAsync(id, filter, page, pageSize, ct);
+        return Ok(result);
     }
 }

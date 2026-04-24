@@ -72,5 +72,6 @@ internal static class StrategyKpiMapper
         e.AverageWin, e.AverageLoss, e.LargestWin, e.LargestLoss,
         e.MaxConsecutiveWins, e.MaxConsecutiveLosses, e.AverageConsecutiveWins, e.AverageConsecutiveLosses,
         e.AverageBarsInWins, e.AverageBarsInLosses,
-        e.CreatedAt);
+        e.CreatedAt,
+        e.MagicNumber);
 }

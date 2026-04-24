@@ -44,6 +44,9 @@ public class TradingAccountConfiguration : IEntityTypeConfiguration<TradingAccou
             .IsRequired()
             .HasDefaultValue(true);
 
+        builder.Property(x => x.Currency)
+            .HasMaxLength(10);
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 

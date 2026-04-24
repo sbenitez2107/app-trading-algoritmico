@@ -64,6 +64,10 @@ public static class DependencyInjection
         services.AddScoped<IBatchStageService, BatchStageService>();
         services.AddScoped<IStrategyService, StrategyService>();
 
+        // Trade Import
+        services.AddScoped<IMtStatementParserService, MtStatementParserService>();
+        services.AddScoped<ITradeImportService, TradeImportService>();
+
         // Analyzer
         services.AddScoped<IAnalyzerRuleService, AnalyzerRuleService>();
 

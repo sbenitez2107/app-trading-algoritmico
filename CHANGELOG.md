@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-04-24
+
+### Added
+- **Import Darwinex MT4 trade statements**: new end-to-end flow to ingest real broker trades onto existing Strategies. New `StrategyTrade` entity (ticket, open/close times, symbol, volume, prices, SL/TP, commission, swap, profit, CloseReason, IsOpen) and `AccountEquitySnapshot` entity (balance, equity, floating P&L, margin). New DTOs under `Application/DTOs/Trades/`. New `IMtStatementParserService` (AngleSharp-based HTML parser handling Darwinex MT4 `.htm`/`.html` statements — Closed Transactions, Open Trades, Working Orders, Summary sections; regex-driven magic-number extraction from title attributes; skips cancelled rows and Working Orders range). New `ITradeImportService` upserts trades by `(StrategyId, Ticket)`, aggregates orphans (magic numbers with no matching Strategy), appends one equity snapshot per call, and exposes `GetByStrategyAsync` with `TradeStatusFilter` (All/Open/Closed). Two new endpoints: `POST /api/trading-accounts/{id}/trades/import` (multipart IFormFile → `TradeImportResultDto`) and `GET /api/strategies/{id}/trades` (paginated, filterable by status). Frontend: new `ImportTradesModalComponent` (file validation, result summary, orphan panel with clipboard-copy of magic numbers) and `StrategyTradesGridComponent` (14-column ag-grid, open/closed/all tabs). `AccountDetailComponent` wires both components; new "Import Trades" button and per-row trades toggle.
+- **Magic Number on Strategy**: `Strategy` entity gains nullable `int? MagicNumber` column with filtered unique index `(TradingAccountId, MagicNumber) WHERE MagicNumber IS NOT NULL`. `POST /api/trading-accounts/{id}/strategies` accepts optional `magicNumber` form field; `IStrategyService.AddToAccountAsync` persists it. Frontend: `AddStrategyModalComponent` exposes a Magic Number input with integer validation. This is the bridge that lets imported MT4 trades match the right Strategy.
+- **Currency on TradingAccount**: new optional `Currency` column on `TradingAccount`. `TradeImportService` falls back to this when the parsed statement header does not carry an explicit currency.
+- **i18n keys**: `DARWINEX.IMPORT_TRADES.*`, `DARWINEX.TRADES_GRID.COL_*` (14 grid column headers), and `DARWINEX.ADD_STRATEGY.MAGIC_NUMBER_*` added to both `en.json` and `es.json`. Keys are ready for future wiring; darwinex components keep hardcoded English strings for now (consistent with the rest of the feature).
+
+### Changed
+- **EF migration folders unified**: the legacy `Infrastructure/Migrations/` folder was removed and its 5 files (initial schema, trading-accounts migration, and snapshot) moved to `Infrastructure/Persistence/Migrations/` with namespaces updated to match. All 13 migrations now resolve from a single path.
+- **Workflow scripts (`run-all`, `stop-all`)**: refactored to bash-native commands (`dotnet run`, `pnpm start`, `kill-by-port`) using the harness's `run_in_background` parameter instead of PowerShell wrappers — shell-agnostic quoting, surgical kill by port (4200/5000/5001), verification step.
+
+### Fixed
+- **`StrategyTradesGridComponent` flaky test**: bumped timeout to 15 s on the first test that exercises ag-grid's initial `TestBed.createComponent`. In the full parallel Vitest suite (14 files), ag-grid bootstrap in jsdom regularly exceeded the default 5 s timeout even though the test passed in isolation.
+
+### Security
+- No new secrets. New endpoint `POST /api/trading-accounts/{id}/trades/import` remains `[Authorize]`.
+
+---
+
 ## [0.7.0] - 2026-04-21
 
 ### Added

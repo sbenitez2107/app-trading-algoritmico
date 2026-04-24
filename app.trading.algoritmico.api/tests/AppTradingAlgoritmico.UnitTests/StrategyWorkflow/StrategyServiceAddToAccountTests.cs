@@ -181,6 +181,100 @@ public class StrategyServiceAddToAccountTests
     }
 
     [Fact]
+    public async Task AddToAccountAsync_WithMagicNumber_PersistsMagicNumber()
+    {
+        // Arrange — spec R-M2: magicNumber provided on create is persisted on Strategy
+        var dbName = Guid.NewGuid().ToString();
+        var accountId = Guid.NewGuid();
+
+        using (var setup = InMemoryDbContextFactory.Create(dbName))
+        {
+            setup.TradingAccounts.Add(new TradingAccount
+            {
+                Id = accountId,
+                Name = "Acc",
+                Broker = "Darwinex",
+                AccountNumber = 42,
+                Login = 42,
+                PasswordEncrypted = "e",
+                Server = "s",
+                CreatedAt = DateTime.UtcNow
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        using var db = InMemoryDbContextFactory.Create(dbName);
+        var sqxMock = new Mock<ISqxParserService>();
+        sqxMock.Setup(x => x.ExtractStrategyMetadataAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new Application.DTOs.Strategies.ParsedSqxMetadataDto("pseudocode", null, null, null));
+
+        var htmlMock = new Mock<IHtmlReportParserService>();
+        htmlMock.Setup(x => x.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ValidReport());
+
+        var sut = new StrategyService(db, sqxMock.Object, htmlMock.Object);
+
+        // Act
+        var result = await sut.AddToAccountAsync(
+            accountId, "WithMagic", Stream.Null, Stream.Null, magicNumber: 2333376);
+
+        // Assert — DTO carries magicNumber
+        result.MagicNumber.Should().Be(2333376);
+
+        // Verify persistence
+        using var verify = InMemoryDbContextFactory.Create(dbName);
+        var saved = await verify.Strategies.FirstOrDefaultAsync(s => s.Name == "WithMagic");
+        saved.Should().NotBeNull();
+        saved!.MagicNumber.Should().Be(2333376);
+    }
+
+    [Fact]
+    public async Task AddToAccountAsync_WithoutMagicNumber_PersistsNullMagicNumber()
+    {
+        // Arrange — spec R-M2: magicNumber is optional; null is valid
+        var dbName = Guid.NewGuid().ToString();
+        var accountId = Guid.NewGuid();
+
+        using (var setup = InMemoryDbContextFactory.Create(dbName))
+        {
+            setup.TradingAccounts.Add(new TradingAccount
+            {
+                Id = accountId,
+                Name = "Acc",
+                Broker = "Darwinex",
+                AccountNumber = 43,
+                Login = 43,
+                PasswordEncrypted = "e",
+                Server = "s",
+                CreatedAt = DateTime.UtcNow
+            });
+            await setup.SaveChangesAsync();
+        }
+
+        using var db = InMemoryDbContextFactory.Create(dbName);
+        var sqxMock = new Mock<ISqxParserService>();
+        sqxMock.Setup(x => x.ExtractStrategyMetadataAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new Application.DTOs.Strategies.ParsedSqxMetadataDto("pseudocode", null, null, null));
+
+        var htmlMock = new Mock<IHtmlReportParserService>();
+        htmlMock.Setup(x => x.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ValidReport());
+
+        var sut = new StrategyService(db, sqxMock.Object, htmlMock.Object);
+
+        // Act — call overload without magicNumber (default = null)
+        var result = await sut.AddToAccountAsync(
+            accountId, "NoMagic", Stream.Null, Stream.Null);
+
+        // Assert
+        result.MagicNumber.Should().BeNull();
+
+        using var verify = InMemoryDbContextFactory.Create(dbName);
+        var saved = await verify.Strategies.FirstOrDefaultAsync(s => s.Name == "NoMagic");
+        saved!.MagicNumber.Should().BeNull();
+    }
+
+    [Fact]
     public async Task AddToAccountAsync_BothFksNull_ThrowsException()
     {
         // Arrange — attempt AddToAccountAsync with non-existent accountId

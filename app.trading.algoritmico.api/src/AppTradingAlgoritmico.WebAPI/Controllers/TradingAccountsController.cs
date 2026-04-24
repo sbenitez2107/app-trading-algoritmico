@@ -1,3 +1,4 @@
+using AppTradingAlgoritmico.Application.DTOs.Trades;
 using AppTradingAlgoritmico.Application.DTOs.TradingAccounts;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Enums;
@@ -13,11 +14,16 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 public class TradingAccountsController : ControllerBase
 {
     private readonly ITradingAccountService _service;
+    private readonly ITradeImportService _tradeImportService;
     private readonly ILogger<TradingAccountsController> _logger;
 
-    public TradingAccountsController(ITradingAccountService service, ILogger<TradingAccountsController> logger)
+    public TradingAccountsController(
+        ITradingAccountService service,
+        ITradeImportService tradeImportService,
+        ILogger<TradingAccountsController> logger)
     {
         _service = service;
+        _tradeImportService = tradeImportService;
         _logger = logger;
     }
 
@@ -107,6 +113,43 @@ public class TradingAccountsController : ControllerBase
         catch (KeyNotFoundException)
         {
             return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// Imports MT4 trades from an HTML statement file into the specified trading account.
+    /// Parses the statement, upserts matched trades, and records an equity snapshot.
+    /// </summary>
+    /// <param name="id">The trading account ID.</param>
+    /// <param name="file">The MT4 HTML statement file (.htm / .html).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A <see cref="TradeImportResultDto"/> with counts and snapshot details.</returns>
+    /// <response code="200">Import completed. Returns counts and snapshot.</response>
+    /// <response code="400">HTML could not be parsed (unrecognised or empty file).</response>
+    /// <response code="404">Trading account not found.</response>
+    [HttpPost("{id:guid}/trades/import")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(TradeImportResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<TradeImportResultDto>> ImportTrades(
+        [FromRoute] Guid id,
+        [FromForm] IFormFile file,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await _tradeImportService.ImportAsync(id, stream, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
         }
     }
 }

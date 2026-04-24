@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace AppTradingAlgoritmico.Infrastructure.Migrations
+namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class AddTradingAccounts : Migration

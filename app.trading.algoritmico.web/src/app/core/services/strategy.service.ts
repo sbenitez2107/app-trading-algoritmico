@@ -83,6 +83,7 @@ export interface StrategyDto {
   averageConsecutiveLosses: number | null;
   averageBarsInWins: number | null;
   averageBarsInLosses: number | null;
+  magicNumber: number | null;
   createdAt: string;
 }
 
@@ -108,6 +109,24 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export interface StrategyTradeDto {
+  id: string;
+  ticket: number;
+  openTime: string;
+  closeTime: string | null;
+  type: string;
+  size: number;
+  item: string;
+  openPrice: number;
+  closePrice: number | null;
+  sl: number | null;
+  tp: number | null;
+  commission: number;
+  swap: number;
+  profit: number | null;
+  isOpen: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -144,11 +163,20 @@ export class StrategyService {
     );
   }
 
-  addToAccount(accountId: string, name: string, sqx: File, html: File): Observable<StrategyDto> {
+  addToAccount(
+    accountId: string,
+    name: string,
+    sqx: File,
+    html: File,
+    magicNumber: number | null = null,
+  ): Observable<StrategyDto> {
     const form = new FormData();
     form.append('name', name);
     form.append('sqxFile', sqx);
     form.append('htmlFile', html);
+    if (magicNumber !== null) {
+      form.append('magicNumber', magicNumber.toString());
+    }
     return this.http.post<StrategyDto>(
       `${this.apiUrl}/api/trading-accounts/${accountId}/strategies`,
       form,
@@ -157,6 +185,22 @@ export class StrategyService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/api/strategies/${id}`);
+  }
+
+  getTradesByStrategy(
+    strategyId: string,
+    status: 'open' | 'closed' | 'all' = 'all',
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<StrategyTradeDto>> {
+    const params = new HttpParams()
+      .set('status', status)
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    return this.http.get<PagedResult<StrategyTradeDto>>(
+      `${this.apiUrl}/api/strategies/${strategyId}/trades`,
+      { params },
+    );
   }
 
   getComments(id: string): Observable<StrategyCommentDto[]> {

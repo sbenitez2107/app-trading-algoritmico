@@ -72,6 +72,9 @@ public class Strategy : BaseEntity
     public decimal? AverageBarsInWins { get; set; }
     public decimal? AverageBarsInLosses { get; set; }
 
+    // --- MT4 trade import ---
+    public int? MagicNumber { get; set; }
+
     public Guid? BatchStageId { get; set; }
     public BatchStage? BatchStage { get; set; }
 
@@ -80,4 +83,5 @@ public class Strategy : BaseEntity
 
     public ICollection<StrategyMonthlyPerformance> MonthlyPerformance { get; set; } = [];
     public ICollection<StrategyComment> Comments { get; set; } = [];
+    public ICollection<StrategyTrade> Trades { get; init; } = [];
 }

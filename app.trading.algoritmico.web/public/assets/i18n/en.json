@@ -72,6 +72,47 @@
       "INVALID_EMAIL": "Please enter a valid email address"
     }
   },
+  "DARWINEX": {
+    "IMPORT_TRADES": {
+      "TITLE": "Import MT Statement",
+      "FILE_LABEL": "Statement File (.htm / .html)",
+      "SUBMIT": "Import",
+      "IMPORTING": "Importing...",
+      "RESULT_TITLE": "Import Result",
+      "IMPORTED": "Imported",
+      "UPDATED": "Updated",
+      "SKIPPED": "Skipped",
+      "ORPHANS_TITLE": "Unassigned Trades",
+      "ORPHANS_DESC": "These magic numbers were found in the statement but are not assigned to any strategy. Copy the number and paste it into the corresponding strategy.",
+      "TRADES_COUNT": "{{count}} trades",
+      "COPY_MAGIC": "Copy magic number",
+      "COPY": "Copy"
+    },
+    "TRADES_GRID": {
+      "TAB_ALL": "All",
+      "TAB_OPEN": "Open",
+      "TAB_CLOSED": "Closed",
+      "COL_TICKET": "Ticket",
+      "COL_TYPE": "Type",
+      "COL_VOLUME": "Volume",
+      "COL_SYMBOL": "Symbol",
+      "COL_OPEN_TIME": "Open Time",
+      "COL_CLOSE_TIME": "Close Time",
+      "COL_OPEN_PRICE": "Open Price",
+      "COL_CLOSE_PRICE": "Close Price",
+      "COL_STOP_LOSS": "SL",
+      "COL_TAKE_PROFIT": "TP",
+      "COL_COMMISSION": "Commission",
+      "COL_SWAP": "Swap",
+      "COL_PROFIT": "Profit",
+      "COL_STATUS": "Status"
+    },
+    "ADD_STRATEGY": {
+      "MAGIC_NUMBER_LABEL": "Magic Number (optional)",
+      "MAGIC_NUMBER_PLACEHOLDER": "e.g. 2333376",
+      "MAGIC_NUMBER_ERROR": "Must be a valid integer."
+    }
+  },
   "SQX": {
     "SIDEBAR": {
       "STRATEGY_WORKFLOW": "Strategy Workflow",

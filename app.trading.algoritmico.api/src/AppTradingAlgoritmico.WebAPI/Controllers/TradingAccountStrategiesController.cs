@@ -38,7 +38,7 @@ public class TradingAccountStrategiesController(IStrategyService service) : Cont
 
     /// <summary>
     /// Uploads a new strategy to the given trading account.
-    /// Requires: name (string), sqxFile (.sqx), htmlFile (.html).
+    /// Requires: name (string), sqxFile (.sqx), htmlFile (.html). Optional: magicNumber (int).
     /// Returns the created StrategyDto with 201 Created.
     /// </summary>
     [HttpPost]
@@ -51,6 +51,7 @@ public class TradingAccountStrategiesController(IStrategyService service) : Cont
         [FromForm] string name,
         [FromForm] IFormFile? sqxFile,
         [FromForm] IFormFile? htmlFile,
+        [FromForm] int? magicNumber = null,
         CancellationToken ct = default)
     {
         if (sqxFile is null)
@@ -64,7 +65,7 @@ public class TradingAccountStrategiesController(IStrategyService service) : Cont
 
         try
         {
-            var dto = await service.AddToAccountAsync(accountId, name, sqxStream, htmlStream, ct);
+            var dto = await service.AddToAccountAsync(accountId, name, sqxStream, htmlStream, magicNumber, ct);
             return CreatedAtAction(nameof(GetStrategies), new { accountId }, dto);
         }
         catch (KeyNotFoundException)

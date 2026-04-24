@@ -16,7 +16,7 @@ public class StrategiesControllerCommentsTests
 {
     private static StrategiesController CreateSut(Mock<IStrategyService> serviceMock, string? userId = null)
     {
-        var sut = new StrategiesController(serviceMock.Object);
+        var sut = new StrategiesController(serviceMock.Object, Mock.Of<ITradeImportService>());
         var claims = new List<Claim>();
         if (userId is not null)
             claims.Add(new Claim(ClaimTypes.NameIdentifier, userId));

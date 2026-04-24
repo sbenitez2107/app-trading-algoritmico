@@ -62,6 +62,7 @@ function makeStrategyDto(): StrategyDto {
     averageConsecutiveLosses: null,
     averageBarsInWins: null,
     averageBarsInLosses: null,
+    magicNumber: null,
     createdAt: new Date().toISOString(),
   };
 }
@@ -170,12 +171,13 @@ describe('AddStrategyModalComponent', () => {
     // Act
     comp.submit();
 
-    // Assert
+    // Assert — magicNumber defaults to null when not set
     expect(strategyServiceMock.addToAccount).toHaveBeenCalledWith(
       'acc-1',
       'My Strategy',
       sqx,
       html,
+      null,
     );
   });
 
@@ -279,5 +281,78 @@ describe('AddStrategyModalComponent', () => {
 
     // Assert
     expect(comp.name()).toBe('Existing Name');
+  });
+
+  // --- #R-M2 Magic Number field ---
+
+  it('magicNumber_ValidInteger_SubmittedAsMagicNumber', () => {
+    // Arrange
+    const fixture = create('acc-1');
+    const comp = fixture.componentInstance;
+    const sqx = makeFile('test.sqx');
+    const html = makeFile('test.html');
+    const dto = makeStrategyDto();
+    dto.magicNumber = 2333376;
+
+    comp.name.set('My Strategy');
+    comp.sqxFile.set(sqx);
+    comp.htmlFile.set(html);
+
+    (strategyServiceMock.addToAccount as ReturnType<typeof vi.fn>).mockReturnValue(of(dto));
+
+    // Act
+    comp.onMagicNumberChange('2333376');
+    comp.submit();
+
+    // Assert
+    expect(comp.magicNumber()).toBe(2333376);
+    expect(strategyServiceMock.addToAccount).toHaveBeenCalledWith(
+      'acc-1',
+      'My Strategy',
+      sqx,
+      html,
+      2333376,
+    );
+  });
+
+  it('magicNumber_Empty_SubmitsAsNull', () => {
+    // Arrange
+    const fixture = create('acc-1');
+    const comp = fixture.componentInstance;
+    const sqx = makeFile('test.sqx');
+    const html = makeFile('test.html');
+
+    comp.name.set('My Strategy');
+    comp.sqxFile.set(sqx);
+    comp.htmlFile.set(html);
+
+    (strategyServiceMock.addToAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makeStrategyDto()),
+    );
+
+    // Act — leave magicNumber empty (default null)
+    comp.submit();
+
+    // Assert
+    expect(comp.magicNumber()).toBeNull();
+    expect(strategyServiceMock.addToAccount).toHaveBeenCalledWith(
+      'acc-1',
+      'My Strategy',
+      sqx,
+      html,
+      null,
+    );
+  });
+
+  it('magicNumber_NonNumeric_SetsValidationError', () => {
+    // Arrange
+    const fixture = create();
+    const comp = fixture.componentInstance;
+
+    // Act
+    comp.onMagicNumberChange('abc');
+
+    // Assert
+    expect(comp.magicNumberError()).not.toBeNull();
   });
 });

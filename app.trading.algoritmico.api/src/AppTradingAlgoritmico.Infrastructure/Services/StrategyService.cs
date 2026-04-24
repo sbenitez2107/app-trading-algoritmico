@@ -38,7 +38,8 @@ public sealed class StrategyService(
                 x.AverageWin, x.AverageLoss, x.LargestWin, x.LargestLoss,
                 x.MaxConsecutiveWins, x.MaxConsecutiveLosses, x.AverageConsecutiveWins, x.AverageConsecutiveLosses,
                 x.AverageBarsInWins, x.AverageBarsInLosses,
-                x.CreatedAt))
+                x.CreatedAt,
+                x.MagicNumber))
             .ToListAsync(ct);
 
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
@@ -75,14 +76,15 @@ public sealed class StrategyService(
                 x.AverageWin, x.AverageLoss, x.LargestWin, x.LargestLoss,
                 x.MaxConsecutiveWins, x.MaxConsecutiveLosses, x.AverageConsecutiveWins, x.AverageConsecutiveLosses,
                 x.AverageBarsInWins, x.AverageBarsInLosses,
-                x.CreatedAt))
+                x.CreatedAt,
+                x.MagicNumber))
             .ToListAsync(ct);
 
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
     }
 
     public async Task<StrategyDto> AddToAccountAsync(
-        Guid accountId, string name, Stream sqxStream, Stream htmlStream, CancellationToken ct = default)
+        Guid accountId, string name, Stream sqxStream, Stream htmlStream, int? magicNumber = null, CancellationToken ct = default)
     {
         var accountExists = await db.TradingAccounts.AnyAsync(a => a.Id == accountId, ct);
         if (!accountExists)
@@ -101,6 +103,7 @@ public sealed class StrategyService(
             IndicatorParameters = sqxMetadata?.IndicatorParameters,
             TradingAccountId = accountId,
             BatchStageId = null,
+            MagicNumber = magicNumber,
             Symbol = report.Symbol,
             Timeframe = report.Timeframe,
             BacktestFrom = report.BacktestFrom,

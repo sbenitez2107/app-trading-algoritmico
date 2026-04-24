@@ -32,13 +32,23 @@ export class AddStrategyModalComponent {
   readonly htmlFile = signal<File | null>(null);
   readonly isSubmitting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly magicNumber = signal<number | null>(null);
+  readonly magicNumberRaw = signal('');
+  readonly magicNumberError = computed<string | null>(() => {
+    const raw = this.magicNumberRaw();
+    if (raw === '' || raw === null) return null;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || isNaN(n)) return 'Magic number must be a valid integer.';
+    return null;
+  });
 
   readonly canSubmit = computed(
     () =>
       this.name().trim().length > 0 &&
       !!this.sqxFile() &&
       !!this.htmlFile() &&
-      !this.isSubmitting(),
+      !this.isSubmitting() &&
+      this.magicNumberError() === null,
   );
 
   onSqxFileChange(event: Event): void {
@@ -61,6 +71,20 @@ export class AddStrategyModalComponent {
     this.name.set(basename);
   }
 
+  onMagicNumberChange(value: string): void {
+    this.magicNumberRaw.set(value);
+    if (value === '' || value === null) {
+      this.magicNumber.set(null);
+      return;
+    }
+    const n = Number(value);
+    if (Number.isInteger(n) && !isNaN(n)) {
+      this.magicNumber.set(n);
+    } else {
+      this.magicNumber.set(null);
+    }
+  }
+
   onCancel(): void {
     this.cancelled.emit();
   }
@@ -74,15 +98,17 @@ export class AddStrategyModalComponent {
     this.isSubmitting.set(true);
     this.error.set(null);
 
-    this.strategyService.addToAccount(this.accountId, this.name().trim(), sqx, html).subscribe({
-      next: (dto) => {
-        this.isSubmitting.set(false);
-        this.strategyCreated.emit(dto);
-      },
-      error: (err) => {
-        this.isSubmitting.set(false);
-        this.error.set(err?.error?.message ?? err?.message ?? 'An unexpected error occurred.');
-      },
-    });
+    this.strategyService
+      .addToAccount(this.accountId, this.name().trim(), sqx, html, this.magicNumber())
+      .subscribe({
+        next: (dto) => {
+          this.isSubmitting.set(false);
+          this.strategyCreated.emit(dto);
+        },
+        error: (err) => {
+          this.isSubmitting.set(false);
+          this.error.set(err?.error?.message ?? err?.message ?? 'An unexpected error occurred.');
+        },
+      });
   }
 }

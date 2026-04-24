@@ -4,17 +4,19 @@ description: Run both projects (Host + Web)
 
 // turbo-all
 
-1. Run Host in background (Development profile)
+Run both commands using the Bash tool with `run_in_background: true`. Do NOT wrap them in PowerShell — the shell is bash.
+
+1. Run Host (Development profile) in background
 ```bash
-Start-Process -NoNewWindow powershell -ArgumentList "dotnet run --project app.trading.algoritmico.api/src/AppTradingAlgoritmico.WebAPI --launch-profile Development"
+dotnet run --project app.trading.algoritmico.api/src/AppTradingAlgoritmico.WebAPI --launch-profile Development
 ```
 
 Optional for Local profile:
 ```bash
-Start-Process -NoNewWindow powershell -ArgumentList "dotnet run --project app.trading.algoritmico.api/src/AppTradingAlgoritmico.WebAPI --launch-profile Local"
+dotnet run --project app.trading.algoritmico.api/src/AppTradingAlgoritmico.WebAPI --launch-profile Local
 ```
 
-2. Run Web
+2. Run Web in background
 ```bash
 pnpm --dir app.trading.algoritmico.web start --port 4200
 ```

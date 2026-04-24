@@ -1,0 +1,49 @@
+<div class="strategy-trades-grid">
+  <div class="strategy-trades-grid__tabs">
+    <button
+      class="strategy-trades-grid__tab"
+      [class.strategy-trades-grid__tab--active]="status() === 'all'"
+      type="button"
+      (click)="setStatus('all')"
+    >
+      All
+    </button>
+    <button
+      class="strategy-trades-grid__tab"
+      [class.strategy-trades-grid__tab--active]="status() === 'open'"
+      type="button"
+      (click)="setStatus('open')"
+    >
+      Open
+    </button>
+    <button
+      class="strategy-trades-grid__tab"
+      [class.strategy-trades-grid__tab--active]="status() === 'closed'"
+      type="button"
+      (click)="setStatus('closed')"
+    >
+      Closed
+    </button>
+  </div>
+
+  <div class="strategy-trades-grid__host">
+    @if (isLoading()) {
+      <div class="strategy-trades-grid__loading" role="status">Loading...</div>
+    } @else if (error()) {
+      <div class="strategy-trades-grid__error" role="alert">{{ error() }}</div>
+    } @else {
+      <ag-grid-angular
+        class="strategy-trades-grid__grid"
+        [theme]="gridTheme"
+        [rowData]="trades()"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [rowClassRules]="rowClassRules"
+        [animateRows]="true"
+        [domLayout]="'autoHeight'"
+        [pagination]="true"
+        [paginationPageSize]="50"
+      />
+    }
+  </div>
+</div>

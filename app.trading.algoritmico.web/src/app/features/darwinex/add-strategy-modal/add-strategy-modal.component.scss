@@ -110,6 +110,11 @@
     font-size: 0.8125rem;
     color: var(--color-text-muted, #6c7086);
   }
+
+  &__error {
+    font-size: 0.8125rem;
+    color: var(--color-error, #f38ba8);
+  }
 }
 
 .btn {

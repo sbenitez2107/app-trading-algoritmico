@@ -1,0 +1,65 @@
+.strategy-trades-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  &__tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0;
+  }
+
+  &__tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    color: var(--color-text-secondary);
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+    margin-bottom: -1px;
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+
+    &--active {
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+    }
+  }
+
+  &__host {
+    position: relative;
+    min-height: 4rem;
+  }
+
+  &__loading {
+    padding: 1rem;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+  }
+
+  &__error {
+    padding: 0.75rem 1rem;
+    background-color: rgba(243, 139, 168, 0.15);
+    border: 1px solid var(--color-error);
+    border-radius: 0.25rem;
+    color: var(--color-error);
+    font-size: 0.875rem;
+  }
+
+  &__grid {
+    width: 100%;
+  }
+}
+
+// Open trade row highlight — uses CSS variable for theming
+:global(.trade--open) {
+  background-color: var(--color-accent-muted, rgba(137, 180, 250, 0.1)) !important;
+}

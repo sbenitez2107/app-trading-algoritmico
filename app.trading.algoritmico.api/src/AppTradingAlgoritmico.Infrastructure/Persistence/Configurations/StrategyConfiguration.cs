@@ -78,6 +78,14 @@ public class StrategyConfiguration : IEntityTypeConfiguration<Strategy>
         builder.Property(x => x.AverageBarsInWins).HasPrecision(18, 4);
         builder.Property(x => x.AverageBarsInLosses).HasPrecision(18, 4);
 
+        // MT4 trade import
+        builder.Property(x => x.MagicNumber)
+            .IsRequired(false);
+
+        builder.HasIndex(x => new { x.TradingAccountId, x.MagicNumber })
+            .IsUnique()
+            .HasFilter("[TradingAccountId] IS NOT NULL AND [MagicNumber] IS NOT NULL");
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 
@@ -107,6 +115,11 @@ public class StrategyConfiguration : IEntityTypeConfiguration<Strategy>
         builder.HasMany(x => x.Comments)
             .WithOne(c => c.Strategy)
             .HasForeignKey(c => c.StrategyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Trades)
+            .WithOne(t => t.Strategy)
+            .HasForeignKey(t => t.StrategyId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

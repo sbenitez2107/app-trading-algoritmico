@@ -42,6 +42,29 @@ export interface UpdateTradingAccountDto {
   isEnabled: boolean;
 }
 
+export interface OrphanMagicNumberDto {
+  magicNumber: number;
+  count: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface TradeImportResultDto {
+  imported: number;
+  updated: number;
+  skipped: number;
+  orphans: OrphanMagicNumberDto[];
+}
+
+export interface SnapshotDto {
+  id: string;
+  accountId: string;
+  equityUsd: number;
+  balanceUsd: number;
+  currency: string;
+  capturedAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TradingAccountService {
   private readonly http = inject(HttpClient);
@@ -73,5 +96,11 @@ export class TradingAccountService {
 
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${id}`);
+  }
+
+  importTrades(accountId: string, file: File): Observable<TradeImportResultDto> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<TradeImportResultDto>(`${this.base}/${accountId}/trades/import`, form);
   }
 }

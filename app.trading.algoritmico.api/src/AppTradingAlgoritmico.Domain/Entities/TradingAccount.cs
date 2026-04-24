@@ -32,5 +32,8 @@ public class TradingAccount : BaseEntity
     /// <summary>Whether this account is active for use</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Account denomination currency (e.g. "USD", "EUR"). Nullable — legacy rows may lack it; backfill via UI.</summary>
+    public string? Currency { get; set; }
+
     public ICollection<Strategy> Strategies { get; set; } = [];
 }
