@@ -420,6 +420,291 @@ public class TradeImportServiceTests
         db.AccountEquitySnapshots.Single().Currency.Should().Be("EUR");
     }
 
+    // -------------------------------------------------------------------------
+    // Auto-assign by name / Test A: hint matches single strategy without magic →
+    // strategy gets MagicNumber assigned, trades imported, AutoAssigned reported,
+    // orphan list does NOT include the magic.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ImportAsync_HintMatchesSingleStrategyWithoutMagic_AutoAssignsAndImportsTrades()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        const int unknownMagic = 5050;
+
+        var sut = CreateSut(out var db, out var parserMock);
+
+        db.TradingAccounts.Add(MakeAccount(accountId));
+        db.Strategies.Add(new Strategy
+        {
+            Id = strategyId,
+            Name = "Strategy 1.15.198",
+            TradingAccountId = accountId,
+            MagicNumber = null
+        });
+        await db.SaveChangesAsync();
+
+        var trades = new[]
+        {
+            MakeTrade(5001, unknownMagic, "Strategy 1.15.198"),
+            MakeTrade(5002, unknownMagic, "Strategy 1.15.198"),
+        };
+        parserMock
+            .Setup(p => p.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MakeStatement(trades: trades));
+
+        // Act
+        var result = await sut.ImportAsync(accountId, Stream.Null, CancellationToken.None);
+
+        // Assert
+        result.Imported.Should().Be(2);
+        result.Orphans.Should().BeEmpty("the orphan was auto-assigned");
+        result.AutoAssigned.Should().ContainSingle()
+            .Which.Should().BeEquivalentTo(new
+            {
+                StrategyId = strategyId,
+                StrategyName = "Strategy 1.15.198",
+                MagicNumber = unknownMagic,
+                TradeCount = 2
+            });
+
+        var refreshed = await db.Strategies.FindAsync(strategyId);
+        refreshed!.MagicNumber.Should().Be(unknownMagic, "the magic must be persisted on the strategy");
+        db.StrategyTrades.Count().Should().Be(2);
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-assign / Test B: hint matches but strategy already has a different magic →
+    // NEVER overwrite. Bucket stays as orphan, no auto-assign.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ImportAsync_HintMatchesStrategyWithExistingMagic_KeepsAsOrphan()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        const int existingMagic = 1111;
+        const int statementMagic = 2222;
+
+        var sut = CreateSut(out var db, out var parserMock);
+
+        db.TradingAccounts.Add(MakeAccount(accountId));
+        db.Strategies.Add(new Strategy
+        {
+            Id = strategyId,
+            Name = "WF_5_20_XAUUSD",
+            TradingAccountId = accountId,
+            MagicNumber = existingMagic
+        });
+        await db.SaveChangesAsync();
+
+        var trades = new[] { MakeTrade(6001, statementMagic, "WF_5_20_XAUUSD") };
+        parserMock
+            .Setup(p => p.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MakeStatement(trades: trades));
+
+        // Act
+        var result = await sut.ImportAsync(accountId, Stream.Null, CancellationToken.None);
+
+        // Assert — anti-destructive: do not overwrite an existing magic
+        result.Imported.Should().Be(0);
+        result.AutoAssigned.Should().BeEmpty();
+        result.Orphans.Should().ContainSingle()
+            .Which.MagicNumber.Should().Be(statementMagic);
+
+        var refreshed = await db.Strategies.FindAsync(strategyId);
+        refreshed!.MagicNumber.Should().Be(existingMagic, "existing magic must NOT be overwritten");
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-assign / Test C: hint matches multiple strategies (ambiguous) →
+    // keep as orphan, do not auto-assign any of them.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ImportAsync_HintMatchesMultipleStrategies_KeepsAsOrphan()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        const int unknownMagic = 7777;
+
+        var sut = CreateSut(out var db, out var parserMock);
+
+        db.TradingAccounts.Add(MakeAccount(accountId));
+        db.Strategies.AddRange(
+            new Strategy { Id = Guid.NewGuid(), Name = "DuplicateName", TradingAccountId = accountId, MagicNumber = null },
+            new Strategy { Id = Guid.NewGuid(), Name = "DuplicateName", TradingAccountId = accountId, MagicNumber = null });
+        await db.SaveChangesAsync();
+
+        var trades = new[] { MakeTrade(7001, unknownMagic, "DuplicateName") };
+        parserMock
+            .Setup(p => p.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MakeStatement(trades: trades));
+
+        // Act
+        var result = await sut.ImportAsync(accountId, Stream.Null, CancellationToken.None);
+
+        // Assert
+        result.Imported.Should().Be(0);
+        result.AutoAssigned.Should().BeEmpty("ambiguous match — multiple strategies share the name");
+        result.Orphans.Should().ContainSingle()
+            .Which.MagicNumber.Should().Be(unknownMagic);
+
+        var allStrategies = db.Strategies.ToList();
+        allStrategies.All(s => s.MagicNumber == null).Should().BeTrue();
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-assign / Test D: name match is case-insensitive and ignores surrounding whitespace.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ImportAsync_HintMatchesCaseInsensitiveTrimmed_AutoAssigns()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        const int unknownMagic = 8080;
+
+        var sut = CreateSut(out var db, out var parserMock);
+
+        db.TradingAccounts.Add(MakeAccount(accountId));
+        db.Strategies.Add(new Strategy
+        {
+            Id = strategyId,
+            Name = "Strategy 1.15.198",
+            TradingAccountId = accountId,
+            MagicNumber = null
+        });
+        await db.SaveChangesAsync();
+
+        var trades = new[] { MakeTrade(8001, unknownMagic, "  strategy 1.15.198  ") };
+        parserMock
+            .Setup(p => p.ParseAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MakeStatement(trades: trades));
+
+        // Act
+        var result = await sut.ImportAsync(accountId, Stream.Null, CancellationToken.None);
+
+        // Assert
+        result.AutoAssigned.Should().ContainSingle()
+            .Which.StrategyId.Should().Be(strategyId);
+        result.Imported.Should().Be(1);
+    }
+
+    // -------------------------------------------------------------------------
+    // GetSummaryByStrategyAsync — aggregates across all imported trades.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task GetSummaryByStrategyAsync_StrategyWithoutTrades_ReturnsZeroes()
+    {
+        var sut = CreateSut(out _, out _);
+
+        var summary = await sut.GetSummaryByStrategyAsync(Guid.NewGuid(), CancellationToken.None);
+
+        summary.TradeCount.Should().Be(0);
+        summary.ClosedCount.Should().Be(0);
+        summary.WinRate.Should().Be(0m);
+        summary.TotalProfit.Should().Be(0m);
+        summary.NetProfit.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetSummaryByStrategyAsync_MixedTrades_AggregatesCorrectly()
+    {
+        // Arrange — 3 wins (profit 50, 30, 100), 2 losses (-40, -20), 1 breakeven (0), 1 open
+        var strategyId = Guid.NewGuid();
+        var sut = CreateSut(out var db, out _);
+
+        StrategyTrade Make(long ticket, decimal profit, decimal commission, decimal swap, decimal taxes, bool isOpen) => new()
+        {
+            Id = Guid.NewGuid(),
+            StrategyId = strategyId,
+            Ticket = ticket,
+            OpenTime = new DateTime(2026, 4, 20, 10, 0, 0),
+            CloseTime = isOpen ? null : new DateTime(2026, 4, 20, 12, 0, 0),
+            Type = "buy",
+            Size = 0.01m,
+            Item = "ndx",
+            OpenPrice = 100m,
+            ClosePrice = isOpen ? null : 101m,
+            StopLoss = 0m,
+            TakeProfit = 0m,
+            Commission = commission,
+            Taxes = taxes,
+            Swap = swap,
+            Profit = profit,
+            IsOpen = isOpen,
+        };
+
+        db.StrategyTrades.AddRange(
+            Make(1, profit: 50m, commission: -0.5m, swap: 0m, taxes: 0m, isOpen: false),
+            Make(2, profit: 30m, commission: -0.5m, swap: -1m, taxes: 0m, isOpen: false),
+            Make(3, profit: 100m, commission: -0.5m, swap: 0m, taxes: -2m, isOpen: false),
+            Make(4, profit: -40m, commission: -0.5m, swap: 0m, taxes: 0m, isOpen: false),
+            Make(5, profit: -20m, commission: -0.5m, swap: 0m, taxes: 0m, isOpen: false),
+            Make(6, profit: 0m, commission: -0.5m, swap: 0m, taxes: 0m, isOpen: false),
+            Make(7, profit: 0m, commission: 0m, swap: 0m, taxes: 0m, isOpen: true)); // open trade
+        await db.SaveChangesAsync();
+
+        // Act
+        var summary = await sut.GetSummaryByStrategyAsync(strategyId, CancellationToken.None);
+
+        // Assert
+        summary.TradeCount.Should().Be(7, "7 trades total (open + closed)");
+        summary.ClosedCount.Should().Be(6);
+        summary.WinCount.Should().Be(3, "wins: profit > 0 AND closed");
+        summary.LossCount.Should().Be(2);
+        summary.BreakevenCount.Should().Be(1);
+        summary.WinRate.Should().BeApproximately(0.5m, 0.0001m, "3 wins / 6 closed");
+        summary.TotalProfit.Should().Be(120m, "50 + 30 + 100 - 40 - 20 + 0 + 0");
+        summary.TotalCommission.Should().Be(-3.0m, "6 closed × -0.5; the open trade has 0 commission");
+        summary.TotalSwap.Should().Be(-1m);
+        summary.TotalTaxes.Should().Be(-2m);
+        summary.NetProfit.Should().Be(120m - 3.0m - 1m - 2m, "TotalProfit + Commission + Swap + Taxes");
+    }
+
+    [Fact]
+    public async Task GetSummaryByStrategyAsync_OnlyOpenTrades_WinRateZero()
+    {
+        // Arrange — winRate denominator excludes open trades, so win rate must be 0
+        var strategyId = Guid.NewGuid();
+        var sut = CreateSut(out var db, out _);
+
+        db.StrategyTrades.Add(new StrategyTrade
+        {
+            Id = Guid.NewGuid(),
+            StrategyId = strategyId,
+            Ticket = 1,
+            OpenTime = new DateTime(2026, 4, 20, 10, 0, 0),
+            Type = "buy",
+            Size = 0.01m,
+            Item = "ndx",
+            OpenPrice = 100m,
+            StopLoss = 0m,
+            TakeProfit = 0m,
+            Commission = 0m,
+            Taxes = 0m,
+            Swap = 0m,
+            Profit = 50m, // unrealised
+            IsOpen = true,
+        });
+        await db.SaveChangesAsync();
+
+        // Act
+        var summary = await sut.GetSummaryByStrategyAsync(strategyId, CancellationToken.None);
+
+        // Assert
+        summary.TradeCount.Should().Be(1);
+        summary.ClosedCount.Should().Be(0);
+        summary.WinRate.Should().Be(0m, "no closed trades — denominator is 0, no division");
+        summary.TotalProfit.Should().Be(50m);
+    }
+
     [Fact]
     public async Task ImportAsync_NonEmptyParsedCurrency_PrefersParserOverAccount()
     {

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, Input, signal, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, input, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AgGridAngular } from 'ag-grid-angular';
 import { ColDef, RowClassParams, themeQuartz } from 'ag-grid-community';
@@ -12,8 +12,10 @@ import { StrategyService, StrategyTradeDto } from '../../../core/services/strate
   styleUrl: './strategy-trades-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StrategyTradesGridComponent implements OnInit {
-  @Input({ required: true }) strategyId!: string;
+export class StrategyTradesGridComponent {
+  // Signal input: refetches when the parent switches the active strategy
+  // without unmounting the component.
+  readonly strategyId = input.required<string>();
 
   private readonly strategyService = inject(StrategyService);
 
@@ -21,6 +23,14 @@ export class StrategyTradesGridComponent implements OnInit {
   readonly isLoading = signal(true);
   readonly trades = signal<StrategyTradeDto[]>([]);
   readonly error = signal<string | null>(null);
+
+  constructor() {
+    effect(() => {
+      // Track strategyId — re-runs whenever the parent points us at another strategy.
+      this.strategyId();
+      this.loadTrades();
+    });
+  }
 
   readonly gridTheme = themeQuartz;
 
@@ -56,10 +66,6 @@ export class StrategyTradesGridComponent implements OnInit {
     resizable: true,
   };
 
-  ngOnInit(): void {
-    this.loadTrades();
-  }
-
   setStatus(status: 'all' | 'open' | 'closed'): void {
     this.status.set(status);
     this.loadTrades();
@@ -69,7 +75,7 @@ export class StrategyTradesGridComponent implements OnInit {
     this.isLoading.set(true);
     this.error.set(null);
 
-    this.strategyService.getTradesByStrategy(this.strategyId, this.status(), 1, 50).subscribe({
+    this.strategyService.getTradesByStrategy(this.strategyId(), this.status(), 1, 50).subscribe({
       next: (result) => {
         this.trades.set(result.items);
         this.isLoading.set(false);

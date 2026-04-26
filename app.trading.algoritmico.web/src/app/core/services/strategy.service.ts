@@ -111,6 +111,22 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+export interface StrategyTradeSummaryDto {
+  tradeCount: number;
+  closedCount: number;
+  winCount: number;
+  lossCount: number;
+  breakevenCount: number;
+  /** 0..1 — undefined when there are no closed trades. */
+  winRate: number;
+  totalProfit: number;
+  totalCommission: number;
+  totalSwap: number;
+  totalTaxes: number;
+  /** totalProfit + totalCommission + totalSwap + totalTaxes — true cash impact. */
+  netProfit: number;
+}
+
 export interface StrategyTradeDto {
   id: string;
   ticket: number;
@@ -187,6 +203,17 @@ export class StrategyService {
     return this.http.delete<void>(`${this.apiUrl}/api/strategies/${id}`);
   }
 
+  assignMagicNumber(
+    accountId: string,
+    strategyId: string,
+    magicNumber: number,
+  ): Observable<StrategyDto> {
+    return this.http.post<StrategyDto>(
+      `${this.apiUrl}/api/trading-accounts/${accountId}/strategies/${strategyId}/magic-number`,
+      { magicNumber },
+    );
+  }
+
   getTradesByStrategy(
     strategyId: string,
     status: 'open' | 'closed' | 'all' = 'all',
@@ -200,6 +227,12 @@ export class StrategyService {
     return this.http.get<PagedResult<StrategyTradeDto>>(
       `${this.apiUrl}/api/strategies/${strategyId}/trades`,
       { params },
+    );
+  }
+
+  getTradesSummaryByStrategy(strategyId: string): Observable<StrategyTradeSummaryDto> {
+    return this.http.get<StrategyTradeSummaryDto>(
+      `${this.apiUrl}/api/strategies/${strategyId}/trades/summary`,
     );
   }
 

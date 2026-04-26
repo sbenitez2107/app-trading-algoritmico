@@ -4,13 +4,18 @@ import {
   inject,
   signal,
   computed,
+  effect,
   OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, themeQuartz } from 'ag-grid-community';
-import { StrategyService, StrategyDto } from '../../../core/services/strategy.service';
+import { ColDef, GridApi, GridReadyEvent, RowClickedEvent, themeQuartz } from 'ag-grid-community';
+import {
+  StrategyService,
+  StrategyDto,
+  StrategyTradeSummaryDto,
+} from '../../../core/services/strategy.service';
 import {
   TradingAccountService,
   TradingAccountDto,
@@ -141,7 +146,32 @@ export class AccountDetailComponent implements OnInit {
   readonly showTradesGrid = signal(false);
   readonly activeStrategyId = signal<string | null>(null);
 
+  /** Currently selected strategy (or null when nothing is selected). */
+  readonly activeStrategy = computed<StrategyDto | null>(() => {
+    const id = this.activeStrategyId();
+    if (!id) return null;
+    return this.strategies().find((s) => s.id === id) ?? null;
+  });
+
+  /** KPI aggregates over the imported trades of the active strategy. */
+  readonly tradeSummary = signal<StrategyTradeSummaryDto | null>(null);
+
   private gridApi: GridApi<StrategyDto> | null = null;
+
+  constructor() {
+    // Refetch the trade summary whenever the active strategy changes.
+    effect(() => {
+      const id = this.activeStrategyId();
+      if (!id) {
+        this.tradeSummary.set(null);
+        return;
+      }
+      this.strategyService.getTradesSummaryByStrategy(id).subscribe({
+        next: (summary) => this.tradeSummary.set(summary),
+        error: () => this.tradeSummary.set(null),
+      });
+    });
+  }
 
   readonly gridTheme = themeQuartz;
   readonly allKpiCols = ALL_KPI_COLS;
@@ -211,25 +241,24 @@ export class AccountDetailComponent implements OnInit {
         const container = document.createElement('div');
         container.className = 'grid-actions';
 
-        const tradesBtn = document.createElement('button');
-        tradesBtn.className = 'grid-action-btn';
-        tradesBtn.title = 'View trades';
-        tradesBtn.innerHTML = '&#x1F4CA;';
-        tradesBtn.addEventListener('click', () => this.toggleTradesGrid(params.value));
-
         const commentsBtn = document.createElement('button');
         commentsBtn.className = 'grid-action-btn';
         commentsBtn.title = 'View comments';
         commentsBtn.innerHTML = '&#x1F4AC;';
-        commentsBtn.addEventListener('click', () => this.openComments(params.data));
+        commentsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openComments(params.data);
+        });
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'grid-delete-btn';
         deleteBtn.title = 'Delete strategy';
         deleteBtn.innerHTML = '&#x1F5D1;';
-        deleteBtn.addEventListener('click', () => this.requestDelete(params.value));
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.requestDelete(params.value);
+        });
 
-        container.appendChild(tradesBtn);
         container.appendChild(commentsBtn);
         container.appendChild(deleteBtn);
         return container;
@@ -326,14 +355,21 @@ export class AccountDetailComponent implements OnInit {
     this.showImportModal.set(false);
   }
 
-  toggleTradesGrid(strategyId: string): void {
-    if (this.activeStrategyId() === strategyId && this.showTradesGrid()) {
-      this.showTradesGrid.set(false);
-      this.activeStrategyId.set(null);
-    } else {
-      this.activeStrategyId.set(strategyId);
-      this.showTradesGrid.set(true);
-    }
+  /** Opens the trades panel for the clicked row (or switches it if another row was active). */
+  onRowClicked(event: RowClickedEvent<StrategyDto>): void {
+    if (!event.data) return;
+    this.selectStrategy(event.data.id);
+  }
+
+  selectStrategy(strategyId: string): void {
+    this.activeStrategyId.set(strategyId);
+    this.showTradesGrid.set(true);
+  }
+
+  closeTradesPanel(): void {
+    this.showTradesGrid.set(false);
+    this.activeStrategyId.set(null);
+    this.gridApi?.deselectAll();
   }
 
   togglePresetsDropdown(): void {

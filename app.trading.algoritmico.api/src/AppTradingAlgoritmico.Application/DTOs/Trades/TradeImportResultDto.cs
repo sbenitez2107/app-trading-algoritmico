@@ -8,4 +8,6 @@ public sealed record TradeImportResultDto(
     int Updated,
     int Skipped,
     IReadOnlyList<OrphanMagicNumberDto> Orphans,
+    IReadOnlyList<AutoAssignedStrategyDto> AutoAssigned,
+    IReadOnlyList<AvailableStrategyDto> AvailableStrategies,
     SnapshotDto Snapshot);

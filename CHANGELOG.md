@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-04-26
+
+### Added
+- **Auto-assign MT4 magic numbers by strategy name**: during `POST /api/trading-accounts/{id}/trades/import`, orphan magic numbers whose `StrategyNameHint` matches a `Strategy.Name` (case-insensitive, trimmed) within the same account are auto-linked when a single match exists and that strategy has no magic yet. Result DTO now includes `AutoAssigned: IReadOnlyList<AutoAssignedStrategyDto>`. Anti-destructive: never overwrites an existing magic, never resolves ambiguous (multi-match) hints.
+- **Manual assign-magic flow from the import modal**: new endpoint `POST /api/trading-accounts/{accountId}/strategies/{strategyId}/magic-number` (with `409` on conflict, `404` on missing). The result DTO now also exposes `AvailableStrategies` (every strategy in the account). The import modal renders a per-orphan `<select>` of strategies plus an **Assign** button that links the magic and re-imports the same statement file in one round-trip — no need to close the modal or re-pick the file.
+- **Edit Stage modal: independent `Input` and `Passed`**: the workflow Edit Stage modal exposes both `inputCount` and `outputCount` as separately editable fields for non-Builder stages. Builder shows only `Passed` (it has no upstream input). Non-blocking warning when `Passed > Input`. Fixes a pre-existing bug where editing Builder wrote to `inputCount` (invisible) instead of `outputCount`.
+- **Advance Stage modal: separate `Passed` and `Input next stage`**: `BatchService.AdvanceAsync` now accepts `passedCount` + `nextInputCount` (replacing the single `strategyCount`). The modal mirrors values automatically until the user types into the second field manually, and warns on `nextInput > passed`. ZIP file count still wins when provided.
+- **Row-click selects strategy + trades panel below the grid**: clicking any row in the SBDEMO Strategies grid opens a panel below with the strategy name, two KPI strips (`Backtest (SQX)` and `Live (imported trades)`), and the trades grid. Previously this was only reachable via a per-row 📊 icon (now removed; row-click + close-panel button replace it).
+- **Strategy trades summary endpoint**: new `GET /api/strategies/{id}/trades/summary` returns aggregated KPIs across **every** imported trade — independent of the grid's pagination window — computed in a single SQL aggregate. Powers the Live KPI strip (Total Profit, Net Profit, Commission, Swap, Win/Loss, Trades).
+- **Pagination page-size 5/10**: account strategies grid offers 5, 10, 20, 50, 100 page sizes (default 5), giving room for the trades panel below.
+
+### Changed
+- **Pipeline cell display reflects persisted `outputCount` directly**: the previous status-mask rule (`passed = 0` when stage status ≠ Completed) is gone. New stages created by `AdvanceAsync` are initialized with `OutputCount = 0` instead of mirroring `InputCount`, so a Pending/Running stage naturally renders `input / 0` until the user edits the passed count manually. User-edited passed values are now respected even on non-Completed stages.
+- **`StrategyTradesGridComponent` reactivity**: migrated from classic `@Input` + `ngOnInit` to `input.required<string>()` + `effect()`. The grid now refetches trades automatically when the parent switches the active strategy (previously it stayed stuck on the initially-mounted id).
+- **Frontend DTO realignment**: `OrphanMagicNumberDto`, `SnapshotDto`, and `TradeImportResultDto` in `trading-account.service.ts` now match the actual API shape (`magicNumber`, `strategyNameHint`, `tradeCount`, full snapshot fields). The previous mismatch was rendering "undefined trades" in the orphan list.
+
+### Fixed
+- **Trades grid did not reload on row change** (see migration to signal input above) — selecting a second strategy now correctly fetches its trades.
+- **Builder edit wrote the wrong field**: the Edit Stage modal's previous single-input flow wrote `inputCount` for Builder while displaying `outputCount`. Fixed by the per-stage-type save logic in the redesigned modal.
+- **i18n**: new keys `SQX.WORKFLOW.PASSED`, `SQX.WORKFLOW.INPUT_NEXT`, `SQX.WORKFLOW.INPUT_GT_PASSED_WARNING`, `SQX.WORKFLOW.PASSED_GT_INPUT_WARNING` in `en.json` and `es.json`.
+
+---
+
 ## [0.8.0] - 2026-04-24
 
 ### Added

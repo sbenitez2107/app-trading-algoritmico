@@ -30,4 +30,10 @@ public interface ITradeImportService
         int page,
         int pageSize,
         CancellationToken ct);
+
+    /// <summary>
+    /// Returns aggregated KPIs across every imported trade of <paramref name="strategyId"/>.
+    /// Independent of the frontend pagination window — computed in SQL.
+    /// </summary>
+    Task<StrategyTradeSummaryDto> GetSummaryByStrategyAsync(Guid strategyId, CancellationToken ct);
 }

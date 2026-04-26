@@ -74,6 +74,27 @@
     color: var(--text-muted);
     margin-top: var(--spacing-xs);
   }
+
+  &__input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-main);
+    font-size: 0.875rem;
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+  }
+
+  &__warning {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--color-loss);
+    margin-top: var(--spacing-xs);
+  }
 }
 
 .modal-error {
@@ -101,13 +122,20 @@
   &--cancel {
     background: var(--bg-surface-2);
     color: var(--text-main);
-    &:hover { background: var(--border-color); }
+    &:hover {
+      background: var(--border-color);
+    }
   }
 
   &--submit {
     background: var(--color-primary);
     color: #fff;
-    &:hover { background: var(--color-primary-dark); }
-    &:disabled { opacity: 0.6; cursor: not-allowed; }
+    &:hover {
+      background: var(--color-primary-dark);
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   }
 }

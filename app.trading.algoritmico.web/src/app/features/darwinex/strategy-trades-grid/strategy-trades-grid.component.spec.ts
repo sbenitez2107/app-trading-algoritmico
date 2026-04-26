@@ -139,6 +139,22 @@ describe('StrategyTradesGridComponent', () => {
     );
   });
 
+  // strategyId input change must refetch — without this, switching active row in the
+  // parent leaves the grid stuck on the previous strategy's trades.
+  it('strategyIdChange_RefetchesTradesForNewStrategy', () => {
+    const fixture = create('strat-A');
+
+    (strategyServiceMock.getTradesByStrategy as ReturnType<typeof vi.fn>).mockClear();
+    (strategyServiceMock.getTradesByStrategy as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+
+    fixture.componentRef.setInput('strategyId', 'strat-B');
+    fixture.detectChanges();
+
+    expect(strategyServiceMock.getTradesByStrategy).toHaveBeenCalledWith('strat-B', 'all', 1, 50);
+  });
+
   // Test 4: loading overlay visible during fetch
   it('isLoading_TrueBeforeServiceResponds', () => {
     // Arrange

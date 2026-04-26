@@ -194,6 +194,60 @@ public class TradingAccountStrategiesControllerTests
         result.Result.Should().BeOfType<NotFoundResult>();
     }
 
+    [Fact]
+    public async Task AssignMagicNumber_HappyPath_Returns200WithStrategyDto()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        var dto = MakeStrategyDto();
+
+        var serviceMock = new Mock<IStrategyService>();
+        serviceMock.Setup(s => s.AssignMagicNumberAsync(accountId, strategyId, 4242, default))
+                   .ReturnsAsync(dto);
+
+        var sut = new TradingAccountStrategiesController(serviceMock.Object);
+
+        var result = await sut.AssignMagicNumber(accountId, strategyId, new AssignMagicNumberDto(4242), default);
+
+        var ok = result.Result as OkObjectResult;
+        ok.Should().NotBeNull();
+        ok!.StatusCode.Should().Be(200);
+    }
+
+    [Fact]
+    public async Task AssignMagicNumber_StrategyNotFound_Returns404()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+
+        var serviceMock = new Mock<IStrategyService>();
+        serviceMock.Setup(s => s.AssignMagicNumberAsync(accountId, strategyId, It.IsAny<int>(), default))
+                   .ThrowsAsync(new KeyNotFoundException("not found"));
+
+        var sut = new TradingAccountStrategiesController(serviceMock.Object);
+
+        var result = await sut.AssignMagicNumber(accountId, strategyId, new AssignMagicNumberDto(1), default);
+
+        result.Result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task AssignMagicNumber_Conflict_Returns409()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+
+        var serviceMock = new Mock<IStrategyService>();
+        serviceMock.Setup(s => s.AssignMagicNumberAsync(accountId, strategyId, It.IsAny<int>(), default))
+                   .ThrowsAsync(new InvalidOperationException("magic in use"));
+
+        var sut = new TradingAccountStrategiesController(serviceMock.Object);
+
+        var result = await sut.AssignMagicNumber(accountId, strategyId, new AssignMagicNumberDto(1), default);
+
+        result.Result.Should().BeOfType<ConflictObjectResult>();
+    }
+
     private static IFormFile CreateMockFormFile(string name, string content)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);

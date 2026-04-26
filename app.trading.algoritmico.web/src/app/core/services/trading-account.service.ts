@@ -44,9 +44,32 @@ export interface UpdateTradingAccountDto {
 
 export interface OrphanMagicNumberDto {
   magicNumber: number;
-  count: number;
-  firstSeen: string;
-  lastSeen: string;
+  strategyNameHint: string;
+  tradeCount: number;
+}
+
+export interface AutoAssignedStrategyDto {
+  strategyId: string;
+  strategyName: string;
+  magicNumber: number;
+  tradeCount: number;
+}
+
+export interface AvailableStrategyDto {
+  id: string;
+  name: string;
+  magicNumber: number | null;
+}
+
+export interface SnapshotDto {
+  reportTime: string;
+  balance: number;
+  equity: number;
+  floatingPnL: number;
+  margin: number;
+  freeMargin: number;
+  closedTradePnL: number;
+  currency: string;
 }
 
 export interface TradeImportResultDto {
@@ -54,15 +77,9 @@ export interface TradeImportResultDto {
   updated: number;
   skipped: number;
   orphans: OrphanMagicNumberDto[];
-}
-
-export interface SnapshotDto {
-  id: string;
-  accountId: string;
-  equityUsd: number;
-  balanceUsd: number;
-  currency: string;
-  capturedAt: string;
+  autoAssigned: AutoAssignedStrategyDto[];
+  availableStrategies: AvailableStrategyDto[];
+  snapshot: SnapshotDto;
 }
 
 @Injectable({ providedIn: 'root' })

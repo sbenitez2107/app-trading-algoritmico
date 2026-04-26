@@ -2,7 +2,15 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { BatchService, BatchDto, STAGE_TYPE_LABELS, STAGE_STATUS_LABELS, TIMEFRAME_LABELS, BatchStageSummaryDto } from '../../../../core/services/batch.service';
+import {
+  BatchService,
+  BatchDto,
+  STAGE_TYPE_LABELS,
+  STAGE_STATUS_LABELS,
+  TIMEFRAME_LABELS,
+  BatchStageSummaryDto,
+} from '../../../../core/services/batch.service';
+import { computeCellCounts } from './pipeline-stage-counts';
 import { BatchStageService } from '../../../../core/services/batch-stage.service';
 import { BatchCreateModalComponent } from '../batch-create-modal/batch-create-modal.component';
 import { AdvanceStageModalComponent } from '../advance-stage-modal/advance-stage-modal.component';
@@ -13,7 +21,7 @@ import { AdvanceStageModalComponent } from '../advance-stage-modal/advance-stage
   imports: [CommonModule, TranslateModule, BatchCreateModalComponent, AdvanceStageModalComponent],
   templateUrl: './pipeline-detail.component.html',
   styleUrl: './pipeline-detail.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PipelineDetailComponent {
   private readonly route = inject(ActivatedRoute);
@@ -29,30 +37,24 @@ export class PipelineDetailComponent {
   advanceBatch = signal<BatchDto | null>(null);
   deleteTarget = signal<{ batch: BatchDto; stage: BatchStageSummaryDto } | null>(null);
   editingStage = signal<{ batch: BatchDto; stage: BatchStageSummaryDto } | null>(null);
-  editCount = signal<number>(0);
+  editInputCount = signal<number>(0);
+  editOutputCount = signal<number>(0);
+
+  /** True when the user is editing a non-Builder stage with passed > input. */
+  readonly editCountWarning = computed(() => {
+    const target = this.editingStage();
+    if (!target || target.stage.stageType === 0) return false;
+    return this.editOutputCount() > this.editInputCount();
+  });
 
   readonly stageLabels = STAGE_TYPE_LABELS;
   readonly statusLabels = STAGE_STATUS_LABELS;
   readonly timeframeLabels = TIMEFRAME_LABELS;
   readonly stageTypes = [0, 1, 2, 3, 4];
 
-  /**
-   * Gets the display counts for a batch cell.
-   * Each stage shows: "input to this stage / output of this stage"
-   * - Builder: 0 / inputCount (no input, creates strategies)
-   * - Other stages: previous stage's inputCount / this stage's inputCount
-   *   (because inputCount = what entered this stage = what passed previous stage)
-   */
-  getCellCounts(batch: BatchDto, stage: BatchStageSummaryDto): { input: number; passed: number } {
-    if (stage.stageType === 0) {
-      // Builder: no input, output = strategies created (inputCount)
-      return { input: 0, passed: stage.inputCount };
-    }
-    // Find previous stage in this batch
-    const prevStageType = stage.stageType - 1;
-    const prevStage = batch.stages.find(s => s.stageType === prevStageType);
-    const input = prevStage?.inputCount ?? stage.inputCount;
-    return { input, passed: stage.inputCount };
+  /** Delegates to the pure helper so display logic is testable without TestBed. */
+  getCellCounts(_batch: BatchDto, stage: BatchStageSummaryDto): { input: number; passed: number } {
+    return computeCellCounts(stage);
   }
 
   /**
@@ -96,7 +98,7 @@ export class PipelineDetailComponent {
   }
 
   getStage(batch: BatchDto, stageType: number): BatchStageSummaryDto | undefined {
-    return batch.stages.find(s => s.stageType === stageType);
+    return batch.stages.find((s) => s.stageType === stageType);
   }
 
   getCellPassRate(batch: BatchDto, stage: BatchStageSummaryDto): string {
@@ -110,20 +112,28 @@ export class PipelineDetailComponent {
   getStatusClass(stage: BatchStageSummaryDto | undefined): string {
     if (!stage) return 'cell--empty';
     switch (stage.status) {
-      case 0: return 'cell--pending';
-      case 1: return 'cell--running';
-      case 2: return 'cell--completed';
-      default: return 'cell--empty';
+      case 0:
+        return 'cell--pending';
+      case 1:
+        return 'cell--running';
+      case 2:
+        return 'cell--completed';
+      default:
+        return 'cell--empty';
     }
   }
 
   getStatusIcon(stage: BatchStageSummaryDto | undefined): string {
     if (!stage) return '';
     switch (stage.status) {
-      case 0: return '○';
-      case 1: return '🔄';
-      case 2: return '✅';
-      default: return '';
+      case 0:
+        return '○';
+      case 1:
+        return '🔄';
+      case 2:
+        return '✅';
+      default:
+        return '';
     }
   }
 
@@ -150,7 +160,7 @@ export class PipelineDetailComponent {
   completeDemo(batch: BatchDto, stage: BatchStageSummaryDto, event: MouseEvent): void {
     event.stopPropagation();
     this.stageService.update(batch.id, stage.id, { status: 2 }).subscribe({
-      next: () => this.loadBatches()
+      next: () => this.loadBatches(),
     });
   }
 
@@ -159,7 +169,7 @@ export class PipelineDetailComponent {
     event.stopPropagation();
     const newStatus = stage.status === 0 ? 1 : 0; // Pending(0) → Running(1) or back
     this.stageService.update(batch.id, stage.id, { status: newStatus }).subscribe({
-      next: () => this.loadBatches()
+      next: () => this.loadBatches(),
     });
   }
 
@@ -171,18 +181,24 @@ export class PipelineDetailComponent {
   openEditStage(batch: BatchDto, stage: BatchStageSummaryDto, event: MouseEvent): void {
     event.stopPropagation();
     this.editingStage.set({ batch, stage });
-    this.editCount.set(stage.inputCount);
+    this.editInputCount.set(stage.inputCount);
+    this.editOutputCount.set(stage.outputCount);
   }
 
   saveEditStage(): void {
     const target = this.editingStage();
     if (!target) return;
     const isBuilder = target.stage.stageType === 0;
+    // Builder only owns OutputCount (the count it produced). Other stages own both.
     const dto = isBuilder
-      ? { inputCount: this.editCount() }
-      : { outputCount: this.editCount() };
-    this.stageService.update(target.batch.id, target.stage.id, dto)
-      .subscribe({ next: () => { this.editingStage.set(null); this.loadBatches(); } });
+      ? { outputCount: this.editOutputCount() }
+      : { inputCount: this.editInputCount(), outputCount: this.editOutputCount() };
+    this.stageService.update(target.batch.id, target.stage.id, dto).subscribe({
+      next: () => {
+        this.editingStage.set(null);
+        this.loadBatches();
+      },
+    });
   }
 
   cancelEditStage(): void {
@@ -199,8 +215,11 @@ export class PipelineDetailComponent {
     const target = this.deleteTarget();
     if (!target) return;
     this.batchService.rollbackStage(target.batch.id, target.stage.id).subscribe({
-      next: () => { this.deleteTarget.set(null); this.loadBatches(); },
-      error: () => this.deleteTarget.set(null)
+      next: () => {
+        this.deleteTarget.set(null);
+        this.loadBatches();
+      },
+      error: () => this.deleteTarget.set(null),
     });
   }
 
@@ -228,8 +247,11 @@ export class PipelineDetailComponent {
     const target = this.deleteBatchTarget();
     if (!target) return;
     this.batchService.delete(target.id).subscribe({
-      next: () => { this.deleteBatchTarget.set(null); this.loadBatches(); },
-      error: () => this.deleteBatchTarget.set(null)
+      next: () => {
+        this.deleteBatchTarget.set(null);
+        this.loadBatches();
+      },
+      error: () => this.deleteBatchTarget.set(null),
     });
   }
 
@@ -239,8 +261,13 @@ export class PipelineDetailComponent {
 
   navigateToStage(batch: BatchDto, stage: BatchStageSummaryDto): void {
     this.router.navigate([
-      '/sqx/workflow', this.assetId, this.timeframe,
-      'batch', batch.id, 'stage', stage.stageType
+      '/sqx/workflow',
+      this.assetId,
+      this.timeframe,
+      'batch',
+      batch.id,
+      'stage',
+      stage.stageType,
     ]);
   }
 
@@ -287,7 +314,7 @@ export class PipelineDetailComponent {
         this.batches.set(data);
         this.isLoading.set(false);
       },
-      error: () => this.isLoading.set(false)
+      error: () => this.isLoading.set(false),
     });
   }
 }

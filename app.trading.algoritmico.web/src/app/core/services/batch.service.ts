@@ -38,17 +38,20 @@ export const STAGE_TYPE_LABELS: Record<number, string> = {
   1: 'Retester',
   2: 'Optimizer',
   3: 'Demo',
-  4: 'Live'
+  4: 'Live',
 };
 
 export const STAGE_STATUS_LABELS: Record<number, string> = {
   0: 'Pending',
   1: 'Running',
-  2: 'Completed'
+  2: 'Completed',
 };
 
 export const TIMEFRAME_LABELS: Record<number, string> = {
-  2: 'M15', 3: 'M30', 4: 'H1', 5: 'H4'
+  2: 'M15',
+  3: 'M30',
+  4: 'H1',
+  5: 'H4',
 };
 
 @Injectable({ providedIn: 'root' })
@@ -78,10 +81,16 @@ export class BatchService {
     return this.http.post<BatchDto>(this.base, fd);
   }
 
-  advance(batchId: string, file?: File, strategyCount?: number): Observable<BatchDto> {
+  advance(
+    batchId: string,
+    file?: File,
+    passedCount?: number,
+    nextInputCount?: number,
+  ): Observable<BatchDto> {
     const fd = new FormData();
     if (file) fd.append('file', file, file.name);
-    if (strategyCount !== undefined) fd.append('strategyCount', strategyCount.toString());
+    if (passedCount !== undefined) fd.append('passedCount', passedCount.toString());
+    if (nextInputCount !== undefined) fd.append('nextInputCount', nextInputCount.toString());
     return this.http.post<BatchDto>(`${this.base}/${batchId}/advance`, fd);
   }
 

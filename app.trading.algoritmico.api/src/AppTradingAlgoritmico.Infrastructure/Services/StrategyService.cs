@@ -143,6 +143,42 @@ public sealed class StrategyService(
         return StrategyKpiMapper.ToDto(entity);
     }
 
+    public async Task<StrategyDto> AssignMagicNumberAsync(
+        Guid accountId, Guid strategyId, int magicNumber, CancellationToken ct = default)
+    {
+        var entity = await db.Strategies.FindAsync([strategyId], ct)
+            ?? throw new KeyNotFoundException($"Strategy {strategyId} not found.");
+
+        if (entity.TradingAccountId != accountId)
+            throw new KeyNotFoundException(
+                $"Strategy {strategyId} does not belong to TradingAccount {accountId}.");
+
+        // Idempotent: same magic already assigned → no-op success
+        if (entity.MagicNumber == magicNumber)
+            return StrategyKpiMapper.ToDto(entity);
+
+        // Anti-destructive: never overwrite an existing magic with a different one
+        if (entity.MagicNumber is not null)
+            throw new InvalidOperationException(
+                $"Strategy already has magic number {entity.MagicNumber}. " +
+                "Clear the existing magic number before assigning a new one.");
+
+        // Conflict: another strategy in the same account already owns this magic
+        var conflict = await db.Strategies
+            .AnyAsync(s => s.TradingAccountId == accountId
+                           && s.Id != strategyId
+                           && s.MagicNumber == magicNumber, ct);
+        if (conflict)
+            throw new InvalidOperationException(
+                $"Magic number {magicNumber} is already used by another strategy in this account.");
+
+        entity.MagicNumber = magicNumber;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return StrategyKpiMapper.ToDto(entity);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await db.Strategies.FindAsync([id], ct)

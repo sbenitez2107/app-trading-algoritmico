@@ -130,4 +130,18 @@ public class StrategiesController(IStrategyService service, ITradeImportService 
         var result = await tradeImportService.GetByStrategyAsync(id, filter, page, pageSize, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Returns aggregated KPIs across every imported trade of the given strategy.
+    /// Independent of the trades pagination window — values are computed in SQL.
+    /// </summary>
+    [HttpGet("api/strategies/{id:guid}/trades/summary")]
+    [ProducesResponseType(typeof(StrategyTradeSummaryDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<StrategyTradeSummaryDto>> GetTradesSummary(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
+    {
+        var summary = await tradeImportService.GetSummaryByStrategyAsync(id, ct);
+        return Ok(summary);
+    }
 }

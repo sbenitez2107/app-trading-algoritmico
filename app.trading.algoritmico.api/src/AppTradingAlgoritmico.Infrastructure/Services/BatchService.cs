@@ -110,7 +110,11 @@ public sealed class BatchService(
     }
 
     public async Task<BatchDto> AdvanceAsync(
-        Guid batchId, Stream? zipFile = null, int? strategyCount = null, CancellationToken ct = default)
+        Guid batchId,
+        Stream? zipFile = null,
+        int? passedCount = null,
+        int? nextInputCount = null,
+        CancellationToken ct = default)
     {
         var batch = await db.Batches
             .Include(b => b.Stages)
@@ -126,7 +130,8 @@ public sealed class BatchService(
         if (batch.Stages.Any(s => s.StageType == nextStageType))
             throw new InvalidOperationException($"Batch already has a {nextStageType} stage.");
 
-        var (count, strategies) = await ResolveStrategies(zipFile, strategyCount, ct);
+        // ZIP wins: when a ZIP is provided its strategy count overrides passedCount.
+        var (resolvedPassed, strategies) = await ResolveStrategies(zipFile, passedCount, ct);
 
         if (currentStage.StageType == PipelineStageType.Demo)
         {
@@ -137,17 +142,22 @@ public sealed class BatchService(
         else
         {
             currentStage.Status = PipelineStageStatus.Completed;
-            currentStage.OutputCount = count;
+            currentStage.OutputCount = resolvedPassed;
             currentStage.UpdatedAt = DateTime.UtcNow;
         }
 
+        // Caller can decouple how many enter the next stage from how many passed.
+        var inputForNext = nextInputCount ?? resolvedPassed;
+
+        // OutputCount starts at 0 — the user edits it manually once the stage runs.
+        // Frontend display reads outputCount as-is (no status-based masking).
         var newStage = new BatchStage
         {
             BatchId = batchId,
             StageType = nextStageType,
             Status = PipelineStageStatus.Pending,
-            InputCount = count,
-            OutputCount = count,
+            InputCount = inputForNext,
+            OutputCount = 0,
             Order = (int)nextStageType,
             CreatedAt = DateTime.UtcNow
         };

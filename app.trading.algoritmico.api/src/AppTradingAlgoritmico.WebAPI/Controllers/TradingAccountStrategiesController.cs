@@ -82,4 +82,32 @@ public class TradingAccountStrategiesController(IStrategyService service) : Cont
             await htmlStream.DisposeAsync();
         }
     }
+
+    /// <summary>
+    /// Assigns a magic number to an existing strategy attached to the given trading account.
+    /// </summary>
+    [HttpPost("{strategyId:guid}/magic-number")]
+    [ProducesResponseType(typeof(StrategyDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<StrategyDto>> AssignMagicNumber(
+        [FromRoute] Guid accountId,
+        [FromRoute] Guid strategyId,
+        [FromBody] AssignMagicNumberDto dto,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await service.AssignMagicNumberAsync(accountId, strategyId, dto.MagicNumber, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
 }

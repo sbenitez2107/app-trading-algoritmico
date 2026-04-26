@@ -22,6 +22,8 @@ public class TradingAccountsControllerImportTests
         Updated: 2,
         Skipped: 1,
         Orphans: [],
+        AutoAssigned: [],
+        AvailableStrategies: [],
         Snapshot: new SnapshotDto(
             ReportTime: new DateTime(2026, 4, 22),
             Balance: 100_000m,

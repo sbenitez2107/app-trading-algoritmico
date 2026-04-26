@@ -88,13 +88,14 @@ public class BatchesController(IBatchService service, ILogger<BatchesController>
     public async Task<ActionResult<BatchDto>> Advance(
         Guid id,
         [FromForm] IFormFile? file,
-        [FromForm] int? strategyCount,
+        [FromForm] int? passedCount,
+        [FromForm] int? nextInputCount,
         CancellationToken ct)
     {
         Stream? stream = file?.OpenReadStream();
         try
         {
-            var result = await service.AdvanceAsync(id, stream, strategyCount, ct);
+            var result = await service.AdvanceAsync(id, stream, passedCount, nextInputCount, ct);
             return Ok(result);
         }
         catch (KeyNotFoundException)

@@ -92,9 +92,11 @@
           [animateRows]="true"
           [domLayout]="'autoHeight'"
           [pagination]="true"
-          [paginationPageSize]="20"
-          [paginationPageSizeSelector]="[20, 50, 100]"
+          [paginationPageSize]="5"
+          [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+          [rowSelection]="'single'"
           (gridReady)="onGridReady($event)"
+          (rowClicked)="onRowClicked($event)"
         />
       }
     </div>
@@ -164,9 +166,123 @@
     <app-import-trades-modal [accountId]="accountId" (closed)="closeImportModal($event)" />
   }
 
-  @if (showTradesGrid() && activeStrategyId()) {
+  @if (showTradesGrid() && activeStrategy(); as strat) {
     <div class="account-detail__trades-panel">
-      <app-strategy-trades-grid [strategyId]="activeStrategyId()!" />
+      <div class="account-detail__trades-panel-header">
+        <h3 class="account-detail__trades-panel-title">{{ strat.name }}</h3>
+        <button
+          class="btn btn--ghost btn--icon"
+          type="button"
+          (click)="closeTradesPanel()"
+          title="Close trades panel"
+          aria-label="Close trades panel"
+        >
+          &times;
+        </button>
+      </div>
+
+      <div class="kpi-section">
+        <span class="kpi-section__title">Backtest (SQX)</span>
+        <div class="kpi-strip">
+          <div class="kpi-card">
+            <span class="kpi-card__label">Total Profit</span>
+            <span class="kpi-card__value">
+              {{ strat.totalProfit !== null ? strat.totalProfit.toFixed(2) : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Win %</span>
+            <span class="kpi-card__value">
+              {{ strat.winningPercentage !== null ? strat.winningPercentage.toFixed(2) : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Profit Factor</span>
+            <span class="kpi-card__value">
+              {{ strat.profitFactor !== null ? strat.profitFactor.toFixed(2) : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Drawdown</span>
+            <span class="kpi-card__value">
+              {{ strat.drawdown !== null ? strat.drawdown.toFixed(2) : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Trades</span>
+            <span class="kpi-card__value">
+              {{ strat.numberOfTrades !== null ? strat.numberOfTrades : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Sharpe Ratio</span>
+            <span class="kpi-card__value">
+              {{ strat.sharpeRatio !== null ? strat.sharpeRatio.toFixed(2) : '—' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      @if (tradeSummary(); as summary) {
+        <div class="kpi-section">
+          <span class="kpi-section__title">Live (imported trades)</span>
+          <div class="kpi-strip">
+            <div class="kpi-card">
+              <span class="kpi-card__label">Total Profit</span>
+              <span
+                class="kpi-card__value"
+                [class.kpi-card__value--profit]="summary.totalProfit > 0"
+                [class.kpi-card__value--loss]="summary.totalProfit < 0"
+              >
+                {{ summary.totalProfit | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Net Profit</span>
+              <span
+                class="kpi-card__value"
+                [class.kpi-card__value--profit]="summary.netProfit > 0"
+                [class.kpi-card__value--loss]="summary.netProfit < 0"
+                title="Total Profit + Commission + Swap + Taxes"
+              >
+                {{ summary.netProfit | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Commission</span>
+              <span class="kpi-card__value">
+                {{ summary.totalCommission | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Swap</span>
+              <span class="kpi-card__value">
+                {{ summary.totalSwap | currency: 'USD' : 'symbol' : '1.2-2' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Win / Loss</span>
+              <span class="kpi-card__value">
+                {{ summary.winCount }}/{{ summary.lossCount }}
+                <span class="kpi-card__sub"> {{ (summary.winRate * 100).toFixed(1) }}% </span>
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Trades</span>
+              <span class="kpi-card__value">
+                {{ summary.tradeCount }}
+                @if (summary.tradeCount !== summary.closedCount) {
+                  <span class="kpi-card__sub">
+                    ({{ summary.tradeCount - summary.closedCount }} open)
+                  </span>
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+
+      <app-strategy-trades-grid [strategyId]="strat.id" />
     </div>
   }
 </div>

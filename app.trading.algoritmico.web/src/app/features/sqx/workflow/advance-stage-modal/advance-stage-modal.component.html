@@ -7,20 +7,39 @@
     <p class="modal-dialog__desc">{{ 'SQX.WORKFLOW.ADVANCE_DESC' | translate }}</p>
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
-
-      <!-- Strategy Count (manual) -->
+      <!-- Passed (current stage) -->
       <div class="modal-field">
-        <label class="modal-field__label" for="advance-count">
-          {{ 'SQX.WORKFLOW.STRATEGY_COUNT' | translate }}
+        <label class="modal-field__label" for="advance-passed">
+          {{ 'SQX.WORKFLOW.PASSED' | translate }}
         </label>
         <input
-          id="advance-count"
+          id="advance-passed"
           type="number"
           min="0"
           class="modal-field__input"
-          formControlName="strategyCount"
-          [placeholder]="'SQX.WORKFLOW.STRATEGY_COUNT_PLACEHOLDER' | translate"
+          formControlName="passedCount"
+          [placeholder]="'SQX.WORKFLOW.PASSED_PLACEHOLDER' | translate"
         />
+      </div>
+
+      <!-- Input (next stage) -->
+      <div class="modal-field">
+        <label class="modal-field__label" for="advance-next-input">
+          {{ 'SQX.WORKFLOW.INPUT_NEXT' | translate }}
+        </label>
+        <input
+          id="advance-next-input"
+          type="number"
+          min="0"
+          class="modal-field__input"
+          formControlName="nextInputCount"
+          (input)="onNextInputCountChange()"
+        />
+        @if (countMismatchWarning()) {
+          <span class="modal-field__warning" role="alert">
+            {{ 'SQX.WORKFLOW.INPUT_GT_PASSED_WARNING' | translate }}
+          </span>
+        }
       </div>
 
       <!-- ZIP File (optional) -->
@@ -58,7 +77,6 @@
           }
         </button>
       </div>
-
     </form>
   </div>
 </div>

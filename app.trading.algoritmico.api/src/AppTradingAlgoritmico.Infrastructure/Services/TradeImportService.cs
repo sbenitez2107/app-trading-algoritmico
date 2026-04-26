@@ -23,14 +23,22 @@ public sealed class TradeImportService(
         if (parsed is null)
             throw new ArgumentException("Could not parse MT4 statement.", nameof(html));
 
-        // 3. Load strategies with magic numbers in a single query (N+1 prevention)
-        var strategiesByMagic = await db.Strategies
-            .Where(s => s.TradingAccountId == accountId && s.MagicNumber != null)
-            .ToDictionaryAsync(s => s.MagicNumber!.Value, ct);
+        // 3. Load all strategies for the account in a single query (N+1 prevention).
+        // We need both the magic-indexed dictionary (for direct match) AND the full list
+        // (for auto-assign by name when a magic is unknown).
+        var accountStrategies = await db.Strategies
+            .Where(s => s.TradingAccountId == accountId)
+            .ToListAsync(ct);
 
-        // 4. Split parsed trades into matched (known magic) vs orphan buckets
+        var strategiesByMagic = accountStrategies
+            .Where(s => s.MagicNumber != null)
+            .ToDictionary(s => s.MagicNumber!.Value);
+
+        // 4. Split parsed trades into matched (known magic) vs orphan buckets.
+        // Orphan bucket also tracks the underlying ParsedMtTradeDto list so we can
+        // promote the bucket to "matched" if auto-assign succeeds.
         var matched = new List<(ParsedMtTradeDto Dto, Strategy Strategy)>();
-        var orphanBuckets = new Dictionary<int, (string Hint, int Count)>();
+        var orphanBuckets = new Dictionary<int, (string Hint, List<ParsedMtTradeDto> Trades)>();
 
         foreach (var t in parsed.Trades)
         {
@@ -41,11 +49,51 @@ public sealed class TradeImportService(
             else
             {
                 if (orphanBuckets.TryGetValue(t.MagicNumber, out var bucket))
-                    orphanBuckets[t.MagicNumber] = (bucket.Hint, bucket.Count + 1);
+                    bucket.Trades.Add(t);
                 else
-                    orphanBuckets[t.MagicNumber] = (t.StrategyNameHint, 1);
+                    orphanBuckets[t.MagicNumber] = (t.StrategyNameHint, new List<ParsedMtTradeDto> { t });
             }
         }
+
+        // 4.5 Auto-assign by Strategy.Name: for each orphan magic, try to find a strategy
+        // in the same account with Name matching the hint (case-insensitive, trimmed) AND
+        // no MagicNumber assigned yet. Multiple matches → keep as orphan (ambiguous).
+        // Existing magic on the candidate → keep as orphan (non-destructive — never overwrite).
+        var autoAssigned = new List<AutoAssignedStrategyDto>();
+        var resolvedOrphans = new List<int>();
+
+        foreach (var (magic, bucket) in orphanBuckets)
+        {
+            var hint = bucket.Hint?.Trim();
+            if (string.IsNullOrEmpty(hint))
+                continue;
+
+            var candidates = accountStrategies
+                .Where(s => s.MagicNumber == null
+                            && s.Name.Trim().Equals(hint, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (candidates.Count != 1)
+                continue;
+
+            var candidate = candidates[0];
+            candidate.MagicNumber = magic;
+            strategiesByMagic[magic] = candidate;
+
+            foreach (var dto in bucket.Trades)
+                matched.Add((dto, candidate));
+
+            autoAssigned.Add(new AutoAssignedStrategyDto(
+                StrategyId: candidate.Id,
+                StrategyName: candidate.Name,
+                MagicNumber: magic,
+                TradeCount: bucket.Trades.Count));
+
+            resolvedOrphans.Add(magic);
+        }
+
+        foreach (var magic in resolvedOrphans)
+            orphanBuckets.Remove(magic);
 
         // 5. Pre-load existing rows to avoid N+1 on upsert
         var strategyIds = matched.Select(m => m.Strategy.Id).Distinct().ToList();
@@ -133,7 +181,7 @@ public sealed class TradeImportService(
 
         // 9. Build and return result DTO
         var orphans = orphanBuckets
-            .Select(kv => new OrphanMagicNumberDto(kv.Key, kv.Value.Hint, kv.Value.Count))
+            .Select(kv => new OrphanMagicNumberDto(kv.Key, kv.Value.Hint, kv.Value.Trades.Count))
             .ToList()
             .AsReadOnly();
 
@@ -147,12 +195,81 @@ public sealed class TradeImportService(
             ClosedTradePnL: snapshot.ClosedTradePnL,
             Currency: snapshot.Currency);
 
+        var availableStrategies = accountStrategies
+            .OrderBy(s => s.Name)
+            .Select(s => new AvailableStrategyDto(s.Id, s.Name, s.MagicNumber))
+            .ToList()
+            .AsReadOnly();
+
         return new TradeImportResultDto(
             Imported: imported,
             Updated: updated,
             Skipped: 0,
             Orphans: orphans,
+            AutoAssigned: autoAssigned.AsReadOnly(),
+            AvailableStrategies: availableStrategies,
             Snapshot: snapshotDto);
+    }
+
+    public async Task<StrategyTradeSummaryDto> GetSummaryByStrategyAsync(
+        Guid strategyId, CancellationToken ct)
+    {
+        // Single-query aggregate. EF translates conditional Sums into CASE WHEN.
+        var stats = await db.StrategyTrades
+            .AsNoTracking()
+            .Where(t => t.StrategyId == strategyId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                TradeCount = g.Count(),
+                ClosedCount = g.Sum(t => !t.IsOpen ? 1 : 0),
+                WinCount = g.Sum(t => !t.IsOpen && t.Profit > 0 ? 1 : 0),
+                LossCount = g.Sum(t => !t.IsOpen && t.Profit < 0 ? 1 : 0),
+                BreakevenCount = g.Sum(t => !t.IsOpen && t.Profit == 0 ? 1 : 0),
+                TotalProfit = g.Sum(t => t.Profit),
+                TotalCommission = g.Sum(t => t.Commission),
+                TotalSwap = g.Sum(t => t.Swap),
+                TotalTaxes = g.Sum(t => t.Taxes),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (stats is null)
+        {
+            return new StrategyTradeSummaryDto(
+                TradeCount: 0,
+                ClosedCount: 0,
+                WinCount: 0,
+                LossCount: 0,
+                BreakevenCount: 0,
+                WinRate: 0m,
+                TotalProfit: 0m,
+                TotalCommission: 0m,
+                TotalSwap: 0m,
+                TotalTaxes: 0m,
+                NetProfit: 0m);
+        }
+
+        var winRate = stats.ClosedCount > 0
+            ? (decimal)stats.WinCount / stats.ClosedCount
+            : 0m;
+
+        var netProfit = stats.TotalProfit
+            + stats.TotalCommission
+            + stats.TotalSwap
+            + stats.TotalTaxes;
+
+        return new StrategyTradeSummaryDto(
+            TradeCount: stats.TradeCount,
+            ClosedCount: stats.ClosedCount,
+            WinCount: stats.WinCount,
+            LossCount: stats.LossCount,
+            BreakevenCount: stats.BreakevenCount,
+            WinRate: winRate,
+            TotalProfit: stats.TotalProfit,
+            TotalCommission: stats.TotalCommission,
+            TotalSwap: stats.TotalSwap,
+            TotalTaxes: stats.TotalTaxes,
+            NetProfit: netProfit);
     }
 
     public async Task<PagedResult<StrategyTradeDto>> GetByStrategyAsync(

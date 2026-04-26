@@ -51,25 +51,96 @@
             </div>
           </dl>
 
+          @if ((result()?.autoAssigned?.length ?? 0) > 0) {
+            <div class="import-trades-modal__auto-assigned">
+              <h4 class="import-trades-modal__auto-assigned-title">Auto-assigned</h4>
+              <p class="import-trades-modal__auto-assigned-desc">
+                These magic numbers were matched to your strategies by name and assigned
+                automatically.
+              </p>
+              @for (item of result()!.autoAssigned; track item.magicNumber) {
+                <div class="import-trades-modal__auto-assigned-row">
+                  <span class="import-trades-modal__auto-assigned-magic">{{
+                    item.magicNumber
+                  }}</span>
+                  <span class="import-trades-modal__auto-assigned-arrow">&rarr;</span>
+                  <span class="import-trades-modal__auto-assigned-name">{{
+                    item.strategyName
+                  }}</span>
+                  <span class="import-trades-modal__auto-assigned-count"
+                    >{{ item.tradeCount }} trades</span
+                  >
+                </div>
+              }
+            </div>
+          }
+
           @if ((result()?.orphans?.length ?? 0) > 0) {
             <div class="import-trades-modal__orphans">
               <h4 class="import-trades-modal__orphans-title">Unassigned Trades</h4>
               <p class="import-trades-modal__orphans-desc">
-                These magic numbers were found in the statement but are not assigned to any
-                strategy. Copy the number and paste it into the corresponding strategy.
+                Pick the strategy each magic number belongs to. The link is saved and the trades are
+                imported automatically.
               </p>
+
+              @if (assignError()) {
+                <div class="import-trades-modal__error" role="alert">{{ assignError() }}</div>
+              }
+
               @for (orphan of result()!.orphans; track orphan.magicNumber) {
                 <div class="import-trades-modal__orphan-row">
-                  <span class="import-trades-modal__orphan-magic">{{ orphan.magicNumber }}</span>
-                  <span class="import-trades-modal__orphan-count">{{ orphan.count }} trades</span>
-                  <button
-                    class="btn btn--ghost btn--sm"
-                    type="button"
-                    (click)="copyMagicNumber(orphan.magicNumber)"
-                    title="Copy magic number"
-                  >
-                    Copy
-                  </button>
+                  <div class="import-trades-modal__orphan-meta">
+                    <span class="import-trades-modal__orphan-magic">{{ orphan.magicNumber }}</span>
+                    <span class="import-trades-modal__orphan-hint">{{
+                      orphan.strategyNameHint
+                    }}</span>
+                    <span class="import-trades-modal__orphan-count"
+                      >{{ orphan.tradeCount }} trades</span
+                    >
+                  </div>
+
+                  <div class="import-trades-modal__orphan-assign">
+                    <select
+                      class="import-trades-modal__orphan-select"
+                      [ngModel]="selectedStrategyFor(orphan.magicNumber)"
+                      (ngModelChange)="onSelectStrategy(orphan.magicNumber, $event)"
+                      [disabled]="assigningMagic() !== null"
+                    >
+                      <option value="" disabled>Select strategy…</option>
+                      @for (strat of result()!.availableStrategies; track strat.id) {
+                        <option [value]="strat.id">
+                          {{ strat.name }}
+                          @if (strat.magicNumber !== null) {
+                            (magic {{ strat.magicNumber }})
+                          }
+                        </option>
+                      }
+                    </select>
+
+                    <button
+                      class="btn btn--primary btn--sm"
+                      type="button"
+                      [disabled]="
+                        !selectedStrategyFor(orphan.magicNumber) || assigningMagic() !== null
+                      "
+                      (click)="assignAndReimport(orphan.magicNumber)"
+                    >
+                      @if (assigningMagic() === orphan.magicNumber) {
+                        Assigning…
+                      } @else {
+                        Assign
+                      }
+                    </button>
+
+                    <button
+                      class="btn btn--ghost btn--sm"
+                      type="button"
+                      (click)="copyMagicNumber(orphan.magicNumber)"
+                      title="Copy magic number"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
               }
             </div>
