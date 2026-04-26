@@ -224,17 +224,20 @@ public sealed class MtStatementParserService : IMtStatementParserService
         return false;
     }
 
+    /// <summary>
+    /// Returns the close-reason suffix from the title attribute, normalized to uppercase.
+    /// Common MT4 suffixes: "SL" (stop loss), "TP" (take profit), "TS" (trailing stop),
+    /// "MO" (manual close), "EX" (expired), "SO" (stop out), etc.
+    /// We preserve the raw suffix so the frontend can distinguish all cases — older
+    /// behavior collapsed everything outside SL/TP into "Other" and lost trailing-stop
+    /// information.
+    /// </summary>
     private static string? MapCloseReason(string? suffix)
     {
-        if (suffix is null)
+        if (string.IsNullOrWhiteSpace(suffix))
             return null;
 
-        return suffix.ToUpperInvariant() switch
-        {
-            "SL" => "SL",
-            "TP" => "TP",
-            _ => "Other"
-        };
+        return suffix.Trim().ToUpperInvariant();
     }
 
     private ParsedMtTradeDto? ParseTradeRow(

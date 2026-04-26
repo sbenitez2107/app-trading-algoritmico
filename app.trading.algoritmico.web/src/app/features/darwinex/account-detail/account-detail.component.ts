@@ -10,7 +10,14 @@ import {
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
-import { ColDef, GridApi, GridReadyEvent, RowClickedEvent, themeQuartz } from 'ag-grid-community';
+import {
+  ColDef,
+  ColGroupDef,
+  GridApi,
+  GridReadyEvent,
+  RowClickedEvent,
+  themeQuartz,
+} from 'ag-grid-community';
 import {
   StrategyService,
   StrategyDto,
@@ -26,20 +33,37 @@ import { SavePresetModalComponent } from '../save-preset-modal/save-preset-modal
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
 import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
+import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
+import { formatCurrency } from '../../../shared/utils/format';
 
 export interface KpiColDef {
   field: keyof StrategyDto;
   headerName: string;
   /** When true, skip the numeric toFixed(2) formatter — the value is a plain string. */
   text?: boolean;
+  /** When true, render as a currency amount ($ + thousands + 2 decimals). */
+  currency?: boolean;
+  /** When true, render as a percentage (value × 100, fixed to 2 decimals). */
+  percent?: boolean;
 }
 
+/** MT4 live KPI columns shown under the "MT4 (Live)" group. */
+export const MT4_KPI_COLS: KpiColDef[] = [
+  { field: 'liveNetProfit', headerName: 'Net Profit', currency: true },
+  { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true },
+  { field: 'liveWinRate', headerName: 'Win %', percent: true },
+  { field: 'liveProfitFactor', headerName: 'Profit Factor' },
+  { field: 'liveReturnDrawdownRatio', headerName: 'Return / DD' },
+  { field: 'liveMaxDrawdownPercent', headerName: 'Max DD %', percent: true },
+  { field: 'liveSharpeRatio', headerName: 'Sharpe' },
+];
+
 export const ALL_KPI_COLS: KpiColDef[] = [
-  { field: 'totalProfit', headerName: 'Total Profit' },
+  { field: 'totalProfit', headerName: 'Total Profit', currency: true },
   { field: 'profitInPips', headerName: 'Profit (pips)' },
-  { field: 'yearlyAvgProfit', headerName: 'Yearly Avg Profit' },
+  { field: 'yearlyAvgProfit', headerName: 'Yearly Avg Profit', currency: true },
   { field: 'yearlyAvgReturn', headerName: 'Yearly Avg Return' },
   { field: 'cagr', headerName: 'CAGR' },
   { field: 'numberOfTrades', headerName: 'Trades' },
@@ -47,11 +71,11 @@ export const ALL_KPI_COLS: KpiColDef[] = [
   { field: 'profitFactor', headerName: 'Profit Factor' },
   { field: 'returnDrawdownRatio', headerName: 'Return/DD Ratio' },
   { field: 'winningPercentage', headerName: 'Win %' },
-  { field: 'drawdown', headerName: 'Drawdown' },
+  { field: 'drawdown', headerName: 'Drawdown', currency: true },
   { field: 'drawdownPercent', headerName: 'Drawdown %' },
-  { field: 'dailyAvgProfit', headerName: 'Daily Avg Profit' },
-  { field: 'monthlyAvgProfit', headerName: 'Monthly Avg Profit' },
-  { field: 'averageTrade', headerName: 'Avg Trade' },
+  { field: 'dailyAvgProfit', headerName: 'Daily Avg Profit', currency: true },
+  { field: 'monthlyAvgProfit', headerName: 'Monthly Avg Profit', currency: true },
+  { field: 'averageTrade', headerName: 'Avg Trade', currency: true },
   { field: 'annualReturnMaxDdRatio', headerName: 'Ann. Return / Max DD' },
   { field: 'rExpectancy', headerName: 'R-Expectancy' },
   { field: 'rExpectancyScore', headerName: 'R-Expectancy Score' },
@@ -71,12 +95,12 @@ export const ALL_KPI_COLS: KpiColDef[] = [
   { field: 'numberOfWins', headerName: 'Wins' },
   { field: 'numberOfLosses', headerName: 'Losses' },
   { field: 'numberOfCancelled', headerName: 'Cancelled' },
-  { field: 'grossProfit', headerName: 'Gross Profit' },
-  { field: 'grossLoss', headerName: 'Gross Loss' },
-  { field: 'averageWin', headerName: 'Avg Win' },
-  { field: 'averageLoss', headerName: 'Avg Loss' },
-  { field: 'largestWin', headerName: 'Largest Win' },
-  { field: 'largestLoss', headerName: 'Largest Loss' },
+  { field: 'grossProfit', headerName: 'Gross Profit', currency: true },
+  { field: 'grossLoss', headerName: 'Gross Loss', currency: true },
+  { field: 'averageWin', headerName: 'Avg Win', currency: true },
+  { field: 'averageLoss', headerName: 'Avg Loss', currency: true },
+  { field: 'largestWin', headerName: 'Largest Win', currency: true },
+  { field: 'largestLoss', headerName: 'Largest Loss', currency: true },
   { field: 'maxConsecutiveWins', headerName: 'Max Consec. Wins' },
   { field: 'maxConsecutiveLosses', headerName: 'Max Consec. Losses' },
   { field: 'averageConsecutiveWins', headerName: 'Avg Consec. Wins' },
@@ -89,12 +113,19 @@ export const ALL_KPI_COLS: KpiColDef[] = [
 ];
 
 export const DEFAULT_VISIBLE_COLS: (keyof StrategyDto)[] = [
+  // SQX
   'totalProfit',
   'winningPercentage',
   'profitFactor',
   'drawdown',
   'numberOfTrades',
   'sharpeRatio',
+  // MT4 — top 5 most useful side-by-side with SQX
+  'liveNetProfit',
+  'liveTotalReturn',
+  'liveWinRate',
+  'liveProfitFactor',
+  'liveMaxDrawdownPercent',
 ];
 
 /**
@@ -114,6 +145,7 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     StrategyCommentsModalComponent,
     ImportTradesModalComponent,
     StrategyTradesGridComponent,
+    StrategyAnalyticsModalComponent,
   ],
   templateUrl: './account-detail.component.html',
   styleUrl: './account-detail.component.scss',
@@ -145,6 +177,8 @@ export class AccountDetailComponent implements OnInit {
   readonly showImportModal = signal(false);
   readonly showTradesGrid = signal(false);
   readonly activeStrategyId = signal<string | null>(null);
+  /** Target of the analytics modal — set from any row (Actions column) or the trades panel header. */
+  readonly analyticsTargetStrategy = signal<StrategyDto | null>(null);
 
   /** Currently selected strategy (or null when nothing is selected). */
   readonly activeStrategy = computed<StrategyDto | null>(() => {
@@ -175,6 +209,7 @@ export class AccountDetailComponent implements OnInit {
 
   readonly gridTheme = themeQuartz;
   readonly allKpiCols = ALL_KPI_COLS;
+  readonly mt4KpiCols = MT4_KPI_COLS;
 
   readonly defaultColDef: ColDef<StrategyDto> = {
     sortable: true,
@@ -183,7 +218,7 @@ export class AccountDetailComponent implements OnInit {
     suppressHeaderMenuButton: true,
   };
 
-  readonly columnDefs = computed<ColDef<StrategyDto>[]>(() => {
+  readonly columnDefs = computed<(ColDef<StrategyDto> | ColGroupDef<StrategyDto>)[]>(() => {
     const visible = this.visibleColumns();
     const nameDef: ColDef<StrategyDto> = {
       field: 'name',
@@ -209,30 +244,50 @@ export class AccountDetailComponent implements OnInit {
       width: 110,
     };
 
-    // All KPI columns stay in the grid at all times; visibility is toggled via
-    // the `hide` property. This lets `applyColumnState` reorder any column (the
-    // preset flow relies on this — you cannot reorder a column that isn't in the grid).
-    const kpiDefs: ColDef<StrategyDto>[] = ALL_KPI_COLS.map((c) => {
-      // String columns (indicators) do not use the numeric toFixed formatter.
-      const colDef = {
-        field: c.field as string,
+    // Build a column from a KpiColDef using one of three formatters: text (skip),
+    // currency, percent, or default toFixed(2).
+    const buildCol = (c: KpiColDef): ColDef<StrategyDto> => {
+      let formatter: ColDef<StrategyDto>['valueFormatter'];
+      if (c.text) {
+        formatter = undefined;
+      } else if (c.currency) {
+        formatter = (p: { value: number | null }) => formatCurrency(p.value);
+      } else if (c.percent) {
+        formatter = (p: { value: number | null }) =>
+          p.value !== null && p.value !== undefined ? `${(p.value * 100).toFixed(2)}%` : '—';
+      } else {
+        formatter = (p: { value: number | null }) =>
+          p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—';
+      }
+
+      const colDef: ColDef<StrategyDto> = {
+        field: c.field,
         headerName: c.headerName,
         width: 150,
         hide: !visible.includes(c.field),
-        ...(c.text
-          ? {}
-          : {
-              valueFormatter: (p: { value: number | null }) =>
-                p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—',
-            }),
+        ...(formatter ? { valueFormatter: formatter } : {}),
       };
-      return colDef as ColDef<StrategyDto>;
-    });
+      return colDef;
+    };
+
+    // SQX KPIs grouped under "SQX (Backtest)" header.
+    const sqxGroup: ColGroupDef<StrategyDto> = {
+      headerName: 'SQX (Backtest)',
+      headerClass: 'col-group-sqx',
+      children: ALL_KPI_COLS.map(buildCol),
+    };
+
+    // MT4 live KPIs grouped under "MT4 (Live)" header.
+    const mt4Group: ColGroupDef<StrategyDto> = {
+      headerName: 'MT4 (Live)',
+      headerClass: 'col-group-mt4',
+      children: MT4_KPI_COLS.map(buildCol),
+    };
 
     const deleteDef: ColDef<StrategyDto> = {
       headerName: 'Actions',
       field: 'id',
-      width: 120,
+      width: 150,
       sortable: false,
       filter: false,
       resizable: false,
@@ -240,6 +295,15 @@ export class AccountDetailComponent implements OnInit {
       cellRenderer: (params: { value: string; data: StrategyDto }) => {
         const container = document.createElement('div');
         container.className = 'grid-actions';
+
+        const performanceBtn = document.createElement('button');
+        performanceBtn.className = 'grid-action-btn';
+        performanceBtn.title = 'Open performance analysis';
+        performanceBtn.innerHTML = '&#x1F4CA;';
+        performanceBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openAnalyticsModal(params.data);
+        });
 
         const commentsBtn = document.createElement('button');
         commentsBtn.className = 'grid-action-btn';
@@ -259,13 +323,14 @@ export class AccountDetailComponent implements OnInit {
           this.requestDelete(params.value);
         });
 
+        container.appendChild(performanceBtn);
         container.appendChild(commentsBtn);
         container.appendChild(deleteBtn);
         return container;
       },
     };
 
-    return [nameDef, symbolDef, timeframeDef, ...kpiDefs, deleteDef];
+    return [nameDef, symbolDef, timeframeDef, sqxGroup, mt4Group, deleteDef];
   });
 
   ngOnInit(): void {
@@ -370,6 +435,14 @@ export class AccountDetailComponent implements OnInit {
     this.showTradesGrid.set(false);
     this.activeStrategyId.set(null);
     this.gridApi?.deselectAll();
+  }
+
+  openAnalyticsModal(strategy: StrategyDto): void {
+    this.analyticsTargetStrategy.set(strategy);
+  }
+
+  closeAnalyticsModal(): void {
+    this.analyticsTargetStrategy.set(null);
   }
 
   togglePresetsDropdown(): void {

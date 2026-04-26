@@ -73,5 +73,15 @@ internal static class StrategyKpiMapper
         e.MaxConsecutiveWins, e.MaxConsecutiveLosses, e.AverageConsecutiveWins, e.AverageConsecutiveLosses,
         e.AverageBarsInWins, e.AverageBarsInLosses,
         e.CreatedAt,
-        e.MagicNumber);
+        e.MagicNumber,
+        // Live KPIs default to "no data" — populated only by GetByAccountAsync, which
+        // joins trades and runs the analytics calculator.
+        LiveTradeCount: 0,
+        LiveNetProfit: null,
+        LiveWinRate: null,
+        LiveProfitFactor: null,
+        LiveMaxDrawdownPercent: null,
+        LiveReturnDrawdownRatio: null,
+        LiveSharpeRatio: null,
+        LiveTotalReturn: null);
 }

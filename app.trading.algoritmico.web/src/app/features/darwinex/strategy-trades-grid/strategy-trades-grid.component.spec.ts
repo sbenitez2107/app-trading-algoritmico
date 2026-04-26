@@ -21,6 +21,8 @@ const EXPECTED_COLUMNS = [
   'Commission',
   'Swap',
   'Profit',
+  'Net Profit',
+  'Close Reason',
   'Status',
 ];
 
@@ -35,11 +37,13 @@ function makeTrade(overrides: Partial<StrategyTradeDto> = {}): StrategyTradeDto 
     item: 'EURUSD',
     openPrice: 1.085,
     closePrice: 1.09,
-    sl: 1.08,
-    tp: 1.095,
+    stopLoss: 1.08,
+    takeProfit: 1.095,
     commission: -0.7,
+    taxes: 0.0,
     swap: 0.0,
     profit: 50.0,
+    closeReason: 'TP',
     isOpen: false,
     ...overrides,
   };
@@ -79,10 +83,10 @@ describe('StrategyTradesGridComponent', () => {
     return fixture;
   }
 
-  // Test 1: renders all 14 columns
+  // Test 1: renders all 16 columns
   // Extended timeout: first ag-grid TestBed.createComponent in the full parallel suite
   // regularly exceeds the default 5s in jsdom. Subsequent creates in the same file are fast.
-  it('columnDefs_ContainsAll14ExpectedColumns', { timeout: 15000 }, () => {
+  it('columnDefs_ContainsAll16ExpectedColumns', { timeout: 15000 }, () => {
     // Arrange
     const fixture = create();
     const comp = fixture.componentInstance;
@@ -94,27 +98,50 @@ describe('StrategyTradesGridComponent', () => {
     for (const expected of EXPECTED_COLUMNS) {
       expect(headerNames).toContain(expected);
     }
-    expect(headerNames.length).toBe(14);
+    expect(headerNames.length).toBe(16);
   });
 
-  // Test 2: open trade row gets CSS class 'trade--open'
-  it('rowClassRules_OpenTrade_GetsTradeOpenClass', () => {
-    // Arrange
+  // Test 2: getRowStyle tints rows by open/profit/loss.
+  it('getRowStyle_TintsByTradeState', () => {
     const fixture = create();
     const comp = fixture.componentInstance;
 
     const openTrade = makeTrade({ isOpen: true });
-    const closedTrade = makeTrade({ isOpen: false });
+    const winTrade = makeTrade({
+      isOpen: false,
+      profit: 50,
+      commission: -1,
+      swap: 0,
+      taxes: 0,
+    });
+    const lossTrade = makeTrade({
+      isOpen: false,
+      profit: -50,
+      commission: -1,
+      swap: 0,
+      taxes: 0,
+    });
+    const breakeven = makeTrade({
+      isOpen: false,
+      profit: 1,
+      commission: -1,
+      swap: 0,
+      taxes: 0,
+    });
 
-    // Act
-    const openClass = comp.rowClassRules['trade--open'];
-    const closedClass = comp.rowClassRules['trade--open'];
+    type Params = Parameters<typeof comp.getRowStyle>[0];
 
-    // Assert — the rule should be true for open and false for closed
-    expect(openClass({ data: openTrade } as unknown as Parameters<typeof openClass>[0])).toBe(true);
-    expect(closedClass({ data: closedTrade } as unknown as Parameters<typeof closedClass>[0])).toBe(
-      false,
+    expect(comp.getRowStyle({ data: openTrade } as Params)?.['backgroundColor']).toContain(
+      'rgba(137, 180, 250',
     );
+    expect(comp.getRowStyle({ data: winTrade } as Params)?.['backgroundColor']).toContain(
+      'rgba(34, 197, 94',
+    );
+    expect(comp.getRowStyle({ data: lossTrade } as Params)?.['backgroundColor']).toContain(
+      'rgba(239, 68, 68',
+    );
+    // Net = 0 → no tint
+    expect(comp.getRowStyle({ data: breakeven } as Params)).toBeUndefined();
   });
 
   // Test 3: status='closed' filter causes service call with 'closed'

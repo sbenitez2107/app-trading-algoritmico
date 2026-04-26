@@ -65,5 +65,15 @@ public record StrategyDto(
     decimal? AverageBarsInLosses,
     DateTime CreatedAt,
     // MT4 trade import
-    int? MagicNumber
+    int? MagicNumber,
+    // Live KPIs aggregated from imported MT4 trades. All `Live*` fields are null
+    // when the strategy has no trades yet — frontend renders them as `—`.
+    int LiveTradeCount,
+    decimal? LiveNetProfit,
+    decimal? LiveWinRate,
+    decimal? LiveProfitFactor,
+    decimal? LiveMaxDrawdownPercent,
+    decimal? LiveReturnDrawdownRatio,
+    decimal? LiveSharpeRatio,
+    decimal? LiveTotalReturn
 );

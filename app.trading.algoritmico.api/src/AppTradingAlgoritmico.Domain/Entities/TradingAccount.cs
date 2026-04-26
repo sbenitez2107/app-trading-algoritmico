@@ -35,5 +35,11 @@ public class TradingAccount : BaseEntity
     /// <summary>Account denomination currency (e.g. "USD", "EUR"). Nullable — legacy rows may lack it; backfill via UI.</summary>
     public string? Currency { get; set; }
 
+    /// <summary>
+    /// Starting balance used as the baseline for return / drawdown / CAGR calculations.
+    /// Required for new accounts. Existing rows are backfilled with $100,000 by migration.
+    /// </summary>
+    public decimal? InitialBalance { get; set; }
+
     public ICollection<Strategy> Strategies { get; set; } = [];
 }

@@ -47,6 +47,9 @@ public class TradingAccountConfiguration : IEntityTypeConfiguration<TradingAccou
         builder.Property(x => x.Currency)
             .HasMaxLength(10);
 
+        builder.Property(x => x.InitialBalance)
+            .HasPrecision(18, 2);
+
         builder.Property(x => x.CreatedAt)
             .IsRequired();
 

@@ -1,4 +1,12 @@
-import { Component, EventEmitter, Input, OnInit, Output, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import {
@@ -7,7 +15,7 @@ import {
   UpdateTradingAccountDto,
   TradingAccountService,
   AccountType,
-  PlatformType
+  PlatformType,
 } from '../../../core/services/trading-account.service';
 
 @Component({
@@ -16,7 +24,7 @@ import {
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './account-form.component.html',
   styleUrl: './account-form.component.scss',
-  changeDetection: ChangeDetectionStrategy.Default
+  changeDetection: ChangeDetectionStrategy.Default,
 })
 export class AccountFormComponent implements OnInit {
   @Input() account: TradingAccountDto | null = null;
@@ -30,25 +38,37 @@ export class AccountFormComponent implements OnInit {
   errorMessage = '';
   showPassword = false;
 
-  get isEditing(): boolean { return !!this.account; }
+  get isEditing(): boolean {
+    return !!this.account;
+  }
 
   constructor(
     private fb: FormBuilder,
     private service: TradingAccountService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.form = this.fb.group({
       name: [this.account?.name ?? '', [Validators.required, Validators.maxLength(200)]],
       broker: [{ value: this.account?.broker ?? this.broker, disabled: this.isEditing }],
-      accountType: [{ value: this.account?.accountType ?? this.defaultAccountType, disabled: this.isEditing }],
-      platform: [this.account?.platform ?? 0 as PlatformType],
-      accountNumber: [this.account?.accountNumber ?? null, [Validators.required, Validators.min(1)]],
+      accountType: [
+        { value: this.account?.accountType ?? this.defaultAccountType, disabled: this.isEditing },
+      ],
+      platform: [this.account?.platform ?? (0 as PlatformType)],
+      accountNumber: [
+        this.account?.accountNumber ?? null,
+        [Validators.required, Validators.min(1)],
+      ],
       login: [this.account?.login ?? null, [Validators.required, Validators.min(1)]],
       password: ['', this.isEditing ? [] : [Validators.required]],
       server: [this.account?.server ?? '', [Validators.required, Validators.maxLength(300)]],
-      isEnabled: [this.account?.isEnabled ?? true]
+      initialBalance: [
+        this.account?.initialBalance ?? null,
+        [Validators.required, Validators.min(0.01)],
+      ],
+      currency: [this.account?.currency ?? 'USD', [Validators.maxLength(10)]],
+      isEnabled: [this.account?.isEnabled ?? true],
     });
   }
 
@@ -80,10 +100,12 @@ export class AccountFormComponent implements OnInit {
         login: raw.login,
         password: raw.password || undefined,
         server: raw.server,
-        isEnabled: raw.isEnabled
+        initialBalance: Number(raw.initialBalance),
+        currency: raw.currency || null,
+        isEnabled: raw.isEnabled,
       };
       this.service.update(this.account.id, dto).subscribe({
-        next: result => {
+        next: (result) => {
           this.isLoading = false;
           this.cdr.markForCheck();
           this.saved.emit(result);
@@ -92,7 +114,7 @@ export class AccountFormComponent implements OnInit {
           this.isLoading = false;
           this.errorMessage = 'Error al actualizar la cuenta.';
           this.cdr.markForCheck();
-        }
+        },
       });
     } else {
       const dto: CreateTradingAccountDto = {
@@ -104,10 +126,12 @@ export class AccountFormComponent implements OnInit {
         login: raw.login,
         password: raw.password,
         server: raw.server,
-        isEnabled: raw.isEnabled
+        initialBalance: Number(raw.initialBalance),
+        currency: raw.currency || undefined,
+        isEnabled: raw.isEnabled,
       };
       this.service.create(dto).subscribe({
-        next: result => {
+        next: (result) => {
           this.isLoading = false;
           this.cdr.markForCheck();
           this.saved.emit(result);
@@ -116,9 +140,8 @@ export class AccountFormComponent implements OnInit {
           this.isLoading = false;
           this.errorMessage = 'Error al crear la cuenta.';
           this.cdr.markForCheck();
-        }
+        },
       });
     }
   }
 }
-

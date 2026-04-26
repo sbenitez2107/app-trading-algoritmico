@@ -58,6 +58,8 @@ public sealed class TradingAccountService : ITradingAccountService
             PasswordEncrypted = _encryption.Encrypt(dto.Password),
             Server = dto.Server,
             IsEnabled = dto.IsEnabled,
+            Currency = dto.Currency,
+            InitialBalance = dto.InitialBalance,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -77,6 +79,8 @@ public sealed class TradingAccountService : ITradingAccountService
         entity.Login = dto.Login;
         entity.Server = dto.Server;
         entity.IsEnabled = dto.IsEnabled;
+        entity.Currency = dto.Currency;
+        entity.InitialBalance = dto.InitialBalance;
         entity.UpdatedAt = DateTime.UtcNow;
 
         // Only re-encrypt if a new password was provided
@@ -116,6 +120,8 @@ public sealed class TradingAccountService : ITradingAccountService
         x.Login,
         x.Server,
         x.IsEnabled,
+        x.Currency,
+        x.InitialBalance,
         x.CreatedAt,
         x.UpdatedAt
     );

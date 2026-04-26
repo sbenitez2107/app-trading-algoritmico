@@ -64,6 +64,14 @@ function makeStrategyDto(): StrategyDto {
     averageBarsInLosses: null,
     magicNumber: null,
     createdAt: new Date().toISOString(),
+    liveTradeCount: 0,
+    liveNetProfit: null,
+    liveWinRate: null,
+    liveProfitFactor: null,
+    liveMaxDrawdownPercent: null,
+    liveReturnDrawdownRatio: null,
+    liveSharpeRatio: null,
+    liveTotalReturn: null,
   };
 }
 

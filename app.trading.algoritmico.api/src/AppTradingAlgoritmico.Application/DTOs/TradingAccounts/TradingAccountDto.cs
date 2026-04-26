@@ -12,6 +12,8 @@ public record TradingAccountDto(
     long Login,
     string Server,
     bool IsEnabled,
+    string? Currency,
+    decimal? InitialBalance,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );

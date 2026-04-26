@@ -16,6 +16,9 @@ export interface TradingAccountDto {
   login: number;
   server: string;
   isEnabled: boolean;
+  currency: string | null;
+  /** Starting equity for return / drawdown / CAGR calculations. */
+  initialBalance: number | null;
   createdAt: string;
   updatedAt?: string;
 }
@@ -29,6 +32,8 @@ export interface CreateTradingAccountDto {
   login: number;
   password: string;
   server: string;
+  initialBalance: number;
+  currency?: string;
   isEnabled: boolean;
 }
 
@@ -39,6 +44,8 @@ export interface UpdateTradingAccountDto {
   login: number;
   password?: string;
   server: string;
+  initialBalance: number;
+  currency?: string | null;
   isEnabled: boolean;
 }
 

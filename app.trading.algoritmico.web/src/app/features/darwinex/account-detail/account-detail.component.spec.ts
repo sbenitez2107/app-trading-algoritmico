@@ -75,6 +75,14 @@ function makeStrategy(id = '1'): StrategyDto {
     averageBarsInLosses: null,
     magicNumber: null,
     createdAt: new Date().toISOString(),
+    liveTradeCount: 0,
+    liveNetProfit: null,
+    liveWinRate: null,
+    liveProfitFactor: null,
+    liveMaxDrawdownPercent: null,
+    liveReturnDrawdownRatio: null,
+    liveSharpeRatio: null,
+    liveTotalReturn: null,
   };
 }
 
@@ -93,6 +101,8 @@ function makeTradingAccount(): TradingAccountDto {
     login: 12345,
     server: 'demo.darwinex.com',
     isEnabled: true,
+    currency: 'USD',
+    initialBalance: 100000,
     createdAt: new Date().toISOString(),
   };
 }
@@ -191,7 +201,11 @@ describe('AccountDetailComponent', () => {
     fixture.detectChanges();
     const comp = fixture.componentInstance;
 
-    const fields = comp.columnDefs().map((c: { field?: string }) => c.field);
+    // Flatten top-level cols + group children so the assertion sees both.
+    type ColLike = { field?: string; children?: ColLike[] };
+    const flatten = (defs: readonly ColLike[]): ColLike[] =>
+      defs.flatMap((d) => (d.children ? flatten(d.children) : [d]));
+    const fields = flatten(comp.columnDefs() as readonly ColLike[]).map((c) => c.field);
 
     // Assert — 'name' always present, plus all default visible columns
     expect(fields).toContain('name');
@@ -214,10 +228,15 @@ describe('AccountDetailComponent', () => {
 
     // Find a col not in visibleColumns by default. All KPI cols are in columnDefs
     // at all times (with hide toggled), so assert on the hide flag not presence.
+    // KPI cols now live INSIDE ColGroupDef.children, so flatten the top-level array.
+    type ColLike = { field?: string; hide?: boolean; children?: ColLike[] };
+    const flatten = (defs: readonly ColLike[]): ColLike[] =>
+      defs.flatMap((d) => (d.children ? flatten(d.children) : [d]));
+
     const nonDefault = ALL_KPI_COLS.find((c) => !DEFAULT_VISIBLE_COLS.includes(c.field))!;
-    const beforeDef = comp
-      .columnDefs()
-      .find((c: { field?: string }) => c.field === nonDefault.field) as { hide?: boolean };
+    const beforeDef = flatten(comp.columnDefs() as readonly ColLike[]).find(
+      (c) => c.field === nonDefault.field,
+    );
     expect(beforeDef?.hide).toBe(true);
 
     // Act
@@ -225,9 +244,9 @@ describe('AccountDetailComponent', () => {
 
     // Assert
     expect(comp.visibleColumns()).toContain(nonDefault.field);
-    const afterDef = comp
-      .columnDefs()
-      .find((c: { field?: string }) => c.field === nonDefault.field) as { hide?: boolean };
+    const afterDef = flatten(comp.columnDefs() as readonly ColLike[]).find(
+      (c) => c.field === nonDefault.field,
+    );
     expect(afterDef?.hide).toBe(false);
   });
 

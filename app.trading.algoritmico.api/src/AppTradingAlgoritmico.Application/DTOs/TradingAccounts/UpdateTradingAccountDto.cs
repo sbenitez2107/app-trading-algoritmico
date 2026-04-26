@@ -11,5 +11,7 @@ public record UpdateTradingAccountDto(
     /// <summary>If null or empty, the existing password is preserved.</summary>
     string? Password,
     [Required, MaxLength(300)] string Server,
+    [Required, Range(typeof(decimal), "0.01", "9999999999.99")] decimal InitialBalance,
+    [MaxLength(10)] string? Currency,
     bool IsEnabled
 );

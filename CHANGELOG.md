@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.0] - 2026-04-26
+
+### Added
+- **Performance Analysis modal per strategy**: 30+ KPIs across 6 sections (Returns, Drawdown & Risk-Adjusted, Trade Stats, Streaks, Other) plus a year-by-month compounding-return heatmap. Each KPI has a `?` icon with a CSS tooltip explaining the metric and showing good/bad ranges. Two entry points: a 📊 button in the Actions column of the Strategies grid, and a 📊 Performance button in the trades panel header. Powered by two new endpoints — `GET /api/strategies/{id}/analytics` and `GET /api/strategies/{id}/monthly-returns` — both built from the imported MT4 trades. Sharpe is computed over a synthetic daily-return series annualised with √252 (footnote in the modal flags that this differs from SQX's trade-by-trade Sharpe).
+- **`StrategyAnalyticsCalculator`** pure-computation service: stateless, no DB dependency. Single entry point `Compute(initialBalance, trades)` returns the full `StrategyAnalyticsDto`; `ComputeMonthlyReturns(...)` returns the compounding bucket series. Calculates Total Return %, CAGR, Yearly/Monthly/Daily Avg Profit, AHPR, Max Drawdown $/%, Return/DD Ratio, Annual Return / Max DD (Calmar), Stagnation, Sharpe, SQN, Std Deviation, Profit Factor, Payout Ratio, Expectancy, R-Expectancy, streaks, Z-Score / Z-Probability, Exposure %, plus all aggregates (counts, gross profit/loss, avg/largest win/loss, commission/swap/taxes).
+- **`InitialBalance` on `TradingAccount`**: required field on creation (Spanish form label "Balance Inicial"), used as the baseline for return / drawdown / CAGR calculations. Migration `AddInitialBalanceToTradingAccount` backfills existing rows with $100,000 so analytics work out of the box for legacy data. Optional `Currency` on the create/update form.
+- **Strategies grid: SQX/MT4 column groups**: the account-detail grid now uses ag-grid `ColGroupDef` to group the existing SQX backtest KPIs under "SQX (Backtest)" (blue) and a new bank of 7 live KPIs under "MT4 (Live)" (green): Net Profit, Total Return %, Win %, Profit Factor, Return/DD, Max DD %, Sharpe. The endpoint `GET /api/trading-accounts/{id}/strategies` now joins `StrategyTrades` once per page and runs the analytics calculator per strategy to populate `live*` fields. Strategies without imported trades render `—` in every MT4 cell. Column picker shows two sub-headers (SQX / MT4) for selective visibility. Five MT4 columns visible by default alongside the SQX defaults.
+- **Trades grid: Net Profit column + Close Reason column + colored Status badge + row tinting**: per-trade Net Profit (`profit + commission + swap + taxes`) is calculated client-side; rows are tinted green / red / blue (open) based on net P/L using `getRowStyle` (inline). Status renders as a colored badge (`Open` green / `Closed` gray) instead of the auto-checkbox. Close Reason is parsed from the MT4 statement and rendered with semantic colors (`TP` green, `SL` red, `Trailing` yellow). The MT4 parser now preserves the raw close-reason suffix in uppercase (previously collapsed everything outside `SL`/`TP` into `"Other"` and lost trailing-stop information).
+
+### Changed
+- **Currency formatting across the UI**: every monetary KPI in the strategies grid (12 columns: totalProfit, yearlyAvgProfit, dailyAvgProfit, monthlyAvgProfit, drawdown, averageTrade, grossProfit/Loss, averageWin/Loss, largestWin/Loss) and the trades grid (commission, swap, profit, net profit) now renders as `$1,234.56` via the new `formatCurrency` helper at `shared/utils/format.ts`.
+- **Date formatting in the trades grid**: Open Time and Close Time now render as `DD/MM/YYYY HH:MM:SS` (local timezone) via the new `formatDateTime` helper.
+- **Pagination on the strategies grid**: page sizes available are now `5 / 10 / 20 / 50 / 100`; default is `5` to leave room for the trades panel below.
+- **Click-row to select a strategy**: clicking any row in the strategies grid opens the trades panel below it (with name + KPI strips + trades grid). Previously this was reachable only via a per-row 📊 icon, which is now removed in favor of the Actions-column Performance button.
+
+### Fixed
+- **Strategy trades grid SL / TP fields shown as empty**: the frontend `StrategyTradeDto` declared `sl` / `tp` but the API serializes `stopLoss` / `takeProfit`. Aligned the type and the column field references — now the values render correctly. Same DTO also gained `closeReason` and `taxes`, which the backend already exposed but the frontend was ignoring.
+- **Net Profit row tint pre-existing CSS classes ignored by ag-grid**: replaced `rowClassRules` with inline `getRowStyle`. ag-grid 35 applies row backgrounds as inline styles on `.ag-row-odd/even` and beats CSS classes by specificity even with `!important`.
+
+---
+
 ## [0.9.0] - 2026-04-26
 
 ### Added

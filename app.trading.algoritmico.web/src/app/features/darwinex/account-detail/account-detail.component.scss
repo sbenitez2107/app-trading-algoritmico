@@ -60,6 +60,19 @@
     // Do NOT constrain height here or the grid will warn + fall back to fixed layout.
     width: 100%;
   }
+}
+
+// Column-group header tints — applied via `headerClass` on the ColGroupDef.
+// Using ::ng-deep to reach inside the ag-grid encapsulated DOM.
+:host ::ng-deep {
+  .ag-header-group-cell.col-group-sqx {
+    color: var(--color-accent, #89b4fa);
+    font-weight: 600;
+  }
+  .ag-header-group-cell.col-group-mt4 {
+    color: var(--color-profit, #22c55e);
+    font-weight: 600;
+  }
 
   &__loading {
     color: var(--color-text-secondary, #a6adc8);
@@ -89,6 +102,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  &__trades-panel-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
   }
 
   &__trades-panel-title {
@@ -168,7 +187,7 @@
 }
 
 .column-picker {
-  width: 220px;
+  width: 240px;
   flex-shrink: 0;
   background: var(--color-surface, #1e1e2e);
   border: 1px solid var(--color-border, #313244);
@@ -183,6 +202,21 @@
     color: var(--color-text-primary, #cdd6f4);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  &__section {
+    margin: 0.875rem 0 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-accent, #89b4fa);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--color-border, #313244);
+    padding-bottom: 0.25rem;
+
+    &:first-of-type {
+      margin-top: 0.25rem;
+    }
   }
 
   &__list {
@@ -258,6 +292,11 @@
   &--icon {
     font-size: 1.125rem;
     line-height: 1;
+  }
+
+  &--sm {
+    font-size: 0.8125rem;
+    padding: 0.3125rem 0.75rem;
   }
 
   &--danger {

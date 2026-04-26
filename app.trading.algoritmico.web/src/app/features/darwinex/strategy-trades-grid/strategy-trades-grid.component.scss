@@ -59,7 +59,41 @@
   }
 }
 
-// Open trade row highlight — uses CSS variable for theming
-:global(.trade--open) {
-  background-color: var(--color-accent-muted, rgba(137, 180, 250, 0.1)) !important;
+// Row tinting (open / profit / loss) is handled inline by `getRowStyle` —
+// CSS row classes were unreliable against ag-grid 35's own row backgrounds.
+
+// Status badges
+:global(.trade-status--open) {
+  color: var(--color-profit, #22c55e) !important;
+  font-weight: 600;
+}
+:global(.trade-status--closed) {
+  color: var(--color-text-secondary, #a6adc8) !important;
+}
+
+// Close-reason chips
+:global(.close-reason--tp) {
+  color: var(--color-profit, #22c55e) !important;
+  font-weight: 600;
+}
+:global(.close-reason--sl) {
+  color: var(--color-loss, #f38ba8) !important;
+  font-weight: 600;
+}
+:global(.close-reason--ts) {
+  color: var(--color-warn, #f9c74f) !important;
+  font-weight: 600;
+}
+:global(.close-reason--other) {
+  color: var(--color-text-secondary, #a6adc8) !important;
+}
+
+// Net profit colors
+:global(.profit--positive) {
+  color: var(--color-profit, #22c55e) !important;
+  font-weight: 600;
+}
+:global(.profit--negative) {
+  color: var(--color-loss, #f38ba8) !important;
+  font-weight: 600;
 }

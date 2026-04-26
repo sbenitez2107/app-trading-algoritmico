@@ -1,0 +1,383 @@
+<div class="analytics-backdrop" (click)="onBackdropClick($event)">
+  <div class="analytics-modal" role="dialog" aria-modal="true">
+    <header class="analytics-modal__header">
+      <div>
+        <h2 class="analytics-modal__title">Performance Analysis</h2>
+        <p class="analytics-modal__subtitle">{{ strategyName() }}</p>
+      </div>
+      <button class="analytics-modal__close" type="button" (click)="onClose()" aria-label="Close">
+        &times;
+      </button>
+    </header>
+
+    <div class="analytics-modal__body">
+      @if (isLoading()) {
+        <div class="analytics-modal__loading" role="status">Loading analytics…</div>
+      } @else if (error()) {
+        <div class="analytics-modal__error" role="alert">{{ error() }}</div>
+      } @else if (analytics(); as a) {
+        <p class="analytics-modal__context">
+          Initial balance <strong>{{ formatMoney(a.initialBalance) }}</strong> ·
+          {{ a.tradeCount }} trades ({{ a.openCount }} open) · {{ a.daysSpanned }} days
+        </p>
+
+        <!-- ============ Returns ============ -->
+        <section class="kpi-block">
+          <h3 class="kpi-block__title">Returns</h3>
+          <div class="kpi-block__grid">
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Total Return <app-kpi-help [info]="kpiInfo['totalReturn']"
+              /></span>
+              <span
+                class="kpi-cell__value"
+                [class.kpi-cell__value--profit]="a.totalReturn > 0"
+                [class.kpi-cell__value--loss]="a.totalReturn < 0"
+                >{{ formatPercent(a.totalReturn) }}</span
+              >
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Net Profit <app-kpi-help [info]="kpiInfo['netProfit']"
+              /></span>
+              <span
+                class="kpi-cell__value"
+                [class.kpi-cell__value--profit]="a.netProfit > 0"
+                [class.kpi-cell__value--loss]="a.netProfit < 0"
+                >{{ formatMoney(a.netProfit) }}</span
+              >
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label">CAGR <app-kpi-help [info]="kpiInfo['cagr']" /></span>
+              <span class="kpi-cell__value">{{ formatPercent(a.cagr) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Yearly Avg Profit <app-kpi-help [info]="kpiInfo['yearlyAvgProfit']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.yearlyAvgProfit) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Monthly Avg Profit <app-kpi-help [info]="kpiInfo['monthlyAvgProfit']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.monthlyAvgProfit) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Daily Avg Profit <app-kpi-help [info]="kpiInfo['dailyAvgProfit']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.dailyAvgProfit) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label">AHPR <app-kpi-help [info]="kpiInfo['ahpr']" /></span>
+              <span class="kpi-cell__value">{{ formatPercent(a.ahpr, 4) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Drawdown / Risk-Adjusted ============ -->
+        <section class="kpi-block">
+          <h3 class="kpi-block__title">Drawdown & Risk-Adjusted</h3>
+          <div class="kpi-block__grid">
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Max Drawdown <app-kpi-help [info]="kpiInfo['maxDrawdownAmount']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--loss">
+                {{ formatMoney(a.maxDrawdownAmount) }}
+              </span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Max Drawdown % <app-kpi-help [info]="kpiInfo['maxDrawdownPercent']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--loss">
+                {{ formatPercent(a.maxDrawdownPercent) }}
+              </span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Return / DD Ratio <app-kpi-help [info]="kpiInfo['returnDrawdownRatio']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.returnDrawdownRatio) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Annual Return / Max DD <app-kpi-help [info]="kpiInfo['annualReturnMaxDdRatio']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.annualReturnMaxDdRatio) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Stagnation (days) <app-kpi-help [info]="kpiInfo['stagnationInDays']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatInt(a.stagnationInDays) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Sharpe Ratio* <app-kpi-help [info]="kpiInfo['sharpeRatio']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.sharpeRatio) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label">SQN <app-kpi-help [info]="kpiInfo['sqn']" /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.sqn) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Std Deviation <app-kpi-help [info]="kpiInfo['standardDeviation']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.standardDeviation) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Trade Stats ============ -->
+        <section class="kpi-block">
+          <h3 class="kpi-block__title">Trade Stats</h3>
+          <div class="kpi-block__grid">
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Trades (closed) <app-kpi-help [info]="kpiInfo['closedCount']"
+              /></span>
+              <span class="kpi-cell__value">{{ a.closedCount }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Wins / Losses <app-kpi-help [info]="kpiInfo['winsLosses']"
+              /></span>
+              <span class="kpi-cell__value">{{ a.winCount }}/{{ a.lossCount }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Win % <app-kpi-help [info]="kpiInfo['winRate']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatPercent(a.winRate) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Profit Factor <app-kpi-help [info]="kpiInfo['profitFactor']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.profitFactor) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Payout Ratio <app-kpi-help [info]="kpiInfo['payoutRatio']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.payoutRatio) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >W/L Ratio <app-kpi-help [info]="kpiInfo['winsLossesRatio']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.winsLossesRatio) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Expectancy <app-kpi-help [info]="kpiInfo['expectancy']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.expectancy) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >R-Expectancy <app-kpi-help [info]="kpiInfo['rExpectancy']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.rExpectancy) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Avg Trade <app-kpi-help [info]="kpiInfo['averageTrade']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.averageTrade) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Avg Win <app-kpi-help [info]="kpiInfo['averageWin']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--profit">{{
+                formatMoney(a.averageWin)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Avg Loss <app-kpi-help [info]="kpiInfo['averageLoss']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--loss">{{
+                formatMoney(a.averageLoss)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Largest Win <app-kpi-help [info]="kpiInfo['largestWin']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--profit">{{
+                formatMoney(a.largestWin)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Largest Loss <app-kpi-help [info]="kpiInfo['largestLoss']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--loss">{{
+                formatMoney(a.largestLoss)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Gross Profit <app-kpi-help [info]="kpiInfo['grossProfit']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--profit">{{
+                formatMoney(a.grossProfit)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Gross Loss <app-kpi-help [info]="kpiInfo['grossLoss']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--loss">{{
+                formatMoney(a.grossLoss)
+              }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Commission <app-kpi-help [info]="kpiInfo['commission']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.totalCommission) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label">Swap <app-kpi-help [info]="kpiInfo['swap']" /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.totalSwap) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label">Taxes <app-kpi-help [info]="kpiInfo['taxes']" /></span>
+              <span class="kpi-cell__value">{{ formatMoney(a.totalTaxes) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Streaks ============ -->
+        <section class="kpi-block">
+          <h3 class="kpi-block__title">Streaks</h3>
+          <div class="kpi-block__grid">
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Max Consec. Wins <app-kpi-help [info]="kpiInfo['maxConsecutiveWins']"
+              /></span>
+              <span class="kpi-cell__value">{{ a.maxConsecutiveWins }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Max Consec. Losses <app-kpi-help [info]="kpiInfo['maxConsecutiveLosses']"
+              /></span>
+              <span class="kpi-cell__value">{{ a.maxConsecutiveLosses }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Avg Consec. Wins <app-kpi-help [info]="kpiInfo['averageConsecutiveWins']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.averageConsecutiveWins) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Avg Consec. Losses <app-kpi-help [info]="kpiInfo['averageConsecutiveLosses']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.averageConsecutiveLosses) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Z-Score <app-kpi-help [info]="kpiInfo['zScore']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatNumber(a.zScore) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Z-Probability <app-kpi-help [info]="kpiInfo['zProbability']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatPercent(a.zProbability) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Other ============ -->
+        <section class="kpi-block">
+          <h3 class="kpi-block__title">Other</h3>
+          <div class="kpi-block__grid">
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Exposure <app-kpi-help [info]="kpiInfo['exposure']"
+              /></span>
+              <span class="kpi-cell__value">{{ formatPercent(a.exposure) }}</span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >First Trade <app-kpi-help [info]="kpiInfo['firstTrade']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--small">
+                {{ a.firstTradeAt ? (a.firstTradeAt | date: 'dd/MM/yyyy') : '—' }}
+              </span>
+            </div>
+            <div class="kpi-cell">
+              <span class="kpi-cell__label"
+                >Last Trade <app-kpi-help [info]="kpiInfo['lastTrade']"
+              /></span>
+              <span class="kpi-cell__value kpi-cell__value--small">
+                {{ a.lastTradeAt ? (a.lastTradeAt | date: 'dd/MM/yyyy') : '—' }}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ Monthly heatmap ============ -->
+        @if (heatmap().length > 0) {
+          <section class="kpi-block">
+            <h3 class="kpi-block__title">Monthly Returns (compounding)</h3>
+            <div class="heatmap">
+              <div class="heatmap__row heatmap__row--header">
+                <span class="heatmap__year-label">Year</span>
+                @for (label of monthLabels; track label) {
+                  <span class="heatmap__month-label">{{ label }}</span>
+                }
+                <span class="heatmap__year-total-label">Total</span>
+              </div>
+
+              @for (row of heatmap(); track row.year) {
+                <div class="heatmap__row">
+                  <span class="heatmap__year-label">{{ row.year }}</span>
+                  @for (cell of row.cells; track $index) {
+                    <span
+                      class="heatmap__cell"
+                      [class.heatmap__cell--empty]="cell.empty"
+                      [style]="cellStyle(cell)"
+                      [title]="
+                        cell.empty
+                          ? ''
+                          : formatPercent(cell.returnPercent) + ' · ' + formatMoney(cell.profit)
+                      "
+                    >
+                      @if (!cell.empty) {
+                        {{ formatPercent(cell.returnPercent, 1) }}
+                      }
+                    </span>
+                  }
+                  <span
+                    class="heatmap__year-total"
+                    [class.heatmap__year-total--profit]="row.totalReturn > 0"
+                    [class.heatmap__year-total--loss]="row.totalReturn < 0"
+                  >
+                    {{ formatPercent(row.totalReturn, 1) }}
+                  </span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <p class="analytics-modal__footnote">
+          * Sharpe is computed over a synthetic daily-return series (days with no trades = 0) and
+          annualised with √252. It will differ from SQX's trade-by-trade Sharpe.
+        </p>
+      }
+    </div>
+  </div>
+</div>

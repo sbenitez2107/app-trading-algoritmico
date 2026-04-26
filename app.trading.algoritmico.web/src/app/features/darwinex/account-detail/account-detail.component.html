@@ -104,8 +104,26 @@
     @if (showColumnPicker()) {
       <aside class="column-picker">
         <h3 class="column-picker__title">Visible Columns</h3>
+
+        <h4 class="column-picker__section">SQX (Backtest)</h4>
         <ul class="column-picker__list">
           @for (col of allKpiCols; track col.field) {
+            <li class="column-picker__item">
+              <label class="column-picker__label">
+                <input
+                  type="checkbox"
+                  [checked]="visibleColumns().includes(col.field)"
+                  (change)="toggleColumn(col.field)"
+                />
+                {{ col.headerName }}
+              </label>
+            </li>
+          }
+        </ul>
+
+        <h4 class="column-picker__section">MT4 (Live)</h4>
+        <ul class="column-picker__list">
+          @for (col of mt4KpiCols; track col.field) {
             <li class="column-picker__item">
               <label class="column-picker__label">
                 <input
@@ -169,7 +187,17 @@
   @if (showTradesGrid() && activeStrategy(); as strat) {
     <div class="account-detail__trades-panel">
       <div class="account-detail__trades-panel-header">
-        <h3 class="account-detail__trades-panel-title">{{ strat.name }}</h3>
+        <div class="account-detail__trades-panel-header-left">
+          <h3 class="account-detail__trades-panel-title">{{ strat.name }}</h3>
+          <button
+            class="btn btn--secondary btn--sm"
+            type="button"
+            (click)="openAnalyticsModal(strat)"
+            title="Open performance analysis"
+          >
+            📊 Performance
+          </button>
+        </div>
         <button
           class="btn btn--ghost btn--icon"
           type="button"
@@ -187,7 +215,11 @@
           <div class="kpi-card">
             <span class="kpi-card__label">Total Profit</span>
             <span class="kpi-card__value">
-              {{ strat.totalProfit !== null ? strat.totalProfit.toFixed(2) : '—' }}
+              {{
+                strat.totalProfit !== null
+                  ? (strat.totalProfit | currency: 'USD' : 'symbol' : '1.2-2')
+                  : '—'
+              }}
             </span>
           </div>
           <div class="kpi-card">
@@ -205,7 +237,11 @@
           <div class="kpi-card">
             <span class="kpi-card__label">Drawdown</span>
             <span class="kpi-card__value">
-              {{ strat.drawdown !== null ? strat.drawdown.toFixed(2) : '—' }}
+              {{
+                strat.drawdown !== null
+                  ? (strat.drawdown | currency: 'USD' : 'symbol' : '1.2-2')
+                  : '—'
+              }}
             </span>
           </div>
           <div class="kpi-card">
@@ -284,5 +320,13 @@
 
       <app-strategy-trades-grid [strategyId]="strat.id" />
     </div>
+  }
+
+  @if (analyticsTargetStrategy(); as target) {
+    <app-strategy-analytics-modal
+      [strategyId]="target.id"
+      [strategyName]="target.name"
+      (closed)="closeAnalyticsModal()"
+    />
   }
 </div>

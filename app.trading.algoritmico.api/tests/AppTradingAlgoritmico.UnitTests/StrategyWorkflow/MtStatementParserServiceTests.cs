@@ -121,12 +121,13 @@ public class MtStatementParserServiceTests
     }
 
     // -------------------------------------------------------------------------
-    // R2 / R7 — Unknown suffix → CloseReason=Other
-    // Synthetic HTML: a closed row with title ending [other_value]
+    // R2 / R7 — Unknown suffix preserved as uppercase (e.g. trailing-stop "TS").
+    // The previous implementation collapsed everything outside SL/TP into "Other"
+    // and lost trailing-stop information. We now keep the raw token.
     // -------------------------------------------------------------------------
 
     [Fact]
-    public async Task ParseAsync_ClosedTradeUnknownSuffix_SetsCloseReasonOther()
+    public async Task ParseAsync_ClosedTradeUnknownSuffix_PreservesRawSuffixUppercase()
     {
         // Arrange — minimal HTML with one closed trade row with [weird] suffix
         const string html = """
@@ -134,7 +135,7 @@ public class MtStatementParserServiceTests
             <table>
             <tr><td colspan=14><b>Closed Transactions:</b></td></tr>
             <tr align=right>
-              <td title="#9999999 MyStrategy[weird]">777001</td>
+              <td title="#9999999 MyStrategy[ts]">777001</td>
               <td class=msdate>2026.04.01 10:00:00</td>
               <td>buy</td><td>0.01</td><td>xauusd</td>
               <td>4000.00</td><td>3900.00</td><td>4100.00</td>
@@ -166,7 +167,7 @@ public class MtStatementParserServiceTests
         // Assert
         result.Should().NotBeNull();
         var trade = result!.Trades.Should().ContainSingle(t => t.Ticket == 777001).Which;
-        trade.CloseReason.Should().Be("Other");
+        trade.CloseReason.Should().Be("TS", "trailing-stop suffix is preserved verbatim (uppercase)");
     }
 
     // -------------------------------------------------------------------------

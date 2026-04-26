@@ -85,6 +85,16 @@ export interface StrategyDto {
   averageBarsInLosses: number | null;
   magicNumber: number | null;
   createdAt: string;
+  // Live KPIs aggregated from imported MT4 trades. All `live*` fields are null
+  // when the strategy has no trades yet — UI shows `—` in those cells.
+  liveTradeCount: number;
+  liveNetProfit: number | null;
+  liveWinRate: number | null;
+  liveProfitFactor: number | null;
+  liveMaxDrawdownPercent: number | null;
+  liveReturnDrawdownRatio: number | null;
+  liveSharpeRatio: number | null;
+  liveTotalReturn: number | null;
 }
 
 export type UpdateStrategyKpisDto = Partial<
@@ -109,6 +119,78 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export interface StrategyAnalyticsDto {
+  // Context
+  initialBalance: number;
+  firstTradeAt: string | null;
+  lastTradeAt: string | null;
+  daysSpanned: number;
+  // Trade counts
+  tradeCount: number;
+  closedCount: number;
+  openCount: number;
+  winCount: number;
+  lossCount: number;
+  breakevenCount: number;
+  // Money sums
+  totalProfit: number;
+  totalCommission: number;
+  totalSwap: number;
+  totalTaxes: number;
+  netProfit: number;
+  grossProfit: number;
+  grossLoss: number;
+  // Per-trade aggregates
+  averageTrade: number;
+  averageWin: number;
+  averageLoss: number;
+  largestWin: number;
+  largestLoss: number;
+  standardDeviation: number;
+  // Ratios
+  winRate: number;
+  profitFactor: number;
+  payoutRatio: number;
+  winsLossesRatio: number;
+  expectancy: number;
+  rExpectancy: number;
+  // Streaks
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
+  averageConsecutiveWins: number;
+  averageConsecutiveLosses: number;
+  // Returns
+  totalReturn: number;
+  cagr: number;
+  yearlyAvgProfit: number;
+  monthlyAvgProfit: number;
+  dailyAvgProfit: number;
+  ahpr: number;
+  // Drawdown / risk-adjusted
+  maxDrawdownAmount: number;
+  maxDrawdownPercent: number;
+  returnDrawdownRatio: number;
+  annualReturnMaxDdRatio: number;
+  stagnationInDays: number;
+  sharpeRatio: number;
+  sqn: number;
+  // Other
+  exposure: number;
+  zScore: number;
+  zProbability: number;
+}
+
+export interface MonthlyReturnDto {
+  year: number;
+  month: number;
+  equityStart: number;
+  equityEnd: number;
+  profit: number;
+  /** Compounding return — `profit / equityStart` (decimal, e.g. 0.05 = 5%). */
+  returnPercent: number;
+  tradeCount: number;
 }
 
 export interface StrategyTradeSummaryDto {
@@ -137,11 +219,14 @@ export interface StrategyTradeDto {
   item: string;
   openPrice: number;
   closePrice: number | null;
-  sl: number | null;
-  tp: number | null;
+  stopLoss: number;
+  takeProfit: number;
   commission: number;
+  taxes: number;
   swap: number;
-  profit: number | null;
+  profit: number;
+  /** Raw MT4 close-reason suffix in uppercase: "SL", "TP", "TS", etc. Null for open trades. */
+  closeReason: string | null;
   isOpen: boolean;
 }
 
@@ -233,6 +318,18 @@ export class StrategyService {
   getTradesSummaryByStrategy(strategyId: string): Observable<StrategyTradeSummaryDto> {
     return this.http.get<StrategyTradeSummaryDto>(
       `${this.apiUrl}/api/strategies/${strategyId}/trades/summary`,
+    );
+  }
+
+  getAnalyticsByStrategy(strategyId: string): Observable<StrategyAnalyticsDto> {
+    return this.http.get<StrategyAnalyticsDto>(
+      `${this.apiUrl}/api/strategies/${strategyId}/analytics`,
+    );
+  }
+
+  getMonthlyReturnsByStrategy(strategyId: string): Observable<MonthlyReturnDto[]> {
+    return this.http.get<MonthlyReturnDto[]>(
+      `${this.apiUrl}/api/strategies/${strategyId}/monthly-returns`,
     );
   }
 

@@ -29,7 +29,9 @@ public class TradingAccountStrategiesControllerTests
         null, null, null, null, null,
         null, null, null, null, null,
         DateTime.UtcNow,
-        null // MagicNumber
+        null, // MagicNumber
+              // Live KPIs (no MT4 trades for the test fixture)
+        0, null, null, null, null, null, null, null
     );
 
     [Fact]

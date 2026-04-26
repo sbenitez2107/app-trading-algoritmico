@@ -144,4 +144,42 @@ public class StrategiesController(IStrategyService service, ITradeImportService 
         var summary = await tradeImportService.GetSummaryByStrategyAsync(id, ct);
         return Ok(summary);
     }
+
+    /// <summary>Returns the full performance analytics block for the given strategy.</summary>
+    [HttpGet("api/strategies/{id:guid}/analytics")]
+    [ProducesResponseType(typeof(StrategyAnalyticsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<StrategyAnalyticsDto>> GetAnalytics(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var analytics = await tradeImportService.GetAnalyticsByStrategyAsync(id, ct);
+            return Ok(analytics);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>Returns the month-by-month compounding return series for a strategy.</summary>
+    [HttpGet("api/strategies/{id:guid}/monthly-returns")]
+    [ProducesResponseType(typeof(IReadOnlyList<MonthlyReturnDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<MonthlyReturnDto>>> GetMonthlyReturns(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var months = await tradeImportService.GetMonthlyReturnsByStrategyAsync(id, ct);
+            return Ok(months);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 }

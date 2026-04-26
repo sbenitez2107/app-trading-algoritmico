@@ -18,6 +18,8 @@ function makeAccount(id = 'acc-1', accountType: 0 | 1 = 0): TradingAccountDto {
     login: 123456,
     server: 'test-server',
     isEnabled: true,
+    currency: 'USD',
+    initialBalance: 100000,
     createdAt: new Date().toISOString(),
   };
 }

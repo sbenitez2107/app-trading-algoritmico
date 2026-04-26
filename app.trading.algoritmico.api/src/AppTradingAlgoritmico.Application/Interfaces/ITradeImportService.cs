@@ -36,4 +36,18 @@ public interface ITradeImportService
     /// Independent of the frontend pagination window — computed in SQL.
     /// </summary>
     Task<StrategyTradeSummaryDto> GetSummaryByStrategyAsync(Guid strategyId, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the full performance analytics block for a strategy (returns, drawdown,
+    /// risk-adjusted metrics, streaks, etc.). Pulls every trade from DB once and runs the
+    /// pure <see cref="Infrastructure.Services.StrategyAnalyticsCalculator"/> over them.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Strategy does not exist.</exception>
+    Task<StrategyAnalyticsDto> GetAnalyticsByStrategyAsync(Guid strategyId, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the month-by-month compounding return series for a strategy, ordered chronologically.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Strategy does not exist.</exception>
+    Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsByStrategyAsync(Guid strategyId, CancellationToken ct);
 }
