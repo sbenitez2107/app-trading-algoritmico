@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.0] - 2026-05-02
+
+### Added
+- **Magic Number column in the strategies grid**: new column inside the "MT4 (Live)" group rendering each strategy's `magicNumber` as a plain integer. Visible by default (positioned first inside the MT4 group, before Net Profit) and toggleable from the column picker. Strategies without an assigned magic show an empty cell.
+- **Pinned TOTAL row in the strategies grid**: a bold pinned-bottom row aggregates summable columns across all loaded strategies (Total Profit, Profit (pips), Trades, Wins, Losses, Cancelled, Gross Profit/Loss on the SQX side; Net Profit and Trade Count on the MT4 side). The Name column is replaced with the literal `TOTAL` label on this row, and clicking it does NOT open the trades panel. Averages, ratios and percentages are intentionally left blank because summing them is meaningless.
+- **Pinned TOTAL row in the trades grid**: equivalent bottom row aggregating Commission, Swap, Taxes and Profit; the Net Profit valueGetter automatically computes the column total from those four. Ticket column shows `TOTAL` instead of a ticket number on this row.
+
+### Changed
+- **Heatmap precision in the Performance Analysis modal**: monthly and yearly return cells now render with 2 decimal places (was 1). Aligns the heatmap with the precision used everywhere else in the modal.
+- **Trades-panel header layout**: rebuilt as a 3-column CSS grid (title | Performance icon | close icon). The Performance entry is now an icon-only button (📊) instead of the previous "📊 Performance" labelled button, freeing horizontal space; the title truncates with ellipsis when the strategy name is long.
+
+### Fixed
+- **Trades-panel header silently unstyled**: the `.account-detail__loading`, `.account-detail__grid` and `.account-detail__trades-panel*` BEM blocks were accidentally nested inside a `:host ::ng-deep` wrapper, which compiled to invalid descendant selectors and dropped every rule on the trades-panel header. Restored the BEM scope by closing the `::ng-deep` block and reopening `.account-detail` for the affected children.
+
+---
+
 ## [0.10.0] - 2026-04-26
 
 ### Added

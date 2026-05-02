@@ -356,7 +356,7 @@
                       "
                     >
                       @if (!cell.empty) {
-                        {{ formatPercent(cell.returnPercent, 1) }}
+                        {{ formatPercent(cell.returnPercent, 2) }}
                       }
                     </span>
                   }
@@ -365,7 +365,7 @@
                     [class.heatmap__year-total--profit]="row.totalReturn > 0"
                     [class.heatmap__year-total--loss]="row.totalReturn < 0"
                   >
-                    {{ formatPercent(row.totalReturn, 1) }}
+                    {{ formatPercent(row.totalReturn, 2) }}
                   </span>
                 </div>
               }

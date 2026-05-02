@@ -1,10 +1,19 @@
-import { Component, ChangeDetectionStrategy, signal, inject, input, effect } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  signal,
+  computed,
+  inject,
+  input,
+  effect,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   ColDef,
   RowClassParams,
   RowStyle,
+  ValueFormatterParams,
   ValueGetterParams,
   themeQuartz,
 } from 'ag-grid-community';
@@ -61,6 +70,25 @@ export class StrategyTradesGridComponent {
   readonly trades = signal<StrategyTradeDto[]>([]);
   readonly error = signal<string | null>(null);
 
+  /**
+   * Pinned bottom row showing column totals across the loaded trades.
+   * Note: only summable money fields are aggregated. The Net Profit valueGetter
+   * runs over this row too, so its total is computed automatically from the
+   * profit + commission + swap + taxes we put here.
+   */
+  readonly pinnedBottomRowData = computed<Partial<StrategyTradeDto>[]>(() => {
+    const t = this.trades();
+    if (t.length === 0) return [];
+    return [
+      {
+        commission: t.reduce((s, x) => s + x.commission, 0),
+        swap: t.reduce((s, x) => s + x.swap, 0),
+        taxes: t.reduce((s, x) => s + x.taxes, 0),
+        profit: t.reduce((s, x) => s + x.profit, 0),
+      },
+    ];
+  });
+
   constructor() {
     effect(() => {
       // Track strategyId — re-runs whenever the parent points us at another strategy.
@@ -72,7 +100,14 @@ export class StrategyTradesGridComponent {
   readonly gridTheme = themeQuartz;
 
   readonly columnDefs: ColDef<StrategyTradeDto>[] = [
-    { field: 'ticket', headerName: 'Ticket', width: 100 },
+    {
+      field: 'ticket',
+      headerName: 'Ticket',
+      width: 100,
+      // Pinned total row shows the "TOTAL" label here instead of a ticket number.
+      valueFormatter: (p: ValueFormatterParams<StrategyTradeDto>) =>
+        p.node?.rowPinned ? 'TOTAL' : (p.value?.toString() ?? ''),
+    },
     {
       field: 'openTime',
       headerName: 'Open Time',
@@ -150,6 +185,14 @@ export class StrategyTradesGridComponent {
    * `!important`, which CSS classes can't reliably do under encapsulation.
    */
   readonly getRowStyle = (params: RowClassParams<StrategyTradeDto>): RowStyle | undefined => {
+    // Pinned total row — bold, neutral background, top border to separate from data.
+    if (params.node?.rowPinned) {
+      return {
+        fontWeight: '600',
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        borderTop: '2px solid var(--color-border, #313244)',
+      };
+    }
     if (!params.data) return undefined;
     if (params.data.isOpen) return { backgroundColor: 'rgba(137, 180, 250, 0.12)' };
     const net = computeNetProfit(params.data);

@@ -171,7 +171,9 @@ describe('AccountDetailComponent', () => {
 
   // --- Phase 8 spec R1: init loads strategies ---
 
-  it('ngOnInit_LoadsStrategiesForAccount', () => {
+  // Extended timeout: this is the first ag-grid TestBed.createComponent in the file
+  // and regularly exceeds the default 5s in jsdom (~7s). Subsequent creates are fast.
+  it('ngOnInit_LoadsStrategiesForAccount', { timeout: 15000 }, () => {
     // Arrange
     const items = [makeStrategy('s1'), makeStrategy('s2')];
     (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(

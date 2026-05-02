@@ -89,6 +89,8 @@
           [rowData]="strategies()"
           [columnDefs]="columnDefs()"
           [defaultColDef]="defaultColDef"
+          [getRowStyle]="getRowStyle"
+          [pinnedBottomRowData]="pinnedBottomRowData()"
           [animateRows]="true"
           [domLayout]="'autoHeight'"
           [pagination]="true"
@@ -187,19 +189,18 @@
   @if (showTradesGrid() && activeStrategy(); as strat) {
     <div class="account-detail__trades-panel">
       <div class="account-detail__trades-panel-header">
-        <div class="account-detail__trades-panel-header-left">
-          <h3 class="account-detail__trades-panel-title">{{ strat.name }}</h3>
-          <button
-            class="btn btn--secondary btn--sm"
-            type="button"
-            (click)="openAnalyticsModal(strat)"
-            title="Open performance analysis"
-          >
-            📊 Performance
-          </button>
-        </div>
+        <h3 class="account-detail__trades-panel-title">{{ strat.name }}</h3>
         <button
-          class="btn btn--ghost btn--icon"
+          class="btn btn--ghost btn--icon account-detail__trades-panel-icon-btn"
+          type="button"
+          (click)="openAnalyticsModal(strat)"
+          title="Open performance analysis"
+          aria-label="Open performance analysis"
+        >
+          📊
+        </button>
+        <button
+          class="btn btn--ghost btn--icon account-detail__trades-panel-close"
           type="button"
           (click)="closeTradesPanel()"
           title="Close trades panel"

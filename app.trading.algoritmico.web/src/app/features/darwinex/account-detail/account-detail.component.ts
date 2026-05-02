@@ -15,7 +15,10 @@ import {
   ColGroupDef,
   GridApi,
   GridReadyEvent,
+  RowClassParams,
   RowClickedEvent,
+  RowStyle,
+  ValueFormatterParams,
   themeQuartz,
 } from 'ag-grid-community';
 import {
@@ -51,6 +54,7 @@ export interface KpiColDef {
 
 /** MT4 live KPI columns shown under the "MT4 (Live)" group. */
 export const MT4_KPI_COLS: KpiColDef[] = [
+  { field: 'magicNumber', headerName: 'Magic Number', text: true },
   { field: 'liveNetProfit', headerName: 'Net Profit', currency: true },
   { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true },
   { field: 'liveWinRate', headerName: 'Win %', percent: true },
@@ -121,6 +125,7 @@ export const DEFAULT_VISIBLE_COLS: (keyof StrategyDto)[] = [
   'numberOfTrades',
   'sharpeRatio',
   // MT4 — top 5 most useful side-by-side with SQX
+  'magicNumber',
   'liveNetProfit',
   'liveTotalReturn',
   'liveWinRate',
@@ -190,6 +195,35 @@ export class AccountDetailComponent implements OnInit {
   /** KPI aggregates over the imported trades of the active strategy. */
   readonly tradeSummary = signal<StrategyTradeSummaryDto | null>(null);
 
+  /**
+   * Pinned bottom row totaling sumable columns across all loaded strategies.
+   * Aggregates only counters and absolute money fields — averages, ratios and
+   * percentages are intentionally left blank because summing them is meaningless.
+   */
+  readonly pinnedBottomRowData = computed<Partial<StrategyDto>[]>(() => {
+    const list = this.strategies();
+    if (list.length === 0) return [];
+    const sum = (pick: (s: StrategyDto) => number | null | undefined) =>
+      list.reduce((acc, s) => acc + (pick(s) ?? 0), 0);
+
+    return [
+      {
+        // SQX absolute money / counters
+        totalProfit: sum((s) => s.totalProfit),
+        profitInPips: sum((s) => s.profitInPips),
+        numberOfTrades: sum((s) => s.numberOfTrades),
+        numberOfWins: sum((s) => s.numberOfWins),
+        numberOfLosses: sum((s) => s.numberOfLosses),
+        numberOfCancelled: sum((s) => s.numberOfCancelled),
+        grossProfit: sum((s) => s.grossProfit),
+        grossLoss: sum((s) => s.grossLoss),
+        // MT4 absolute / counters
+        liveNetProfit: sum((s) => s.liveNetProfit),
+        liveTradeCount: sum((s) => s.liveTradeCount),
+      },
+    ];
+  });
+
   private gridApi: GridApi<StrategyDto> | null = null;
 
   constructor() {
@@ -226,6 +260,9 @@ export class AccountDetailComponent implements OnInit {
       flex: 1,
       minWidth: 160,
       pinned: 'left',
+      // Pinned bottom row replaces the strategy name with a "TOTAL" label.
+      valueFormatter: (p: ValueFormatterParams<StrategyDto>) =>
+        p.node?.rowPinned ? 'TOTAL' : (p.value ?? ''),
     };
 
     const symbolDef: ColDef<StrategyDto> = {
@@ -422,9 +459,22 @@ export class AccountDetailComponent implements OnInit {
 
   /** Opens the trades panel for the clicked row (or switches it if another row was active). */
   onRowClicked(event: RowClickedEvent<StrategyDto>): void {
-    if (!event.data) return;
+    // Ignore clicks on the pinned TOTAL row — it has no strategy id.
+    if (!event.data || event.node?.rowPinned) return;
     this.selectStrategy(event.data.id);
   }
+
+  /** Bold + neutral background + top border on the pinned bottom totals row. */
+  readonly getRowStyle = (params: RowClassParams<StrategyDto>): RowStyle | undefined => {
+    if (params.node?.rowPinned) {
+      return {
+        fontWeight: '600',
+        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        borderTop: '2px solid var(--color-border, #313244)',
+      };
+    }
+    return undefined;
+  };
 
   selectStrategy(strategyId: string): void {
     this.activeStrategyId.set(strategyId);
