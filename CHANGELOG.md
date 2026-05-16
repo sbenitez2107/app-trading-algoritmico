@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.1] - 2026-05-16
+
+### Added
+- **Docker setup**: multi-stage `Dockerfile` for both projects (`api` on .NET 10 SDK → ASP.NET runtime, `web` on Node 22 → nginx 1.27), a root `docker-compose.yml` wiring the API + web + existing SQL Server container, an nginx reverse-proxy config for the SPA (`/api/` + `/swagger/` → API, SPA fallback, aggressive caching for hashed assets), and `.dockerignore` files for both projects. Local `.env` variables drive secrets (`DB_CONNECTION_STRING`, `JWT_KEY`, encryption keys) — nothing is hardcoded.
+- **`docker` build configuration in `angular.json`**: dedicated Angular build target used inside the web Dockerfile, with stricter bundle budgets (1MB warn / 2MB error initial, 6kB / 12kB per component style) and `outputHashing: all`.
+
+### Changed
+- **`.gitignore`**: now ignores `*.csproj.lscache` (JetBrains Rider per-csproj language service cache) and `.env` / `.env.*` (with `!.env.example` exception). Closes a gap where Rider was generating untracked cache files in every csproj directory.
+
+---
+
 ## [0.12.0] - 2026-05-16
 
 ### Added

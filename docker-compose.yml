@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: ./app.trading.algoritmico.api
+      dockerfile: Dockerfile
+    image: appta-api:local
+    container_name: appta-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: ${DB_CONNECTION_STRING}
+      Jwt__Key:            ${JWT_KEY}
+      Jwt__Issuer:         ${JWT_ISSUER:-AppTradingAlgoritmico.API}
+      Jwt__Audience:       ${JWT_AUDIENCE:-AppTradingAlgoritmico.Client}
+      Jwt__ExpiryMinutes:  ${JWT_EXPIRY_MINUTES:-60}
+      Encryption__Key:     ${ENCRYPTION_KEY}
+      Encryption__IV:      ${ENCRYPTION_IV}
+      Cors__AllowedOrigins__0: http://localhost:${WEB_PORT:-8080}
+    # Required so 'host.docker.internal' resolves the Docker host's IP.
+    # Auto-set on Docker Desktop (Win/Mac); explicit here for portability.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${API_PORT:-5050}:8080"
+    networks:
+      - appta
+
+  web:
+    build:
+      context: ./app.trading.algoritmico.web
+      dockerfile: Dockerfile
+    image: appta-web:local
+    container_name: appta-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    networks:
+      - appta
+
+networks:
+  appta:
+    driver: bridge
