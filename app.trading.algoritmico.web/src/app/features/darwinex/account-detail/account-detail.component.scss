@@ -151,6 +151,13 @@
   @media (max-width: 600px) {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  &--indicators {
+    grid-template-columns: repeat(3, 1fr);
+    @media (max-width: 900px) {
+      grid-template-columns: 1fr;
+    }
+  }
 }
 
 .kpi-card {
@@ -191,6 +198,27 @@
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--color-text-secondary, #a6adc8);
+  }
+
+  // Indicator cards: values are long strings that must wrap and stay readable.
+  &--text &__value {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    display: block;
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  // One indicator per row, with subtle separation between items.
+  &__list-item {
+    padding: 0.125rem 0;
+
+    & + & {
+      border-top: 1px solid var(--color-border, #313244);
+      margin-top: 0.125rem;
+      padding-top: 0.25rem;
+    }
   }
 }
 

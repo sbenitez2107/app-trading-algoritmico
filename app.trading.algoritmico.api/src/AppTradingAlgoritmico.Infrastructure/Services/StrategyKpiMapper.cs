@@ -77,6 +77,9 @@ internal static class StrategyKpiMapper
         // Live KPIs default to "no data" — populated only by GetByAccountAsync, which
         // joins trades and runs the analytics calculator.
         LiveTradeCount: 0,
+        LiveWinCount: 0,
+        LiveLossCount: 0,
+        LiveStagnationInDays: 0,
         LiveNetProfit: null,
         LiveWinRate: null,
         LiveProfitFactor: null,

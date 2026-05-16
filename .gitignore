@@ -21,6 +21,9 @@ packages/
 **/appsettings.Local.json
 **/appsettings.Development.json
 **/*.local.json
+.env
+.env.*
+!.env.example
 
 # ===========================
 # Angular 21 / Node

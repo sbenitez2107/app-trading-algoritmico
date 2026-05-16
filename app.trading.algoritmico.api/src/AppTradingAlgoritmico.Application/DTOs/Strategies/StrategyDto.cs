@@ -69,6 +69,9 @@ public record StrategyDto(
     // Live KPIs aggregated from imported MT4 trades. All `Live*` fields are null
     // when the strategy has no trades yet — frontend renders them as `—`.
     int LiveTradeCount,
+    int LiveWinCount,
+    int LiveLossCount,
+    int LiveStagnationInDays,
     decimal? LiveNetProfit,
     decimal? LiveWinRate,
     decimal? LiveProfitFactor,

@@ -50,11 +50,15 @@ export interface KpiColDef {
   currency?: boolean;
   /** When true, render as a percentage (value × 100, fixed to 2 decimals). */
   percent?: boolean;
+  /** When true, render as `wins/losses (rate%)` using `liveWinCount` + `liveLossCount` from the row. */
+  winLossPair?: boolean;
 }
 
 /** MT4 live KPI columns shown under the "MT4 (Live)" group. */
 export const MT4_KPI_COLS: KpiColDef[] = [
   { field: 'magicNumber', headerName: 'Magic Number', text: true },
+  { field: 'liveTradeCount', headerName: '# Trades', text: true },
+  { field: 'liveWinCount', headerName: 'Win / Loss', winLossPair: true },
   { field: 'liveNetProfit', headerName: 'Net Profit', currency: true },
   { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true },
   { field: 'liveWinRate', headerName: 'Win %', percent: true },
@@ -126,6 +130,8 @@ export const DEFAULT_VISIBLE_COLS: (keyof StrategyDto)[] = [
   'sharpeRatio',
   // MT4 — top 5 most useful side-by-side with SQX
   'magicNumber',
+  'liveTradeCount',
+  'liveWinCount',
   'liveNetProfit',
   'liveTotalReturn',
   'liveWinRate',
@@ -220,6 +226,8 @@ export class AccountDetailComponent implements OnInit {
         // MT4 absolute / counters
         liveNetProfit: sum((s) => s.liveNetProfit),
         liveTradeCount: sum((s) => s.liveTradeCount),
+        liveWinCount: sum((s) => s.liveWinCount),
+        liveLossCount: sum((s) => s.liveLossCount),
       },
     ];
   });
@@ -287,6 +295,15 @@ export class AccountDetailComponent implements OnInit {
       let formatter: ColDef<StrategyDto>['valueFormatter'];
       if (c.text) {
         formatter = undefined;
+      } else if (c.winLossPair) {
+        formatter = (p: ValueFormatterParams<StrategyDto>) => {
+          const wins = p.data?.liveWinCount ?? 0;
+          const losses = p.data?.liveLossCount ?? 0;
+          const total = wins + losses;
+          if (total === 0) return '—';
+          const rate = (wins / total) * 100;
+          return `${wins}/${losses} (${rate.toFixed(1)}%)`;
+        };
       } else if (c.currency) {
         formatter = (p: { value: number | null }) => formatCurrency(p.value);
       } else if (c.percent) {
@@ -493,6 +510,17 @@ export class AccountDetailComponent implements OnInit {
 
   closeAnalyticsModal(): void {
     this.analyticsTargetStrategy.set(null);
+  }
+
+  // Split indicator strings into one-line-per-item for readability.
+  // `;` for params (commas inside parentheses are indicator arguments — never split on them).
+  // `,` for entry/price (lists of indicator names).
+  splitList(value: string | null | undefined, separator: ',' | ';'): string[] {
+    if (!value) return [];
+    return value
+      .split(separator)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
   }
 
   togglePresetsDropdown(): void {

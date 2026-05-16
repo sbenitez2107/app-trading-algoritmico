@@ -42,7 +42,7 @@ public sealed class StrategyService(
                 x.MagicNumber,
                 // Stage view does not surface live KPIs — strategies in the SQX pipeline
                 // typically have no MT4 trades imported yet.
-                0, null, null, null, null, null, null, null))
+                0, 0, 0, 0, null, null, null, null, null, null, null))
             .ToListAsync(ct);
 
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
@@ -109,6 +109,9 @@ public sealed class StrategyService(
                     x.CreatedAt,
                     x.MagicNumber,
                     LiveTradeCount: trades.Count,
+                    LiveWinCount: live?.WinCount ?? 0,
+                    LiveLossCount: live?.LossCount ?? 0,
+                    LiveStagnationInDays: live?.StagnationInDays ?? 0,
                     LiveNetProfit: live?.NetProfit,
                     LiveWinRate: live?.WinRate,
                     LiveProfitFactor: live?.ProfitFactor,

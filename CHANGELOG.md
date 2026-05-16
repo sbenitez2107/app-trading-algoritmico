@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.0] - 2026-05-16
+
+### Added
+- **`# Trades` and `Win / Loss` columns in the MT4 (Live) group**: new columns inside the strategies grid showing live trade count (from imported MT4 trades) and a `wins/losses (rate%)` cell rendered via the new `winLossPair` formatter that reads `liveWinCount` + `liveLossCount` from the row. Both visible by default; the pinned TOTAL row aggregates wins and losses across all loaded strategies.
+- **Live KPI fields on `StrategyDto`**: three new ints — `LiveWinCount`, `LiveLossCount`, `LiveStagnationInDays` — populated from `StrategyAnalyticsCalculator` output and exposed by `GET /api/trading-accounts/{id}/strategies`. They feed the new grid columns and the redesigned trades-panel header without requiring a second `/analytics` fetch.
+- **Indicators row in the trades-panel header (Backtest section)**: three side-by-side cards (Entry Indicators, Price Indicators, Indicator Params) below the main KPIs, only shown when at least one is populated. Each card renders one item per row — Entry/Price split by `,`, Indicator Params split by `;` so the commas inside parentheses (indicator arguments) are preserved. Long strings stay readable thanks to the new `kpi-card--text` modifier (block layout, word-break, smaller font, thin row separators).
+
+### Changed
+- **Trades-panel header redesign**: 2 strips per section, 6 cards each, all using the default `.kpi-strip` grid (no more `--cols-7` / `--cols-5` modifiers).
+  - **Backtest (SQX)** row 1: Ret / DD Ratio · Profit Factor · Sharpe Ratio · Drawdown · Stagnation Days · Win / Loss Ratio. Removed Total Profit, Win %, Trades and Avg Trade from the header (still available in the grid).
+  - **Live (imported trades)** row 1 (risk-adjusted): Ret / DD Ratio · Profit Factor · Sharpe Ratio · Max Drawdown · Stagnation Days · Win / Loss.
+  - **Live (imported trades)** row 2 (cash-flow): Magic Number · Total Profit · Net Profit · Commission · Swap · Trades.
+- **Default page size in the strategies grid**: `5` → `10`, and removed `5` from the page-size selector (now `[10, 20, 50, 100]`). The previous default left only ~3 visible rows once a trades panel was open; 10 is a better trade-off.
+
+---
+
 ## [0.11.0] - 2026-05-02
 
 ### Added

@@ -88,6 +88,9 @@ export interface StrategyDto {
   // Live KPIs aggregated from imported MT4 trades. All `live*` fields are null
   // when the strategy has no trades yet — UI shows `—` in those cells.
   liveTradeCount: number;
+  liveWinCount: number;
+  liveLossCount: number;
+  liveStagnationInDays: number;
   liveNetProfit: number | null;
   liveWinRate: number | null;
   liveProfitFactor: number | null;

@@ -94,8 +94,8 @@
           [animateRows]="true"
           [domLayout]="'autoHeight'"
           [pagination]="true"
-          [paginationPageSize]="5"
-          [paginationPageSizeSelector]="[5, 10, 20, 50, 100]"
+          [paginationPageSize]="10"
+          [paginationPageSizeSelector]="[10, 20, 50, 100]"
           [rowSelection]="'single'"
           (gridReady)="onGridReady($event)"
           (rowClicked)="onRowClicked($event)"
@@ -214,25 +214,21 @@
         <span class="kpi-section__title">Backtest (SQX)</span>
         <div class="kpi-strip">
           <div class="kpi-card">
-            <span class="kpi-card__label">Total Profit</span>
+            <span class="kpi-card__label">Ret / DD Ratio</span>
             <span class="kpi-card__value">
-              {{
-                strat.totalProfit !== null
-                  ? (strat.totalProfit | currency: 'USD' : 'symbol' : '1.2-2')
-                  : '—'
-              }}
-            </span>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-card__label">Win %</span>
-            <span class="kpi-card__value">
-              {{ strat.winningPercentage !== null ? strat.winningPercentage.toFixed(2) : '—' }}
+              {{ strat.returnDrawdownRatio !== null ? strat.returnDrawdownRatio.toFixed(2) : '—' }}
             </span>
           </div>
           <div class="kpi-card">
             <span class="kpi-card__label">Profit Factor</span>
             <span class="kpi-card__value">
               {{ strat.profitFactor !== null ? strat.profitFactor.toFixed(2) : '—' }}
+            </span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Sharpe Ratio</span>
+            <span class="kpi-card__value">
+              {{ strat.sharpeRatio !== null ? strat.sharpeRatio.toFixed(2) : '—' }}
             </span>
           </div>
           <div class="kpi-card">
@@ -246,24 +242,125 @@
             </span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-card__label">Trades</span>
+            <span class="kpi-card__label">Stagnation Days</span>
             <span class="kpi-card__value">
-              {{ strat.numberOfTrades !== null ? strat.numberOfTrades : '—' }}
+              {{ strat.stagnationInDays !== null ? strat.stagnationInDays : '—' }}
             </span>
           </div>
           <div class="kpi-card">
-            <span class="kpi-card__label">Sharpe Ratio</span>
+            <span class="kpi-card__label">Win / Loss Ratio</span>
             <span class="kpi-card__value">
-              {{ strat.sharpeRatio !== null ? strat.sharpeRatio.toFixed(2) : '—' }}
+              {{ strat.winsLossesRatio !== null ? strat.winsLossesRatio.toFixed(2) : '—' }}
             </span>
           </div>
         </div>
+
+        @if (strat.entryIndicators || strat.priceIndicators || strat.indicatorParameters) {
+          <div class="kpi-strip kpi-strip--indicators">
+            <div class="kpi-card kpi-card--text">
+              <span class="kpi-card__label">Entry Indicators</span>
+              <div class="kpi-card__value kpi-card__value--text">
+                @if (splitList(strat.entryIndicators, ','); as items) {
+                  @if (items.length === 0) {
+                    <span>—</span>
+                  } @else {
+                    @for (item of items; track item) {
+                      <div class="kpi-card__list-item">{{ item }}</div>
+                    }
+                  }
+                }
+              </div>
+            </div>
+            <div class="kpi-card kpi-card--text">
+              <span class="kpi-card__label">Price Indicators</span>
+              <div class="kpi-card__value kpi-card__value--text">
+                @if (splitList(strat.priceIndicators, ','); as items) {
+                  @if (items.length === 0) {
+                    <span>—</span>
+                  } @else {
+                    @for (item of items; track item) {
+                      <div class="kpi-card__list-item">{{ item }}</div>
+                    }
+                  }
+                }
+              </div>
+            </div>
+            <div class="kpi-card kpi-card--text">
+              <span class="kpi-card__label">Indicator Params</span>
+              <div class="kpi-card__value kpi-card__value--text">
+                @if (splitList(strat.indicatorParameters, ';'); as items) {
+                  @if (items.length === 0) {
+                    <span>—</span>
+                  } @else {
+                    @for (item of items; track item) {
+                      <div class="kpi-card__list-item">{{ item }}</div>
+                    }
+                  }
+                }
+              </div>
+            </div>
+          </div>
+        }
       </div>
 
       @if (tradeSummary(); as summary) {
         <div class="kpi-section">
           <span class="kpi-section__title">Live (imported trades)</span>
           <div class="kpi-strip">
+            <div class="kpi-card">
+              <span class="kpi-card__label">Ret / DD Ratio</span>
+              <span class="kpi-card__value">
+                {{
+                  strat.liveReturnDrawdownRatio !== null
+                    ? strat.liveReturnDrawdownRatio.toFixed(2)
+                    : '—'
+                }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Profit Factor</span>
+              <span class="kpi-card__value">
+                {{ strat.liveProfitFactor !== null ? strat.liveProfitFactor.toFixed(2) : '—' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Sharpe Ratio</span>
+              <span class="kpi-card__value">
+                {{ strat.liveSharpeRatio !== null ? strat.liveSharpeRatio.toFixed(2) : '—' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Max Drawdown</span>
+              <span class="kpi-card__value">
+                {{
+                  strat.liveMaxDrawdownPercent !== null
+                    ? (strat.liveMaxDrawdownPercent * 100).toFixed(2) + '%'
+                    : '—'
+                }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Stagnation Days</span>
+              <span class="kpi-card__value">
+                {{ strat.liveStagnationInDays > 0 ? strat.liveStagnationInDays : '—' }}
+              </span>
+            </div>
+            <div class="kpi-card">
+              <span class="kpi-card__label">Win / Loss</span>
+              <span class="kpi-card__value">
+                {{ summary.winCount }}/{{ summary.lossCount }}
+                <span class="kpi-card__sub"> {{ (summary.winRate * 100).toFixed(1) }}% </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="kpi-strip">
+            <div class="kpi-card">
+              <span class="kpi-card__label">Magic Number</span>
+              <span class="kpi-card__value">
+                {{ strat.magicNumber !== null ? strat.magicNumber : '—' }}
+              </span>
+            </div>
             <div class="kpi-card">
               <span class="kpi-card__label">Total Profit</span>
               <span
@@ -295,13 +392,6 @@
               <span class="kpi-card__label">Swap</span>
               <span class="kpi-card__value">
                 {{ summary.totalSwap | currency: 'USD' : 'symbol' : '1.2-2' }}
-              </span>
-            </div>
-            <div class="kpi-card">
-              <span class="kpi-card__label">Win / Loss</span>
-              <span class="kpi-card__value">
-                {{ summary.winCount }}/{{ summary.lossCount }}
-                <span class="kpi-card__sub"> {{ (summary.winRate * 100).toFixed(1) }}% </span>
               </span>
             </div>
             <div class="kpi-card">
