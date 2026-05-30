@@ -28,6 +28,7 @@ export class MainLayoutComponent {
   sidebarCollapsed = signal(false);
   darwinexExpanded = signal(false);
   sqxExpanded = signal(false);
+  administrationExpanded = signal(false);
   readonly currentUser = this.authService.currentUser;
   readonly isDark = this.themeService.isDark;
   readonly currentLang = this.languageService.language;
@@ -47,6 +48,7 @@ export class MainLayoutComponent {
     if (this.sidebarCollapsed()) {
       this.darwinexExpanded.set(false);
       this.sqxExpanded.set(false);
+      this.administrationExpanded.set(false);
     }
   }
 
@@ -56,6 +58,10 @@ export class MainLayoutComponent {
 
   toggleSqx(): void {
     if (!this.sidebarCollapsed()) this.sqxExpanded.update(v => !v);
+  }
+
+  toggleAdministration(): void {
+    if (!this.sidebarCollapsed()) this.administrationExpanded.update(v => !v);
   }
 
   toggleTheme(): void {

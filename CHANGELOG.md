@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.0] - 2026-05-30
+
+### Added
+- **Expenses Management Module**: complete feature for tracking professional trading expenses across all accounts, brokers, and providers.
+  - **Backend (.NET)**: Domain entity `Expense` with enum `ExpenseCategory` (6 types: Mentoría IMOX, Servidor Hetzner, FTMO, WSF, Darwinex Zero, Servidor fxvps.pro), full CRUD `ExpenseService`, REST `ExpensesController` with analysis endpoints (monthly summaries, year-over-year, projections for next 12 months), EF Core migration applied.
+  - **Frontend (Angular)**: `ExpenseService` with typed DTOs, standalone `ExpensesListComponent` and `ExpenseFormComponent` (reactive forms with validation), integrated into main-layout menu under "Gestión y Administración".
+  - **Data Grid (ag-grid)**: sortable and filterable columns (Date, Description, Category, Notes, Amount USD, Actions), pagination (50 rows/page), responsive column widths, total amount displayed in footer.
+  - **All currency in USD** as requested.
+
+---
+
 ## [0.12.1] - 2026-05-16
 
 ### Added

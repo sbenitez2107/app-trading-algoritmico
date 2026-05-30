@@ -1,0 +1,94 @@
+<div class="expense-form__overlay" (click)="onCancel()"></div>
+
+<div class="expense-form__modal">
+  <div class="expense-form__header">
+    <h2 class="expense-form__title">
+      {{ isEditing() ? 'Editar Gasto' : 'Nuevo Gasto' }}
+    </h2>
+    <button class="expense-form__btn-close" (click)="onCancel()">✕</button>
+  </div>
+
+  <div *ngIf="error()" class="expense-form__error">{{ error() }}</div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="expense-form__form">
+    <div class="expense-form__field">
+      <label class="expense-form__label">Descripción</label>
+      <input
+        type="text"
+        formControlName="description"
+        class="expense-form__input"
+        placeholder="Ej: Challenge FTMO - octubre"
+        [class.expense-form__input--error]="form.get('description')?.invalid && form.get('description')?.touched">
+      <span *ngIf="form.get('description')?.hasError('required')" class="expense-form__error-text">
+        La descripción es requerida
+      </span>
+      <span *ngIf="form.get('description')?.hasError('minlength')" class="expense-form__error-text">
+        Mínimo 3 caracteres
+      </span>
+    </div>
+
+    <div class="expense-form__field">
+      <label class="expense-form__label">Categoría</label>
+      <select
+        formControlName="category"
+        class="expense-form__select"
+        [class.expense-form__select--error]="form.get('category')?.invalid && form.get('category')?.touched">
+        <option *ngFor="let cat of categoryOptions" [value]="cat.value">
+          {{ cat.label }}
+        </option>
+      </select>
+    </div>
+
+    <div class="expense-form__field">
+      <label class="expense-form__label">Monto (USD)</label>
+      <input
+        type="number"
+        formControlName="amount"
+        class="expense-form__input"
+        placeholder="0.00"
+        step="0.01"
+        min="0"
+        [class.expense-form__input--error]="form.get('amount')?.invalid && form.get('amount')?.touched">
+      <span *ngIf="form.get('amount')?.hasError('required')" class="expense-form__error-text">
+        El monto es requerido
+      </span>
+    </div>
+
+    <div class="expense-form__field">
+      <label class="expense-form__label">Fecha</label>
+      <input
+        type="date"
+        formControlName="date"
+        class="expense-form__input"
+        [class.expense-form__input--error]="form.get('date')?.invalid && form.get('date')?.touched">
+      <span *ngIf="form.get('date')?.hasError('required')" class="expense-form__error-text">
+        La fecha es requerida
+      </span>
+    </div>
+
+    <div class="expense-form__field">
+      <label class="expense-form__label">Notas (opcional)</label>
+      <textarea
+        formControlName="notes"
+        class="expense-form__textarea"
+        placeholder="Agrega notas adicionales..."
+        rows="3"></textarea>
+    </div>
+
+    <div class="expense-form__actions">
+      <button
+        type="button"
+        class="expense-form__btn expense-form__btn--secondary"
+        (click)="onCancel()"
+        [disabled]="isSubmitting()">
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        class="expense-form__btn expense-form__btn--primary"
+        [disabled]="!form.valid || isSubmitting()">
+        {{ isSubmitting() ? 'Guardando...' : (isEditing() ? 'Actualizar' : 'Crear') }}
+      </button>
+    </div>
+  </form>
+</div>

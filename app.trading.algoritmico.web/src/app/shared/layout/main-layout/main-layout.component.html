@@ -130,19 +130,36 @@
         }
       </div>
 
-      <a
-        routerLink="/administration"
-        routerLinkActive="l-sidebar__nav-item--active"
-        class="l-sidebar__nav-item"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
-          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        @if (!sidebarCollapsed()) {
-          <span>{{ 'LAYOUT.SIDEBAR.ADMINISTRATION' | translate }}</span>
+      <!-- Administration with submenu -->
+      <div class="l-sidebar__nav-group">
+        <button
+          class="l-sidebar__nav-item l-sidebar__nav-item--group"
+          (click)="toggleAdministration()"
+          [class.l-sidebar__nav-item--expanded]="administrationExpanded()"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+          </svg>
+          @if (!sidebarCollapsed()) {
+            <span class="l-sidebar__nav-label">Gestión y Administración</span>
+            <svg class="l-sidebar__chevron" [class.l-sidebar__chevron--open]="administrationExpanded()"
+              width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
+        </button>
+
+        <!-- Submenu -->
+        @if (administrationExpanded() && !sidebarCollapsed()) {
+          <div class="l-sidebar__submenu">
+            <a routerLink="/administration/expenses" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--expenses"></span>
+              Gastos
+            </a>
+          </div>
         }
-      </a>
+      </div>
     </nav>
   </aside>
 

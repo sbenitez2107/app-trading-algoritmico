@@ -74,6 +74,9 @@ public static class DependencyInjection
         // Grid Presets
         services.AddScoped<IGridPresetService, GridPresetService>();
 
+        // Expenses
+        services.AddScoped<IExpenseService, ExpenseService>();
+
         return services;
     }
 }

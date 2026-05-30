@@ -1,0 +1,41 @@
+<div class="expenses-list">
+  <div class="expenses-list__header">
+    <h1 class="expenses-list__title">Gastos</h1>
+    <button class="expenses-list__btn-create" (click)="openCreate()">+ Nuevo Gasto</button>
+  </div>
+
+  <div *ngIf="error()" class="expenses-list__error">{{ error() }}</div>
+
+  <div *ngIf="isLoading()" class="expenses-list__loading">
+    Cargando gastos...
+  </div>
+
+  <div *ngIf="!isLoading() && expenses().length === 0" class="expenses-list__empty">
+    No hay gastos registrados
+  </div>
+
+  <div *ngIf="!isLoading() && expenses().length > 0" class="expenses-list__grid-container">
+    <ag-grid-angular
+      #agGrid
+      class="expenses-list__grid"
+      [rowData]="expenses()"
+      [columnDefs]="columnDefs"
+      [gridOptions]="gridOptions"
+      [domLayout]="'normal'">
+    </ag-grid-angular>
+  </div>
+
+  <div *ngIf="!isLoading() && expenses().length > 0" class="expenses-list__footer">
+    <div class="expenses-list__total">
+      <strong>Total de Gastos (USD):</strong>
+      <span class="expenses-list__total-amount">{{ formatCurrency(totalAmount()) }}</span>
+    </div>
+  </div>
+</div>
+
+<app-expense-form
+  *ngIf="showModal()"
+  [expense]="selectedExpense()"
+  (saved)="onSaved()"
+  (cancel)="showModal.set(false)">
+</app-expense-form>

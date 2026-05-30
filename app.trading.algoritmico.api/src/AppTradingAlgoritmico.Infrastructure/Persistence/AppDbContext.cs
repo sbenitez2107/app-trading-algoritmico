@@ -20,6 +20,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<StrategyComment> StrategyComments => Set<StrategyComment>();
     public DbSet<StrategyTrade> StrategyTrades => Set<StrategyTrade>();
     public DbSet<AccountEquitySnapshot> AccountEquitySnapshots => Set<AccountEquitySnapshot>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

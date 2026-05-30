@@ -28,6 +28,16 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/sqx/sqx.routes').then(m => m.SQX_ROUTES)
       },
+      {
+        path: 'administration',
+        children: [
+          {
+            path: 'expenses',
+            loadChildren: () =>
+              import('./features/expenses/expenses.routes').then(m => m.EXPENSES_ROUTES)
+          }
+        ]
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: '**', redirectTo: 'dashboard' }
     ]
