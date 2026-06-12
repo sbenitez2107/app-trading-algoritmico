@@ -24,6 +24,11 @@ export const routes: Routes = [
           import('./features/darwinex/darwinex.routes').then(m => m.DARWINEX_ROUTES)
       },
       {
+        path: 'ftmo',
+        loadChildren: () =>
+          import('./features/ftmo/ftmo.routes').then(m => m.FTMO_ROUTES)
+      },
+      {
         path: 'sqx',
         loadChildren: () =>
           import('./features/sqx/sqx.routes').then(m => m.SQX_ROUTES)

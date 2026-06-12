@@ -27,6 +27,7 @@ export class MainLayoutComponent {
   readonly appVersion = environment.version;
   sidebarCollapsed = signal(false);
   darwinexExpanded = signal(false);
+  ftmoExpanded = signal(false);
   sqxExpanded = signal(false);
   administrationExpanded = signal(false);
   readonly currentUser = this.authService.currentUser;
@@ -47,6 +48,7 @@ export class MainLayoutComponent {
     this.sidebarCollapsed.update(v => !v);
     if (this.sidebarCollapsed()) {
       this.darwinexExpanded.set(false);
+      this.ftmoExpanded.set(false);
       this.sqxExpanded.set(false);
       this.administrationExpanded.set(false);
     }
@@ -54,6 +56,10 @@ export class MainLayoutComponent {
 
   toggleDarwinex(): void {
     if (!this.sidebarCollapsed()) this.darwinexExpanded.update(v => !v);
+  }
+
+  toggleFtmo(): void {
+    if (!this.sidebarCollapsed()) this.ftmoExpanded.update(v => !v);
   }
 
   toggleSqx(): void {

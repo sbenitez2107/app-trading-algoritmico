@@ -77,6 +77,46 @@
         }
       </div>
 
+      <!-- FTMO with submenu -->
+      <div class="l-sidebar__nav-group">
+        <button
+          class="l-sidebar__nav-item l-sidebar__nav-item--group"
+          (click)="toggleFtmo()"
+          [class.l-sidebar__nav-item--expanded]="ftmoExpanded()"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+            <circle cx="9" cy="9" r="2" fill="currentColor"/>
+            <circle cx="15" cy="9" r="2" fill="currentColor"/>
+            <circle cx="9" cy="15" r="2" fill="currentColor"/>
+            <circle cx="15" cy="15" r="2" fill="currentColor"/>
+          </svg>
+          @if (!sidebarCollapsed()) {
+            <span class="l-sidebar__nav-label">FTMO</span>
+            <svg class="l-sidebar__chevron" [class.l-sidebar__chevron--open]="ftmoExpanded()"
+              width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          }
+        </button>
+
+        <!-- Submenu -->
+        @if (ftmoExpanded() && !sidebarCollapsed()) {
+          <div class="l-sidebar__submenu">
+            <a routerLink="/ftmo/demo" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--demo"></span>
+              Cuentas Demo
+            </a>
+            <a routerLink="/ftmo/live" routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item">
+              <span class="l-sidebar__subnav-dot l-sidebar__subnav-dot--live"></span>
+              Cuentas Live
+            </a>
+          </div>
+        }
+      </div>
+
       <a
         routerLink="/axi"
         routerLinkActive="l-sidebar__nav-item--active"
