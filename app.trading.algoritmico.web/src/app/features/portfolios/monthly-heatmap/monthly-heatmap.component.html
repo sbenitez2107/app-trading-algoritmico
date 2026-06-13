@@ -1,0 +1,30 @@
+@if (rows().length === 0) {
+  <p class="heatmap__empty">Sin datos mensuales todavía.</p>
+} @else {
+  <div class="heatmap">
+    <table class="heatmap__table">
+      <thead>
+        <tr>
+          <th class="heatmap__year-h">Año</th>
+          @for (m of monthLabels; track m) {
+            <th>{{ m }}</th>
+          }
+          <th class="heatmap__total-h">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.year) {
+          <tr>
+            <td class="heatmap__year">{{ row.year }}</td>
+            @for (m of row.months; track $index) {
+              <td class="heatmap__cell" [style]="cellStyle(m)">{{ fmt(m) }}</td>
+            }
+            <td class="heatmap__total" [class.pos]="row.total > 0" [class.neg]="row.total < 0">
+              {{ fmt(row.total) }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

@@ -77,6 +77,10 @@ public static class DependencyInjection
         // Expenses
         services.AddScoped<IExpenseService, ExpenseService>();
 
+        // Portfolios
+        services.AddScoped<IPortfolioService, PortfolioService>();
+        services.AddScoped<IRiskLimitsService, RiskLimitsService>();
+
         return services;
     }
 }

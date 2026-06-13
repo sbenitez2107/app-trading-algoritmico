@@ -1,0 +1,56 @@
+.heatmap {
+  overflow-x: auto;
+
+  &__empty {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  &__table {
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 0.78rem;
+    width: 100%;
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    td {
+      text-align: center;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm, 4px);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+  }
+
+  &__year-h,
+  &__year {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__cell {
+    min-width: 52px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__total {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+
+    &.pos {
+      color: #22c55e;
+    }
+    &.neg {
+      color: #ff3b30;
+    }
+  }
+}

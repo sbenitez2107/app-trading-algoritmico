@@ -1,0 +1,34 @@
+@if (slices().length === 0) {
+  <p class="donut__empty">Sin trades para componer.</p>
+} @else {
+  <div class="donut">
+    <svg viewBox="0 0 36 36" class="donut__svg">
+      @for (s of slices(); track s.symbol) {
+        <circle
+          class="donut__slice"
+          cx="18"
+          cy="18"
+          r="15.91549"
+          fill="none"
+          [attr.stroke]="s.color"
+          stroke-width="4"
+          [attr.stroke-dasharray]="s.dash"
+          [attr.stroke-dashoffset]="s.offset"
+        />
+      }
+    </svg>
+
+    <ul class="donut__legend">
+      @for (s of slices(); track s.symbol) {
+        <li class="donut__item">
+          <span class="donut__dot" [style.background]="s.color"></span>
+          <span class="donut__sym">{{ s.symbol }}</span>
+          <span class="donut__ret" [class.pos]="s.netProfit > 0" [class.neg]="s.netProfit < 0">{{
+            pct(s.returnPercent)
+          }}</span>
+          <span class="donut__trades">{{ s.tradeCount }} tr</span>
+        </li>
+      }
+    </ul>
+  </div>
+}

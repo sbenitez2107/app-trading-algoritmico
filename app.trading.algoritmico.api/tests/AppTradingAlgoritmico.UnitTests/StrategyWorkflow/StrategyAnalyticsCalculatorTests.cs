@@ -212,6 +212,25 @@ public class StrategyAnalyticsCalculatorTests
     }
 
     [Fact]
+    public void Compute_SharpeRatio_PinsExactValue_ForKnownThreeDaySeries()
+    {
+        // Characterization (golden-master) pin: locks the EXACT annualized Sharpe for a fixed
+        // 3-day series so the BuildDailyNetSeries extraction stays byte-identical. If this value
+        // ever moves, the daily-series refactor changed the trusted math — that is a regression.
+        var d = new DateTime(2026, 1, 1);
+        var trades = new[]
+        {
+            Trade(d.AddDays(0), d.AddDays(0).AddHours(1), profit: 100m),
+            Trade(d.AddDays(1), d.AddDays(1).AddHours(1), profit: 200m),
+            Trade(d.AddDays(2), d.AddDays(2).AddHours(1), profit: -150m),
+        };
+
+        var dto = StrategyAnalyticsCalculator.Compute(100_000m, trades);
+
+        dto.SharpeRatio.Should().Be(4.41823707188903m, "golden-master pin — daily-series refactor must not move this");
+    }
+
+    [Fact]
     public void Compute_Exposure_MergesOverlappingTrades()
     {
         // Two fully-overlapping trades over a 10-hour window — exposure must be 100%.

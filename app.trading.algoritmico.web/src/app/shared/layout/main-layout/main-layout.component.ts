@@ -1,6 +1,4 @@
-import {
-  Component, ChangeDetectionStrategy, inject, signal, computed
-} from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -16,7 +14,7 @@ import { environment } from '../../../../environments/environment';
   imports: [CommonModule, RouterModule, RouterLink, RouterLinkActive, TranslateModule],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MainLayoutComponent {
   private readonly authService = inject(AuthService);
@@ -28,6 +26,7 @@ export class MainLayoutComponent {
   sidebarCollapsed = signal(false);
   darwinexExpanded = signal(false);
   ftmoExpanded = signal(false);
+  axiExpanded = signal(false);
   sqxExpanded = signal(false);
   administrationExpanded = signal(false);
   readonly currentUser = this.authService.currentUser;
@@ -40,34 +39,39 @@ export class MainLayoutComponent {
     return user.userName
       .split(' ')
       .slice(0, 2)
-      .map(w => w[0]?.toUpperCase() ?? '')
+      .map((w) => w[0]?.toUpperCase() ?? '')
       .join('');
   });
 
   toggleSidebar(): void {
-    this.sidebarCollapsed.update(v => !v);
+    this.sidebarCollapsed.update((v) => !v);
     if (this.sidebarCollapsed()) {
       this.darwinexExpanded.set(false);
       this.ftmoExpanded.set(false);
+      this.axiExpanded.set(false);
       this.sqxExpanded.set(false);
       this.administrationExpanded.set(false);
     }
   }
 
   toggleDarwinex(): void {
-    if (!this.sidebarCollapsed()) this.darwinexExpanded.update(v => !v);
+    if (!this.sidebarCollapsed()) this.darwinexExpanded.update((v) => !v);
   }
 
   toggleFtmo(): void {
-    if (!this.sidebarCollapsed()) this.ftmoExpanded.update(v => !v);
+    if (!this.sidebarCollapsed()) this.ftmoExpanded.update((v) => !v);
+  }
+
+  toggleAxi(): void {
+    if (!this.sidebarCollapsed()) this.axiExpanded.update((v) => !v);
   }
 
   toggleSqx(): void {
-    if (!this.sidebarCollapsed()) this.sqxExpanded.update(v => !v);
+    if (!this.sidebarCollapsed()) this.sqxExpanded.update((v) => !v);
   }
 
   toggleAdministration(): void {
-    if (!this.sidebarCollapsed()) this.administrationExpanded.update(v => !v);
+    if (!this.sidebarCollapsed()) this.administrationExpanded.update((v) => !v);
   }
 
   toggleTheme(): void {

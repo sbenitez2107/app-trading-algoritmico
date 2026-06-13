@@ -1,0 +1,438 @@
+<div class="pdetail">
+  <button class="btn btn--ghost pdetail__back" (click)="back()">← Volver</button>
+
+  @if (error()) {
+    <div class="pdetail__error">{{ error() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="pdetail__empty">Cargando...</div>
+  } @else if (portfolio(); as p) {
+    <div class="pdetail__header">
+      <div>
+        <h1 class="pdetail__title">{{ p.name }}</h1>
+        @if (p.description) {
+          <p class="pdetail__desc">{{ p.description }}</p>
+        }
+      </div>
+      <div class="pdetail__meta">
+        <span
+          class="badge"
+          [class.badge--live]="p.accountType === 1"
+          [class.badge--demo]="p.accountType === 0"
+        >
+          {{ p.accountType === 1 ? 'Live' : 'Demo' }}
+        </span>
+        <span class="pdetail__capital"
+          >Capital base: <strong>{{ money(p.initialCapital) }}</strong></span
+        >
+        <span class="pdetail__count">{{ p.memberCount }} estrategia(s)</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button
+        class="tabs__tab"
+        [class.tabs__tab--active]="activeTab() === 'overview'"
+        (click)="setTab('overview')"
+      >
+        Resumen
+      </button>
+      <button
+        class="tabs__tab"
+        [class.tabs__tab--active]="activeTab() === 'composition'"
+        (click)="setTab('composition')"
+      >
+        Composición
+      </button>
+      <button
+        class="tabs__tab"
+        [class.tabs__tab--active]="activeTab() === 'risk'"
+        (click)="setTab('risk')"
+      >
+        Riesgo
+      </button>
+    </div>
+
+    <!-- OVERVIEW -->
+    @if (activeTab() === 'overview') {
+      @if (p.memberCount === 0) {
+        <div class="pdetail__empty">
+          Agregá estrategias en la pestaña <strong>Composición</strong> para ver los KPIs
+          combinados.
+        </div>
+      } @else if (analytics()) {
+        <div class="kpi-strip">
+          @for (k of kpis(); track k.label) {
+            <div
+              class="kpi-card"
+              [class.kpi-card--good]="k.tone === 'good'"
+              [class.kpi-card--bad]="k.tone === 'bad'"
+            >
+              <span class="kpi-card__label">{{ k.label }}</span>
+              <span class="kpi-card__value">{{ k.value }}</span>
+            </div>
+          }
+        </div>
+
+        <h3 class="section-title">Estadísticas combinadas</h3>
+        <div class="stats">
+          @for (g of statGroups(); track g.title) {
+            <div class="stats__group">
+              <h4 class="stats__group-title">{{ g.title }}</h4>
+              <div class="stats__grid">
+                @for (it of g.items; track it.label) {
+                  <div class="stat">
+                    <span class="stat__label">{{ it.label }}</span>
+                    <span class="stat__value">{{ it.value }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          <div class="stats__group">
+            <h4 class="stats__group-title">Profit por símbolo</h4>
+            <app-symbol-donut [data]="analytics()!.bySymbol" />
+          </div>
+        </div>
+
+        @if (equityCurve().length > 0) {
+          <h3 class="section-title">Curva de equity combinada</h3>
+          <div class="panel">
+            <app-equity-chart [points]="equityCurve()" />
+          </div>
+        }
+
+        @if (monthlyReturns().length > 0) {
+          <h3 class="section-title">Retorno mensual</h3>
+          <div class="panel">
+            <app-monthly-heatmap [returns]="monthlyReturns()" />
+          </div>
+        }
+      } @else {
+        <div class="pdetail__empty">Calculando KPIs...</div>
+      }
+    }
+
+    <!-- COMPOSITION -->
+    @if (activeTab() === 'composition') {
+      <div class="composition">
+        <div class="composition__head">
+          <h2 class="composition__title">Estrategias del portfolio</h2>
+          <button class="btn btn--primary" (click)="openAddMember()">+ Agregar estrategia</button>
+        </div>
+
+        @if (p.members.length === 0) {
+          <div class="pdetail__empty">Todavía no hay estrategias. Agregá la primera.</div>
+        } @else {
+          <p class="comp-hint">
+            El <strong>Peso</strong> es editable (doble-click). Ordená por cualquier columna.
+          </p>
+          <ag-grid-angular
+            class="comp-grid"
+            [theme]="gridTheme"
+            [rowData]="compositionRows()"
+            [columnDefs]="compositionColumnDefs"
+            [defaultColDef]="compositionDefaultColDef"
+            [getRowId]="compositionRowId"
+            [pinnedBottomRowData]="compositionPinnedTotal()"
+            [animateRows]="true"
+            [domLayout]="'autoHeight'"
+            (cellValueChanged)="onCompositionCellChanged($event)"
+          >
+          </ag-grid-angular>
+          <p class="comp-hint">
+            <strong>Aporte $</strong> = Peso × PnL de cada estrategia — su suma da el Net Profit del
+            portfolio. La fila <strong>TOTAL</strong> muestra los KPIs
+            <strong>combinados</strong> (recalculados sobre el stream ponderado, NO promediados):
+            por eso el Sharpe/Max DD combinados difieren de los individuales — es la
+            diversificación.
+          </p>
+        }
+      </div>
+    }
+
+    <!-- RISK -->
+    @if (activeTab() === 'risk') {
+      @if (p.memberCount === 0) {
+        <div class="pdetail__empty">Agregá estrategias para calcular el VaR del portfolio.</div>
+      } @else if (risk(); as r) {
+        <div class="riskbar">
+          <span
+            >Método: <strong>{{ r.method }}</strong></span
+          >
+          <span
+            >Ventana: <strong>{{ r.windowDays }}d</strong></span
+          >
+          <span
+            >Observaciones: <strong>{{ r.observationDays }}</strong></span
+          >
+        </div>
+
+        <div class="kpi-strip">
+          <div class="kpi-card kpi-card--bad">
+            <span class="kpi-card__label">VaR 95% (diario)</span>
+            <span class="kpi-card__value">{{ money(r.var95) }}</span>
+            <span class="kpi-card__sub">{{ pct(r.var95Percent) }} del capital</span>
+          </div>
+          <div class="kpi-card kpi-card--bad">
+            <span class="kpi-card__label">VaR 99% (estrés)</span>
+            <span class="kpi-card__value">{{ money(r.var99) }}</span>
+            <span class="kpi-card__sub">{{ pct(r.var99Percent) }} del capital</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Peor día</span>
+            <span class="kpi-card__value">{{ money(r.worstDay) }}</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-card__label">Mejor día</span>
+            <span class="kpi-card__value">{{ money(r.bestDay) }}</span>
+          </div>
+        </div>
+
+        <p class="caveat">
+          ⚠️ El VaR es <strong>realizado, cierre-a-cierre diario</strong> — NO intradía. No
+          reconstruye el peak-to-trough intra-jornada, así que no equivale al límite de pérdida
+          diaria intradía de una prop firm (FTMO, etc.). Es la pérdida diaria que no se supera el
+          95% / 99% de los días.
+        </p>
+
+        <h3 class="risk-section-title">Guardrails por servicio de fondeo</h3>
+        <div class="guardrails">
+          @for (g of r.guardrails; track g.service) {
+            <div
+              class="guard"
+              [class.guard--breach]="g.dailyBreached"
+              [class.guard--unconfigured]="!g.configured"
+            >
+              <div class="guard__head">
+                <span class="guard__service">{{ g.service }}</span>
+                @if (g.configured) {
+                  <span
+                    class="guard__badge"
+                    [class.guard__badge--ok]="g.verified"
+                    [class.guard__badge--warn]="!g.verified"
+                  >
+                    {{ fundingLabel(g.fundingService) }} ·
+                    {{ g.verified ? 'verificado' : 'sin verificar' }}
+                  </span>
+                } @else {
+                  <span class="guard__badge guard__badge--warn">sin configurar</span>
+                }
+                <button class="btn btn--ghost btn--xs" (click)="openLimitsEditor(g)">
+                  {{ g.configured ? 'Editar' : 'Configurar' }}
+                </button>
+              </div>
+
+              @if (g.configured && g.dailyLossLimitPct != null) {
+                <div class="guard__row">
+                  <span>VaR 95% diario</span>
+                  <strong>{{ pct(g.serviceVar95Percent) }}</strong>
+                </div>
+                <div class="guard__row">
+                  <span>Límite pérdida diaria</span>
+                  <strong>{{ pct(g.dailyLossLimitPct) }}</strong>
+                </div>
+                <div class="guard__bar">
+                  <div
+                    class="guard__bar-fill"
+                    [class.guard__bar-fill--breach]="g.dailyBreached"
+                    [style.width.%]="
+                      g.dailyLossLimitPct ? (g.serviceVar95Percent / g.dailyLossLimitPct) * 100 : 0
+                    "
+                  ></div>
+                </div>
+                <div
+                  class="guard__verdict"
+                  [class.pos]="!g.dailyBreached"
+                  [class.neg]="g.dailyBreached"
+                >
+                  @if (g.dailyBreached) {
+                    ⚠️ El VaR diario supera el límite — riesgo de breach
+                  } @else {
+                    ✓ Headroom: {{ pct(g.dailyHeadroomPct) }} bajo el límite
+                  }
+                </div>
+                <div class="guard__limits-row">
+                  @if (g.maxLossLimitPct != null) {
+                    <span
+                      >Máx. pérdida: <strong>{{ pct(g.maxLossLimitPct) }}</strong> ({{
+                        g.drawdownModel === DrawdownModel.Trailing ? 'trailing' : 'static'
+                      }})</span
+                    >
+                  }
+                  @if (g.profitTargetPct != null) {
+                    <span
+                      >Profit target: <strong>{{ pct(g.profitTargetPct) }}</strong></span
+                    >
+                  }
+                  <span
+                    >Max DD actual: <strong>{{ pct(r.maxDrawdownPercent) }}</strong></span
+                  >
+                </div>
+              } @else {
+                <p class="guard__hint">
+                  Configurá los límites de este servicio para ver el headroom vs el VaR. Los números
+                  los cargás vos (no vienen precargados).
+                </p>
+              }
+            </div>
+          }
+        </div>
+
+        @if (r.byService.length > 1) {
+          <h3 class="risk-section-title">Riesgo por servicio</h3>
+          <table class="ptable">
+            <thead>
+              <tr>
+                <th>Servicio</th>
+                <th class="ptable__num">Estrategias</th>
+                <th class="ptable__num">Net Profit (pond.)</th>
+                <th class="ptable__num">VaR 95%</th>
+                <th class="ptable__num">VaR 95% (% cap)</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of r.byService; track s.service) {
+                <tr>
+                  <td>{{ s.service }}</td>
+                  <td class="ptable__num">{{ s.strategyCount }}</td>
+                  <td class="ptable__num">{{ money(s.netProfit) }}</td>
+                  <td class="ptable__num">{{ money(s.var95) }}</td>
+                  <td class="ptable__num">{{ pct(s.var95Percent) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <p class="caveat caveat--muted">
+            El VaR por servicio es <em>standalone</em> (cada servicio aislado a su peso en el
+            portfolio). La suma de los VaR por servicio no iguala el VaR total — la diferencia es la
+            diversificación.
+          </p>
+        }
+      } @else {
+        <div class="pdetail__empty">Calculando VaR...</div>
+      }
+    }
+  }
+</div>
+
+<!-- ADD MEMBER MODAL -->
+@if (showAddMember()) {
+  <div class="modal" (click)="showAddMember.set(false)">
+    <div class="modal__box" (click)="$event.stopPropagation()">
+      <h2 class="modal__title">Agregar estrategia</h2>
+
+      @if (candidates().length === 0) {
+        <p class="modal__hint">
+          No hay estrategias disponibles de tipo
+          {{ portfolio()?.accountType === 1 ? 'Live' : 'Demo' }}
+          (o ya están todas en el portfolio).
+        </p>
+      } @else {
+        <label class="field">
+          <span class="field__label">Estrategia</span>
+          <select class="field__input" [(ngModel)]="addStrategyId">
+            <option value="" disabled>Elegí una estrategia...</option>
+            @for (c of candidates(); track c.id) {
+              <option [value]="c.id">{{ c.broker }} · {{ c.accountName }} · {{ c.name }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Peso</span>
+          <input class="field__input" type="number" min="0" step="0.1" [(ngModel)]="addWeight" />
+        </label>
+      }
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="showAddMember.set(false)">Cancelar</button>
+        <button class="btn btn--primary" [disabled]="!addStrategyId" (click)="submitAddMember()">
+          Agregar
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- RISK LIMITS MODAL -->
+@if (showLimitsModal()) {
+  <div class="modal" (click)="showLimitsModal.set(false)">
+    <div class="modal__box" (click)="$event.stopPropagation()">
+      <h2 class="modal__title">Límites de riesgo — {{ limitsForm.broker }}</h2>
+      <p class="modal__hint">
+        Cargá los números de la rulebook real del servicio. Marcá "verificado" cuando los hayas
+        confirmado contra los términos vigentes — no vienen precargados a propósito.
+      </p>
+
+      <label class="field">
+        <span class="field__label">Servicio de fondeo</span>
+        <select class="field__input" [(ngModel)]="limitsForm.fundingService">
+          <option [ngValue]="FundingService.Ftmo">FTMO</option>
+          <option [ngValue]="FundingService.Axi">Axi</option>
+          <option [ngValue]="FundingService.DarwinexZero">Darwinex Zero</option>
+          <option [ngValue]="FundingService.Other">Otro</option>
+        </select>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Pérdida diaria máx. (%)</span>
+          <input
+            class="field__input"
+            type="number"
+            min="0"
+            step="0.1"
+            [(ngModel)]="limitsForm.dailyLossPct"
+            placeholder="ej: 5"
+          />
+        </label>
+        <label class="field">
+          <span class="field__label">Pérdida total máx. (%)</span>
+          <input
+            class="field__input"
+            type="number"
+            min="0"
+            step="0.1"
+            [(ngModel)]="limitsForm.maxLossPct"
+            placeholder="ej: 10"
+          />
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Profit target (%)</span>
+          <input
+            class="field__input"
+            type="number"
+            min="0"
+            step="0.1"
+            [(ngModel)]="limitsForm.profitTargetPct"
+            placeholder="ej: 10"
+          />
+        </label>
+        <label class="field">
+          <span class="field__label">Modelo de drawdown</span>
+          <select class="field__input" [(ngModel)]="limitsForm.drawdownModel">
+            <option [ngValue]="DrawdownModel.Static">Static</option>
+            <option [ngValue]="DrawdownModel.Trailing">Trailing</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field field--check">
+        <input type="checkbox" [(ngModel)]="limitsForm.verified" />
+        <span>Verificado contra los términos vigentes del servicio</span>
+      </label>
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="showLimitsModal.set(false)">Cancelar</button>
+        <button class="btn btn--primary" [disabled]="savingLimits()" (click)="saveLimits()">
+          {{ savingLimits() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -27,6 +27,8 @@ export class AccountsListComponent implements OnInit {
   broker: string = 'Darwinex';
   accountType: AccountType = 0;
   pageTitle: string = '';
+  /** Absolute base path for internal navigation, injected via route data (e.g. "/darwinex", "/ftmo"). */
+  basePath: string = '/darwinex';
 
   constructor(
     private route: ActivatedRoute,
@@ -39,6 +41,7 @@ export class AccountsListComponent implements OnInit {
     const data = this.route.snapshot.data;
     this.accountType = data['accountType'] as AccountType;
     this.broker = data['broker'] ?? 'Darwinex';
+    this.basePath = data['basePath'] ?? '/' + this.broker.toLowerCase();
     this.pageTitle = data['title'] ?? 'Cuentas';
     this.loadAccounts();
   }
@@ -116,6 +119,6 @@ export class AccountsListComponent implements OnInit {
     const target = event.target as HTMLElement;
     if (target.tagName === 'BUTTON' || target.closest('button')) return;
     if (account.accountType !== 0) return;
-    this.router.navigate(['/darwinex/demo', account.id]);
+    this.router.navigate([`${this.basePath}/demo`, account.id]);
   }
 }

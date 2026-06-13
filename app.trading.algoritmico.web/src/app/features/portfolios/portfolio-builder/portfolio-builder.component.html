@@ -1,0 +1,106 @@
+<div class="builder">
+  <button class="btn btn--ghost builder__back" (click)="cancel()">← Cancelar</button>
+  <h1 class="builder__title">Nuevo Portfolio — {{ broker }}</h1>
+  <p class="builder__subtitle">
+    Estrategias de cuentas {{ broker }}. Elegí Demo/Live, filtrá por cuenta y seleccioná las que lo
+    componen.
+  </p>
+
+  @if (error()) {
+    <div class="builder__error">{{ error() }}</div>
+  }
+
+  <!-- Step 1: account type -->
+  <div class="seg">
+    <button
+      class="seg__btn"
+      [class.seg__btn--active]="accountType() === AccountType.Demo"
+      (click)="setType(AccountType.Demo)"
+    >
+      Demo
+    </button>
+    <button
+      class="seg__btn"
+      [class.seg__btn--active]="accountType() === AccountType.Live"
+      (click)="setType(AccountType.Live)"
+    >
+      Live
+    </button>
+  </div>
+
+  @if (isLoading()) {
+    <div class="builder__empty">Cargando estrategias...</div>
+  } @else if (candidates().length === 0) {
+    <div class="builder__empty">
+      No hay estrategias en cuentas {{ accountType() === AccountType.Live ? 'Live' : 'Demo' }}.
+    </div>
+  } @else {
+    <!-- Step 2: account filter -->
+    <div class="filters">
+      <span class="filters__label">Cuentas:</span>
+      <button
+        class="chip"
+        [class.chip--active]="allAccountsSelected()"
+        (click)="toggleAllAccounts()"
+      >
+        Todas
+      </button>
+      @for (a of accounts(); track a.accountId) {
+        <button
+          class="chip"
+          [class.chip--active]="isAccountSelected(a.accountId)"
+          (click)="toggleAccount(a.accountId)"
+        >
+          {{ a.broker }} · {{ a.accountName }} <span class="chip__count">{{ a.count }}</span>
+        </button>
+      }
+    </div>
+
+    <!-- Step 3: strategy grid (same ag-grid format as the MT4/SQX strategies) -->
+    <ag-grid-angular
+      class="builder__grid"
+      [theme]="gridTheme"
+      [rowData]="filtered()"
+      [columnDefs]="columnDefs"
+      [defaultColDef]="defaultColDef"
+      [rowSelection]="rowSelection"
+      [animateRows]="true"
+      [domLayout]="'autoHeight'"
+      [pagination]="true"
+      [paginationPageSize]="20"
+      [paginationPageSizeSelector]="[20, 50, 100]"
+      (gridReady)="onGridReady($event)"
+      (selectionChanged)="onSelectionChanged($event)"
+    >
+    </ag-grid-angular>
+  }
+
+  <!-- Step 4: confirm bar -->
+  <div class="confirm">
+    <label class="confirm__field">
+      <span class="confirm__label">Nombre</span>
+      <input
+        class="confirm__input"
+        type="text"
+        [ngModel]="name()"
+        (ngModelChange)="name.set($event)"
+        placeholder="Mi portfolio Darwinex"
+      />
+    </label>
+    <label class="confirm__field">
+      <span class="confirm__label">Capital total (USD)</span>
+      <input
+        class="confirm__input"
+        type="number"
+        min="1"
+        [ngModel]="capital()"
+        (ngModelChange)="capital.set($event)"
+      />
+    </label>
+    <div class="confirm__spacer"></div>
+    <span class="confirm__count">{{ selectedCount() }} estrategia(s) seleccionada(s)</span>
+    <button class="btn btn--primary" [disabled]="!canCreate() || creating()" (click)="create()">
+      {{ creating() ? 'Creando...' : 'Crear portfolio' }}
+    </button>
+  </div>
+</div>

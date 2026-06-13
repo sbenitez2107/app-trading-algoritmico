@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.DTOs.Trades;
 using AppTradingAlgoritmico.Application.Interfaces;
+using AppTradingAlgoritmico.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +23,18 @@ public class StrategiesController(IStrategyService service, ITradeImportService 
         CancellationToken ct = default)
     {
         var result = await service.GetByStageAsync(batchId, stageId, page, pageSize, ct);
+        return Ok(result);
+    }
+
+    /// <summary>Strategies eligible to join a portfolio of the given account type (Demo/Live).</summary>
+    [HttpGet("api/strategies/candidates")]
+    [ProducesResponseType(typeof(IReadOnlyList<StrategyCandidateDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StrategyCandidateDto>>> GetCandidates(
+        [FromQuery] string broker,
+        [FromQuery] AccountType accountType,
+        CancellationToken ct = default)
+    {
+        var result = await service.GetCandidatesAsync(broker, accountType, ct);
         return Ok(result);
     }
 

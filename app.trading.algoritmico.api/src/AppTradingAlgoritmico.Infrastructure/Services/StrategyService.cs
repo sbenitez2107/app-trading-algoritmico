@@ -1,6 +1,7 @@
 using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Entities;
+using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -123,6 +124,75 @@ public sealed class StrategyService(
             .ToList();
 
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<IReadOnlyList<StrategyCandidateDto>> GetCandidatesAsync(
+        string broker, AccountType accountType, CancellationToken ct = default)
+    {
+        // Query syntax + ORDER BY on the joined ENTITIES (not a projected DTO) so EF Core can
+        // translate it to one SQL statement. The inner join on TradingAccountId equals Id
+        // naturally excludes pipeline strategies that aren't assigned to an account.
+        var rows = await (
+            from s in db.Strategies.AsNoTracking()
+            join a in db.TradingAccounts.AsNoTracking() on s.TradingAccountId equals a.Id
+            where a.AccountType == accountType && a.Broker == broker
+            orderby a.Broker, a.Name, s.Name
+            select new
+            {
+                s.Id,
+                s.Name,
+                s.Symbol,
+                s.Timeframe,
+                s.MagicNumber,
+                AccountId = a.Id,
+                AccountName = a.Name,
+                a.Broker,
+                a.InitialBalance,
+                // SQX backtest KPIs stored on the strategy
+                s.TotalProfit,
+                s.NumberOfTrades,
+                s.SharpeRatio,
+                s.ProfitFactor,
+                s.WinningPercentage,
+                s.Drawdown
+            }).ToListAsync(ct);
+
+        if (rows.Count == 0) return [];
+
+        // Bulk-load every candidate's trades in ONE query, then run the in-memory analytics
+        // calculator per strategy (same pattern as GetByAccountAsync) to surface live KPIs.
+        var ids = rows.Select(r => r.Id).ToList();
+        var tradesByStrategy = (await db.StrategyTrades
+                .AsNoTracking()
+                .Where(t => ids.Contains(t.StrategyId))
+                .ToListAsync(ct))
+            .GroupBy(t => t.StrategyId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return rows.Select(r =>
+        {
+            var trades = tradesByStrategy.TryGetValue(r.Id, out var list) ? list : [];
+            var baseline = r.InitialBalance is decimal ib && ib > 0 ? ib : 100_000m;
+            var kpis = trades.Count == 0 ? null : StrategyAnalyticsCalculator.Compute(baseline, trades);
+
+            return new StrategyCandidateDto(
+                r.Id, r.Name, r.Symbol, r.Timeframe, r.MagicNumber, r.AccountId, r.AccountName, r.Broker,
+                // SQX backtest
+                TotalProfit: r.TotalProfit,
+                NumberOfTrades: r.NumberOfTrades,
+                SharpeRatio: r.SharpeRatio,
+                ProfitFactor: r.ProfitFactor,
+                WinningPercentage: r.WinningPercentage,
+                Drawdown: r.Drawdown,
+                // MT4 live (computed)
+                LiveTradeCount: trades.Count,
+                LiveNetProfit: kpis?.NetProfit,
+                LiveTotalReturn: kpis?.TotalReturn,
+                LiveWinRate: kpis?.WinRate,
+                LiveProfitFactor: kpis?.ProfitFactor,
+                LiveMaxDrawdownPercent: kpis?.MaxDrawdownPercent,
+                LiveSharpeRatio: kpis?.SharpeRatio);
+        }).ToList();
     }
 
     public async Task<StrategyDto> AddToAccountAsync(

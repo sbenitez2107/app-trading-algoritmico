@@ -21,6 +21,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<StrategyTrade> StrategyTrades => Set<StrategyTrade>();
     public DbSet<AccountEquitySnapshot> AccountEquitySnapshots => Set<AccountEquitySnapshot>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Portfolio> Portfolios => Set<Portfolio>();
+    public DbSet<PortfolioStrategy> PortfolioStrategies => Set<PortfolioStrategy>();
+    public DbSet<BrokerRiskLimits> BrokerRiskLimits => Set<BrokerRiskLimits>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -170,6 +170,8 @@ export class AccountDetailComponent implements OnInit {
   private readonly gridPresetService = inject(GridPresetService);
 
   accountId = '';
+  /** Absolute base path for the back button, injected via route data (e.g. "/darwinex", "/ftmo"). */
+  basePath = '/darwinex';
 
   readonly account = signal<TradingAccountDto | null>(null);
   readonly strategies = signal<StrategyDto[]>([]);
@@ -389,13 +391,14 @@ export class AccountDetailComponent implements OnInit {
 
   ngOnInit(): void {
     this.accountId = this.route.snapshot.params['accountId'];
+    this.basePath = this.route.snapshot.data?.['basePath'] ?? '/darwinex';
     this.loadAccount();
     this.loadStrategies();
     this.loadPresets();
   }
 
   navigateBack(): void {
-    this.router.navigate(['/darwinex/demo']);
+    this.router.navigate([`${this.basePath}/demo`]);
   }
 
   onGridReady(event: GridReadyEvent<StrategyDto>): void {

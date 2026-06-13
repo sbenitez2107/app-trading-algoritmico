@@ -5,33 +5,37 @@ export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () =>
-      import('./features/auth/login/login.component').then(m => m.LoginComponent)
+      import('./features/auth/login/login.component').then((m) => m.LoginComponent),
   },
   {
     path: '',
     loadComponent: () =>
-      import('./shared/layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
+      import('./shared/layout/main-layout/main-layout.component').then(
+        (m) => m.MainLayoutComponent,
+      ),
     canActivate: [authGuard],
     children: [
       {
         path: 'dashboard',
         loadComponent: () =>
-          import('./features/dashboard/home/home.component').then(m => m.HomeComponent)
+          import('./features/dashboard/home/home.component').then((m) => m.HomeComponent),
       },
       {
         path: 'darwinex',
         loadChildren: () =>
-          import('./features/darwinex/darwinex.routes').then(m => m.DARWINEX_ROUTES)
+          import('./features/darwinex/darwinex.routes').then((m) => m.DARWINEX_ROUTES),
       },
       {
         path: 'ftmo',
-        loadChildren: () =>
-          import('./features/ftmo/ftmo.routes').then(m => m.FTMO_ROUTES)
+        loadChildren: () => import('./features/ftmo/ftmo.routes').then((m) => m.FTMO_ROUTES),
+      },
+      {
+        path: 'axi',
+        loadChildren: () => import('./features/axi/axi.routes').then((m) => m.AXI_ROUTES),
       },
       {
         path: 'sqx',
-        loadChildren: () =>
-          import('./features/sqx/sqx.routes').then(m => m.SQX_ROUTES)
+        loadChildren: () => import('./features/sqx/sqx.routes').then((m) => m.SQX_ROUTES),
       },
       {
         path: 'administration',
@@ -39,13 +43,13 @@ export const routes: Routes = [
           {
             path: 'expenses',
             loadChildren: () =>
-              import('./features/expenses/expenses.routes').then(m => m.EXPENSES_ROUTES)
-          }
-        ]
+              import('./features/expenses/expenses.routes').then((m) => m.EXPENSES_ROUTES),
+          },
+        ],
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-      { path: '**', redirectTo: 'dashboard' }
-    ]
+      { path: '**', redirectTo: 'dashboard' },
+    ],
   },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: 'login' },
 ];

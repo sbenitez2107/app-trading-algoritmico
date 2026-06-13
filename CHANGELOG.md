@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.0] - 2026-06-13
+
+### Added
+- **Strategy Portfolios module** — build and analyze portfolios of strategies, scoped per platform. Available as a **Portfolios** submenu under **Darwinex**, **FTMO**, and **Axi**; each portfolio uses only that platform's accounts (Demo or Live).
+  - **Portfolio builder** (`/{broker}/portfolios/new`): pick Demo/Live, filter by account, and multi-select strategies in an ag-grid with the same SQX (Backtest) + MT4 (Live) column groups as the strategies grid; create with name + total capital.
+  - **SQX-style combination**: a portfolio combines member strategies at full size (weight = raw position-size multiplier, default 1 — Net Profit and trade counts SUM like an SQX portfolio); drawdown, Sharpe, profit factor, CAGR, SQN, exposure, Z-score and streaks are recomputed on the merged weighted trade stream (capturing diversification — not averaged).
+  - **Overview** with combined KPI strip + full SQX-style stats block (Rendimiento y Riesgo, Trades incl. monthly averages), a **Lightweight Charts** equity curve, a **monthly returns heatmap** (missing months shown as 0%), and a **profit-by-symbol donut** with per-symbol return % and trade counts.
+  - **Composition** tab: sortable ag-grid with editable weights, per-member Aporte $ + contribution %, a pinned combined TOTAL row, and SQX/MT4 KPI groups for comparison.
+  - **Risk** tab: **Historical VaR** (95% / 99%, daily, rolling 250-day window) in currency and % of capital, per-service breakdown, and **prop-firm guardrails** — per-broker risk limits (daily loss / max loss / profit target / drawdown model) that the user configures and verifies (never hardcoded), with VaR-vs-limit headroom and breach detection.
+  - **Backend**: `Portfolio` + `PortfolioStrategy` + `BrokerRiskLimits` entities, `PortfolioAnalyticsCalculator` (on-demand, no stale data), `PortfolioService`/`RiskLimitsService`, REST `PortfoliosController` + `RiskLimitsController`, EF Core migrations.
+- **Axi Select** is now a full platform in the sidebar (Cuentas Demo / Live / Portfolios), using the shared broker-accounts module.
+
+### Changed
+- **Extracted the Darwinex account components into a shared `broker-accounts` module** consumed by Darwinex, FTMO and Axi via a route factory (`brokerAccountsRoutes`), with broker-aware navigation. Removed the hardcoded `/darwinex/` navigation paths.
+- **`StrategyAnalyticsCalculator`** now delegates its daily-series, Sharpe, drawdown, streak, SQN, exposure and Z-score primitives to a shared `AnalyticsSeries` helper reused by the portfolio calculator (per-strategy Sharpe stays byte-identical).
+- Added a `GET /api/strategies/candidates` endpoint returning strategies (with SQX + live KPIs) eligible to join a portfolio of a given broker + account type.
+
+---
+
 ## [0.13.0] - 2026-05-30
 
 ### Added
