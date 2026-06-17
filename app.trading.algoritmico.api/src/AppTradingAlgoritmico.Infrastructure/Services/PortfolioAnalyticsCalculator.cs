@@ -311,6 +311,81 @@ public static class PortfolioAnalyticsCalculator
         return maxDdPct;
     }
 
+    /// <summary>
+    /// Pearson correlation matrix between member strategies' daily NET series, aligned over the union
+    /// of all trading days (a day with no trade for a strategy contributes 0). Unweighted — measures
+    /// the strategies' intrinsic co-movement. Lower correlations = better diversification.
+    /// </summary>
+    public static PortfolioCorrelationDto ComputeCorrelation(IReadOnlyList<PortfolioMemberInput> members)
+    {
+        var labels = members.Select(m => m.StrategyName).ToList();
+        var n = members.Count;
+        if (n == 0)
+            return new PortfolioCorrelationDto(labels, Array.Empty<IReadOnlyList<decimal>>(), 0, 0m);
+
+        // Per-member day → net, plus the union set of trading days.
+        var dayMaps = new List<Dictionary<DateTime, decimal>>(n);
+        var allDays = new SortedSet<DateTime>();
+        foreach (var m in members)
+        {
+            var map = new Dictionary<DateTime, decimal>();
+            foreach (var t in m.Trades)
+            {
+                if (t.IsOpen) continue;
+                var day = (t.CloseTime ?? t.OpenTime).Date;
+                map[day] = map.GetValueOrDefault(day) + AnalyticsSeries.NetOf(t);
+                allDays.Add(day);
+            }
+            dayMaps.Add(map);
+        }
+
+        var days = allDays.ToList();
+        var obs = days.Count;
+
+        // Aligned daily-net series per member (0 on non-trading days).
+        var series = dayMaps
+            .Select(map => days.Select(d => (double)map.GetValueOrDefault(d)).ToArray())
+            .ToList();
+
+        var matrix = new List<IReadOnlyList<decimal>>(n);
+        var offDiagSum = 0.0;
+        var offDiagCount = 0;
+        for (var i = 0; i < n; i++)
+        {
+            var row = new List<decimal>(n);
+            for (var j = 0; j < n; j++)
+            {
+                if (i == j) { row.Add(1m); continue; }
+                var c = Pearson(series[i], series[j]);
+                row.Add(Math.Round((decimal)c, 4));
+                if (i < j) { offDiagSum += c; offDiagCount++; }
+            }
+            matrix.Add(row);
+        }
+
+        var avg = offDiagCount > 0 ? Math.Round((decimal)(offDiagSum / offDiagCount), 4) : 0m;
+        return new PortfolioCorrelationDto(labels, matrix, obs, avg);
+    }
+
+    /// <summary>Pearson correlation of two equal-length series. Returns 0 if either is constant.</summary>
+    private static double Pearson(double[] x, double[] y)
+    {
+        var len = x.Length;
+        if (len < 2) return 0;
+        double mx = x.Average(), my = y.Average();
+        double sxy = 0, sxx = 0, syy = 0;
+        for (var k = 0; k < len; k++)
+        {
+            var dx = x[k] - mx;
+            var dy = y[k] - my;
+            sxy += dx * dy;
+            sxx += dx * dx;
+            syy += dy * dy;
+        }
+        if (sxx == 0 || syy == 0) return 0;
+        return sxy / Math.Sqrt(sxx * syy);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

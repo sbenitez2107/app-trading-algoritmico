@@ -25,6 +25,7 @@ import {
   PortfolioDto,
   PortfolioAnalyticsDto,
   PortfolioRiskDto,
+  PortfolioCorrelationDto,
   PortfolioEquityPointDto,
   MonthlyReturnDto,
   StrategyCandidateDto,
@@ -35,6 +36,7 @@ import {
 import { EquityChartComponent } from '../equity-chart/equity-chart.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
+import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
 
 interface KpiCard {
   label: string;
@@ -94,6 +96,7 @@ type Tab = 'overview' | 'composition' | 'risk';
     EquityChartComponent,
     MonthlyHeatmapComponent,
     SymbolDonutComponent,
+    CorrelationMatrixComponent,
   ],
   templateUrl: './portfolio-detail.component.html',
   styleUrl: './portfolio-detail.component.scss',
@@ -110,6 +113,7 @@ export class PortfolioDetailComponent implements OnInit {
   readonly portfolio = signal<PortfolioDto | null>(null);
   readonly analytics = signal<PortfolioAnalyticsDto | null>(null);
   readonly risk = signal<PortfolioRiskDto | null>(null);
+  readonly correlation = signal<PortfolioCorrelationDto | null>(null);
   readonly equityCurve = signal<PortfolioEquityPointDto[]>([]);
   readonly monthlyReturns = signal<MonthlyReturnDto[]>([]);
   readonly isLoading = signal(true);
@@ -162,6 +166,7 @@ export class PortfolioDetailComponent implements OnInit {
       { label: 'SQN', value: this.num(a.sqn), tone: this.tone(a.sqn) },
       { label: 'Win Rate', value: this.pct(a.winRate), tone: 'neutral' },
       { label: 'Trades', value: String(a.tradeCount), tone: 'neutral' },
+      { label: 'Wins / Losses', value: `${a.winCount} / ${a.lossCount}`, tone: 'neutral' },
       { label: 'Exposure', value: this.pct(a.exposure), tone: 'neutral' },
       { label: 'Final Equity', value: this.money(a.finalEquity), tone: 'neutral' },
     ];
@@ -197,28 +202,28 @@ export class PortfolioDetailComponent implements OnInit {
         items: [
           { label: 'Trades', value: String(a.tradeCount) },
           { label: 'Trades / mes prom.', value: this.avgPerMonth(a.tradeCount, a.daysSpanned) },
-          { label: 'Profit mensual prom.', value: this.money(a.monthlyAvgProfit) },
           { label: 'Wins / Losses', value: `${a.winCount} / ${a.lossCount}` },
           { label: 'Win %', value: this.pct(a.winRate) },
-          { label: 'Profit Factor', value: this.num(a.profitFactor) },
-          { label: 'Payout Ratio', value: this.num(a.payoutRatio) },
           { label: 'Wins/Losses Ratio', value: this.num(a.winsLossesRatio) },
-          { label: 'Expectancy', value: this.money(a.expectancy) },
-          { label: 'R-Expectancy', value: this.num(a.rExpectancy) },
-          { label: 'Gross Profit', value: this.money(a.grossProfit) },
-          { label: 'Gross Loss', value: this.money(a.grossLoss) },
           { label: 'Avg Trade', value: this.money(a.averageTrade) },
           { label: 'Avg Win', value: this.money(a.averageWin) },
           { label: 'Avg Loss', value: this.money(a.averageLoss) },
+          { label: 'Profit Factor', value: this.num(a.profitFactor) },
+          { label: 'Profit mensual prom.', value: this.money(a.monthlyAvgProfit) },
+          { label: 'Payout Ratio', value: this.num(a.payoutRatio) },
+          { label: 'Desviación', value: this.money(a.standardDeviation) },
+          { label: 'Expectancy', value: this.money(a.expectancy) },
+          { label: 'R-Expectancy', value: this.num(a.rExpectancy) },
+          { label: 'Z-Score', value: this.num(a.zScore) },
+          { label: 'Z-Probability', value: this.pct(a.zProbability) },
+          { label: 'Gross Profit', value: this.money(a.grossProfit) },
+          { label: 'Gross Loss', value: this.money(a.grossLoss) },
           { label: 'Largest Win', value: this.money(a.largestWin) },
           { label: 'Largest Loss', value: this.money(a.largestLoss) },
           { label: 'Max Consec. Wins', value: String(a.maxConsecutiveWins) },
           { label: 'Max Consec. Losses', value: String(a.maxConsecutiveLosses) },
           { label: 'Avg Consec. Wins', value: this.num(a.averageConsecutiveWins) },
           { label: 'Avg Consec. Losses', value: this.num(a.averageConsecutiveLosses) },
-          { label: 'Desviación', value: this.money(a.standardDeviation) },
-          { label: 'Z-Score', value: this.num(a.zScore) },
-          { label: 'Z-Probability', value: this.pct(a.zProbability) },
         ],
       },
     ];
@@ -504,11 +509,16 @@ export class PortfolioDetailComponent implements OnInit {
       next: (r) => this.risk.set(r),
       error: () => this.risk.set(null),
     });
+    this.service.getCorrelation(this.portfolioId).subscribe({
+      next: (c) => this.correlation.set(c),
+      error: () => this.correlation.set(null),
+    });
   }
 
   /** Risk is recomputed from current trades — drop the cache when membership/weights change. */
   private invalidateRisk(): void {
     this.risk.set(null);
+    this.correlation.set(null);
     if (this.activeTab() === 'risk') this.loadRisk();
   }
 

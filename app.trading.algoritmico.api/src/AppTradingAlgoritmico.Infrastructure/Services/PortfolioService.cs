@@ -259,8 +259,8 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
 
     public async Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default)
     {
-        var (initialCapital, members) = await LoadMemberInputsAsync(portfolioId, ct);
-        var risk = PortfolioAnalyticsCalculator.ComputeVaR(initialCapital, members);
+        var (initialCapital, riskMembers) = await LoadMemberInputsAsync(portfolioId, ct);
+        var risk = PortfolioAnalyticsCalculator.ComputeVaR(initialCapital, riskMembers);
 
         // Enrich each per-service VaR with the user-configured prop-firm guardrails (if any).
         var brokers = risk.ByService.Select(s => s.Service).Distinct().ToList();
@@ -289,6 +289,12 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         }).ToList();
 
         return risk with { Guardrails = guardrails };
+    }
+
+    public async Task<PortfolioCorrelationDto> GetCorrelationAsync(Guid portfolioId, CancellationToken ct = default)
+    {
+        var (_, members) = await LoadMemberInputsAsync(portfolioId, ct);
+        return PortfolioAnalyticsCalculator.ComputeCorrelation(members);
     }
 
     // -------------------------------------------------------------------------

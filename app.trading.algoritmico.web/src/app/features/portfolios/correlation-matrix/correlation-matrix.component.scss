@@ -1,0 +1,59 @@
+.corr {
+  overflow-x: auto;
+
+  &__empty {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  &__table {
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 0.75rem;
+  }
+
+  &__corner {
+    background: transparent;
+  }
+
+  &__colhead {
+    width: 44px;
+    text-align: center;
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 4px;
+  }
+
+  &__rowhead {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-main);
+    padding: 4px 8px;
+    white-space: nowrap;
+    max-width: 220px;
+  }
+
+  &__rownum {
+    display: inline-block;
+    min-width: 16px;
+    color: var(--text-muted);
+    margin-right: 6px;
+  }
+
+  &__rowlabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 180px;
+    vertical-align: bottom;
+  }
+
+  &__cell {
+    width: 44px;
+    text-align: center;
+    padding: 6px 4px;
+    border-radius: 4px;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+  }
+}

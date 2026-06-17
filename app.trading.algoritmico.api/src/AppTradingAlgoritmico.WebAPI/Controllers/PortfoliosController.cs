@@ -127,4 +127,13 @@ public class PortfoliosController(IPortfolioService portfolioService) : Controll
         try { return Ok(await portfolioService.GetRiskAsync(id, ct)); }
         catch (KeyNotFoundException) { return NotFound(); }
     }
+
+    [HttpGet("{id:guid}/correlation")]
+    [ProducesResponseType(typeof(PortfolioCorrelationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PortfolioCorrelationDto>> GetCorrelation(Guid id, CancellationToken ct = default)
+    {
+        try { return Ok(await portfolioService.GetCorrelationAsync(id, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
 }

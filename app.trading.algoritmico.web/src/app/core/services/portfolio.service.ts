@@ -187,6 +187,13 @@ export interface PortfolioRiskDto {
   guardrails: ServiceGuardrailDto[];
 }
 
+export interface PortfolioCorrelationDto {
+  labels: string[];
+  matrix: number[][];
+  observationDays: number;
+  averageCorrelation: number;
+}
+
 export interface BrokerRiskLimitsDto {
   id: string;
   broker: string;
@@ -303,6 +310,10 @@ export class PortfolioService {
 
   getRisk(portfolioId: string): Observable<PortfolioRiskDto> {
     return this.http.get<PortfolioRiskDto>(`${this.base}/${portfolioId}/risk`);
+  }
+
+  getCorrelation(portfolioId: string): Observable<PortfolioCorrelationDto> {
+    return this.http.get<PortfolioCorrelationDto>(`${this.base}/${portfolioId}/correlation`);
   }
 
   getRiskLimits(): Observable<BrokerRiskLimitsDto[]> {

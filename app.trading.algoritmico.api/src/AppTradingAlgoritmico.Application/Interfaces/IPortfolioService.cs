@@ -25,4 +25,5 @@ public interface IPortfolioService
     Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioEquityPointDto>> GetEquityCurveAsync(Guid portfolioId, CancellationToken ct = default);
     Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default);
+    Task<PortfolioCorrelationDto> GetCorrelationAsync(Guid portfolioId, CancellationToken ct = default);
 }

@@ -83,6 +83,17 @@ public sealed record SymbolBreakdownDto(
     decimal ReturnPercent,
     int TradeCount);
 
+/// <summary>
+/// Pearson correlation matrix between member strategies' daily NET series (over the union of
+/// trading days). Values in [-1, 1]; lower = better diversified. <see cref="AverageCorrelation"/>
+/// is the mean of the off-diagonal pairs — a single diversification gauge.
+/// </summary>
+public sealed record PortfolioCorrelationDto(
+    IReadOnlyList<string> Labels,
+    IReadOnlyList<IReadOnlyList<decimal>> Matrix,
+    int ObservationDays,
+    decimal AverageCorrelation);
+
 /// <summary>How a single member strategy contributes to its portfolio.</summary>
 public sealed record PortfolioMemberContributionDto(
     Guid StrategyId,

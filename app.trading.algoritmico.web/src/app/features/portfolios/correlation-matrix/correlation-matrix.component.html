@@ -1,0 +1,29 @@
+@if (rows().length === 0) {
+  <p class="corr__empty">Sin datos suficientes para calcular correlación.</p>
+} @else {
+  <div class="corr">
+    <table class="corr__table">
+      <thead>
+        <tr>
+          <th class="corr__corner"></th>
+          @for (idx of indices(); track idx) {
+            <th class="corr__colhead">{{ idx }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.index) {
+          <tr>
+            <th class="corr__rowhead" [title]="row.label">
+              <span class="corr__rownum">{{ row.index }}</span>
+              <span class="corr__rowlabel">{{ row.label }}</span>
+            </th>
+            @for (c of row.cells; track $index) {
+              <td class="corr__cell" [style]="cellStyle(c, $index === row.index - 1)">{{ c.toFixed(2) }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

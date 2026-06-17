@@ -310,6 +310,26 @@
             diversificación.
           </p>
         }
+
+        @if (correlation(); as corr) {
+          @if (corr.matrix.length > 1) {
+            <h3 class="risk-section-title">Correlación entre estrategias</h3>
+            <p class="corr-summary">
+              Correlación promedio:
+              <strong [class.pos]="corr.averageCorrelation <= 0.3" [class.neg]="corr.averageCorrelation >= 0.7">
+                {{ corr.averageCorrelation.toFixed(2) }}
+              </strong>
+              <span class="corr-summary__hint">
+                ({{ corr.observationDays }} días) — menor = más diversificado.
+                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--red"></span> alta (redundante)</span>
+                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--green"></span> negativa (hedge)</span>
+              </span>
+            </p>
+            <div class="panel">
+              <app-correlation-matrix [data]="corr" />
+            </div>
+          }
+        }
       } @else {
         <div class="pdetail__empty">Calculando VaR...</div>
       }
