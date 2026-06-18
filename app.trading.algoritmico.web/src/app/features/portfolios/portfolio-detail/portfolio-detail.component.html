@@ -40,6 +40,13 @@
       </button>
       <button
         class="tabs__tab"
+        [class.tabs__tab--active]="activeTab() === 'trades'"
+        (click)="setTab('trades')"
+      >
+        Lista de trades
+      </button>
+      <button
+        class="tabs__tab"
         [class.tabs__tab--active]="activeTab() === 'composition'"
         (click)="setTab('composition')"
       >
@@ -73,6 +80,18 @@
               <span class="kpi-card__value">{{ k.value }}</span>
             </div>
           }
+
+          <div class="kpi-card kpi-card--trades">
+            <span class="kpi-card__label">Trades</span>
+            <div class="kpi-card__trades-grid">
+              @for (t of tradeStats(); track t.label) {
+                <div class="kpi-card__trade-stat">
+                  <span class="kpi-card__trade-label">{{ t.label }}</span>
+                  <span class="kpi-card__trade-value">{{ t.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
         </div>
 
         <h3 class="section-title">Estadísticas combinadas</h3>
@@ -111,6 +130,18 @@
         }
       } @else {
         <div class="pdetail__empty">Calculando KPIs...</div>
+      }
+    }
+
+    <!-- TRADES -->
+    @if (activeTab() === 'trades') {
+      @if (p.memberCount === 0) {
+        <div class="pdetail__empty">
+          Agregá estrategias en la pestaña <strong>Composición</strong> para ver los trades
+          combinados del portfolio.
+        </div>
+      } @else {
+        <app-portfolio-trades-grid [portfolioId]="p.id" />
       }
     }
 
@@ -316,13 +347,22 @@
             <h3 class="risk-section-title">Correlación entre estrategias</h3>
             <p class="corr-summary">
               Correlación promedio:
-              <strong [class.pos]="corr.averageCorrelation <= 0.3" [class.neg]="corr.averageCorrelation >= 0.7">
+              <strong
+                [class.pos]="corr.averageCorrelation <= 0.3"
+                [class.neg]="corr.averageCorrelation >= 0.7"
+              >
                 {{ corr.averageCorrelation.toFixed(2) }}
               </strong>
               <span class="corr-summary__hint">
                 ({{ corr.observationDays }} días) — menor = más diversificado.
-                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--red"></span> alta (redundante)</span>
-                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--green"></span> negativa (hedge)</span>
+                <span class="corr-legend"
+                  ><span class="corr-legend__sw corr-legend__sw--red"></span> alta
+                  (redundante)</span
+                >
+                <span class="corr-legend"
+                  ><span class="corr-legend__sw corr-legend__sw--green"></span> negativa
+                  (hedge)</span
+                >
               </span>
             </p>
             <div class="panel">

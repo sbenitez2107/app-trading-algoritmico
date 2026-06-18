@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.0] - 2026-06-18
+
+### Added
+- **Portfolio combined trades list** — new **Lista de trades** tab in the portfolio detail (between Resumen and Composición) showing every trade of all member strategies combined, with a leading **Estrategia** column identifying each trade's source strategy and a pinned TOTAL row. Powered by a new `GET /api/portfolios/{id}/trades` endpoint (paged, status-filterable) that reuses the existing member-trades query; new `PortfolioTradeDto`.
+
+### Changed
+- **Portfolio Resumen KPI cards reordered**, with the trade metrics grouped into a single **Trades** card (Trades W/L · Win Rate · monthly & daily trade averages) at the end of the KPI strip.
+- **Extracted a shared `shared/trades-grid` module** (column defs, helpers, row styling) now consumed by both the strategy and portfolio trades grids.
+
+### Fixed
+- **Trades grids capped at 50 rows**: the portfolio and strategy trades grids paginate client-side but only fetched the first 50 trades from the server, so a portfolio/strategy with more trades silently showed only 50. Both now load the full set, using the server's reported total count.
+
+---
+
 ## [0.14.0] - 2026-06-13
 
 ### Added

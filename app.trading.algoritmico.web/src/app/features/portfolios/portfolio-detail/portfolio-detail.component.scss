@@ -191,6 +191,42 @@
     font-size: 0.72rem;
     color: var(--text-muted);
   }
+
+  /* Grouped Trades card: spans three strip columns and lists trade sub-metrics
+     in a 2×2 layout — Trades (W/L) | Win Rate on top, Monthly | Daily below. */
+  &--trades {
+    grid-column: span 3;
+    gap: var(--spacing-sm);
+  }
+
+  &__trades-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px var(--spacing-lg);
+  }
+
+  &__trade-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--spacing-sm);
+    padding: 2px 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  }
+
+  &__trade-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  &__trade-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
 }
 
 .riskbar {

@@ -236,6 +236,55 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
     }
 
     // -------------------------------------------------------------------------
+    // Trades (combined member trades)
+    // -------------------------------------------------------------------------
+
+    public async Task<PagedResult<PortfolioTradeDto>> GetTradesAsync(
+        Guid portfolioId, TradeStatusFilter status, int page, int pageSize, CancellationToken ct = default)
+    {
+        var portfolio = await db.Portfolios
+            .AsNoTracking()
+            .Include(p => p.Members)
+            .FirstOrDefaultAsync(p => p.Id == portfolioId, ct)
+            ?? throw new KeyNotFoundException($"Portfolio {portfolioId} not found.");
+
+        var memberIds = portfolio.Members.Select(m => m.StrategyId).ToList();
+        if (memberIds.Count == 0)
+            return new PagedResult<PortfolioTradeDto>([], 0, page, pageSize);
+
+        var nameById = (await db.Strategies.AsNoTracking()
+                .Where(s => memberIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.Name })
+                .ToListAsync(ct))
+            .ToDictionary(s => s.Id, s => s.Name);
+
+        var query = db.StrategyTrades.AsNoTracking().Where(t => memberIds.Contains(t.StrategyId));
+        query = status switch
+        {
+            TradeStatusFilter.Open => query.Where(t => t.IsOpen),
+            TradeStatusFilter.Closed => query.Where(t => !t.IsOpen),
+            _ => query,
+        };
+
+        var total = await query.CountAsync(ct);
+
+        var rows = await query
+            .OrderByDescending(t => t.IsOpen)
+            .ThenByDescending(t => t.CloseTime)
+            .ThenByDescending(t => t.OpenTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        var items = rows.Select(t => new PortfolioTradeDto(
+            t.Id, t.StrategyId, nameById.GetValueOrDefault(t.StrategyId, "(unknown)"),
+            t.Ticket, t.OpenTime, t.CloseTime, t.Type, t.Size, t.Item, t.OpenPrice, t.ClosePrice,
+            t.StopLoss, t.TakeProfit, t.Commission, t.Taxes, t.Swap, t.Profit, t.CloseReason, t.IsOpen)).ToList();
+
+        return new PagedResult<PortfolioTradeDto>(items, total, page, pageSize);
+    }
+
+    // -------------------------------------------------------------------------
     // Analytics (computed on demand)
     // -------------------------------------------------------------------------
 

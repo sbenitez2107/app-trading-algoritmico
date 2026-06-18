@@ -37,6 +37,7 @@ import { EquityChartComponent } from '../equity-chart/equity-chart.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
+import { PortfolioTradesGridComponent } from '../portfolio-trades-grid/portfolio-trades-grid.component';
 
 interface KpiCard {
   label: string;
@@ -84,7 +85,7 @@ interface CompositionRow {
   liveSharpeRatio?: number;
 }
 
-type Tab = 'overview' | 'composition' | 'risk';
+type Tab = 'overview' | 'trades' | 'composition' | 'risk';
 
 @Component({
   selector: 'app-portfolio-detail',
@@ -97,6 +98,7 @@ type Tab = 'overview' | 'composition' | 'risk';
     MonthlyHeatmapComponent,
     SymbolDonutComponent,
     CorrelationMatrixComponent,
+    PortfolioTradesGridComponent,
   ],
   templateUrl: './portfolio-detail.component.html',
   styleUrl: './portfolio-detail.component.scss',
@@ -144,31 +146,40 @@ export class PortfolioDetailComponent implements OnInit {
     const a = this.analytics();
     if (!a) return [];
     return [
+      { label: 'Final Equity', value: this.money(a.finalEquity), tone: 'neutral' },
       { label: 'Net Profit', value: this.money(a.netProfit), tone: this.tone(a.netProfit) },
       { label: 'Total Return', value: this.pct(a.totalReturn), tone: this.tone(a.totalReturn) },
+      {
+        label: 'Return / DD',
+        value: this.num(a.returnDrawdownRatio),
+        tone: this.tone(a.returnDrawdownRatio),
+      },
+      {
+        label: 'Profit Factor',
+        value: this.num(a.profitFactor),
+        tone: a.profitFactor >= 1 ? 'good' : 'bad',
+      },
+      { label: 'Sharpe', value: this.num(a.sharpeRatio), tone: this.tone(a.sharpeRatio) },
       { label: 'CAGR', value: this.pct(a.cagr), tone: this.tone(a.cagr) },
       {
         label: 'Max Drawdown',
         value: this.pct(a.maxDrawdownPercent),
         tone: a.maxDrawdownPercent > 0 ? 'bad' : 'neutral',
       },
-      {
-        label: 'Return / DD',
-        value: this.num(a.returnDrawdownRatio),
-        tone: this.tone(a.returnDrawdownRatio),
-      },
-      { label: 'Sharpe', value: this.num(a.sharpeRatio), tone: this.tone(a.sharpeRatio) },
-      {
-        label: 'Profit Factor',
-        value: this.num(a.profitFactor),
-        tone: a.profitFactor >= 1 ? 'good' : 'bad',
-      },
       { label: 'SQN', value: this.num(a.sqn), tone: this.tone(a.sqn) },
-      { label: 'Win Rate', value: this.pct(a.winRate), tone: 'neutral' },
-      { label: 'Trades', value: String(a.tradeCount), tone: 'neutral' },
-      { label: 'Wins / Losses', value: `${a.winCount} / ${a.lossCount}`, tone: 'neutral' },
       { label: 'Exposure', value: this.pct(a.exposure), tone: 'neutral' },
-      { label: 'Final Equity', value: this.money(a.finalEquity), tone: 'neutral' },
+    ];
+  });
+
+  /** Trade-specific metrics, grouped into the final card of the KPI strip. */
+  readonly tradeStats = computed<StatItem[]>(() => {
+    const a = this.analytics();
+    if (!a) return [];
+    return [
+      { label: 'Trades (W/L)', value: `${a.tradeCount} (${a.winCount} / ${a.lossCount})` },
+      { label: 'Win Rate', value: this.pct(a.winRate) },
+      { label: 'Monthly avg', value: this.avgPerMonth(a.tradeCount, a.daysSpanned) },
+      { label: 'Daily avg', value: this.avgPerDay(a.tradeCount, a.daysSpanned) },
     ];
   });
 
@@ -672,6 +683,12 @@ export class PortfolioDetailComponent implements OnInit {
   private avgPerMonth(count: number, daysSpanned: number): string {
     if (daysSpanned <= 0) return count.toFixed(1);
     return (count / (daysSpanned / 30.4375)).toFixed(1);
+  }
+
+  /** Average count per day from a total and the day span. */
+  private avgPerDay(count: number, daysSpanned: number): string {
+    if (daysSpanned <= 0) return count.toFixed(2);
+    return (count / daysSpanned).toFixed(2);
   }
 
   signColor(v: number | null | undefined): { color: string } | null {

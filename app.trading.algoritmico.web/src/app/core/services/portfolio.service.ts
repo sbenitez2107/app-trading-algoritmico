@@ -248,6 +248,33 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+/**
+ * A single trade combined across all member strategies of a portfolio.
+ * Mirrors StrategyTradeDto plus the owning strategy's id + name so the grid
+ * can show which strategy each trade belongs to.
+ */
+export interface PortfolioTradeDto {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  ticket: number;
+  openTime: string;
+  closeTime: string | null;
+  type: string;
+  size: number;
+  item: string;
+  openPrice: number;
+  closePrice: number | null;
+  stopLoss: number;
+  takeProfit: number;
+  commission: number;
+  taxes: number;
+  swap: number;
+  profit: number;
+  closeReason: string | null;
+  isOpen: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PortfolioService {
   private readonly http = inject(HttpClient);
@@ -298,6 +325,22 @@ export class PortfolioService {
 
   getAnalytics(portfolioId: string): Observable<PortfolioAnalyticsDto> {
     return this.http.get<PortfolioAnalyticsDto>(`${this.base}/${portfolioId}/analytics`);
+  }
+
+  /** All trades combined across the portfolio's member strategies, paged + filterable by status. */
+  getTradesByPortfolio(
+    portfolioId: string,
+    status: 'open' | 'closed' | 'all' = 'all',
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<PortfolioTradeDto>> {
+    const params = new HttpParams()
+      .set('status', status)
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    return this.http.get<PagedResult<PortfolioTradeDto>>(`${this.base}/${portfolioId}/trades`, {
+      params,
+    });
   }
 
   getMonthlyReturns(portfolioId: string): Observable<MonthlyReturnDto[]> {

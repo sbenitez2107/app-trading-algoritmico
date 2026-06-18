@@ -15,6 +15,11 @@ public interface IPortfolioService
     Task<PortfolioDto> UpdateAsync(Guid id, UpdatePortfolioDto dto, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
+    // Trades
+    /// <summary>Returns a paginated list of the combined trades of all member strategies, filtered by status and ordered IsOpen DESC / CloseTime DESC / OpenTime DESC.</summary>
+    /// <exception cref="KeyNotFoundException">Portfolio does not exist.</exception>
+    Task<PagedResult<PortfolioTradeDto>> GetTradesAsync(Guid portfolioId, TradeStatusFilter status, int page, int pageSize, CancellationToken ct = default);
+
     // Membership
     Task<PortfolioDto> AddMemberAsync(Guid portfolioId, AddPortfolioMemberDto dto, CancellationToken ct = default);
     Task<PortfolioDto> UpdateMemberWeightAsync(Guid portfolioId, Guid strategyId, decimal weight, CancellationToken ct = default);

@@ -90,6 +90,26 @@ public class PortfoliosController(IPortfolioService portfolioService) : Controll
         catch (KeyNotFoundException) { return NotFound(); }
     }
 
+    // ---- Trades (combined member trades) ----
+
+    /// <summary>Returns the combined, paginated trades of all member strategies, filtered by status.</summary>
+    [HttpGet("{id:guid}/trades")]
+    [ProducesResponseType(typeof(PagedResult<PortfolioTradeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResult<PortfolioTradeDto>>> GetTrades(
+        Guid id,
+        [FromQuery] string status = "all",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        if (!Enum.TryParse<TradeStatusFilter>(status, ignoreCase: true, out var filter))
+            return BadRequest($"Invalid status '{status}'. Valid values: all, open, closed.");
+        try { return Ok(await portfolioService.GetTradesAsync(id, filter, page, pageSize, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
+
     // ---- Analytics (computed on demand) ----
 
     [HttpGet("{id:guid}/analytics")]
