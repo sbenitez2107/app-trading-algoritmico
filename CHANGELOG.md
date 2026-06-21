@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.1] - 2026-06-21
+
+### Security
+- **AutoMapper 13.0.1 → 16.1.1** to patch **CVE-2026-32933** (high-severity DoS — uncontrolled recursion on deeply-nested object graphs triggering an uncatchable `StackOverflowException`). Bumped `Microsoft.IdentityModel.Tokens` and `System.IdentityModel.Tokens.Jwt` 8.9.0 → 8.14.0 to satisfy AutoMapper 16's transitive requirement, and migrated the DI registration to the v16 API (`AddAutoMapper(cfg => cfg.AddMaps(...))`). Runs under the free AutoMapper Community license (no key required; emits a startup log notice only).
+
+---
+
 ## [0.16.0] - 2026-06-21
 
 ### Added
