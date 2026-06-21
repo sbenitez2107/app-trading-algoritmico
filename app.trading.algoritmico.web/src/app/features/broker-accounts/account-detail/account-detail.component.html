@@ -409,6 +409,13 @@
         </div>
       }
 
+      @if (equityCurve().length > 0) {
+        <div class="account-detail__equity-section">
+          <span class="kpi-section__title">Equity (período de los trades)</span>
+          <app-equity-chart [points]="equityCurve()" [height]="320" />
+        </div>
+      }
+
       <app-strategy-trades-grid [strategyId]="strat.id" />
     </div>
   }

@@ -157,7 +157,8 @@
           <div class="pdetail__empty">Todavía no hay estrategias. Agregá la primera.</div>
         } @else {
           <p class="comp-hint">
-            El <strong>Peso</strong> es editable (doble-click). Ordená por cualquier columna.
+            El <strong>Peso</strong> es editable (doble-click). Click en una estrategia para ver su
+            detalle. Ordená por cualquier columna.
           </p>
           <ag-grid-angular
             class="comp-grid"
@@ -170,6 +171,7 @@
             [animateRows]="true"
             [domLayout]="'autoHeight'"
             (cellValueChanged)="onCompositionCellChanged($event)"
+            (cellClicked)="onCompositionCellClicked($event)"
           >
           </ag-grid-angular>
           <p class="comp-hint">
@@ -495,4 +497,13 @@
       </div>
     </div>
   </div>
+}
+
+<!-- STRATEGY ANALYTICS MODAL (reused from demo accounts) -->
+@if (analyticsTargetStrategy(); as target) {
+  <app-strategy-analytics-modal
+    [strategyId]="target.id"
+    [strategyName]="target.name"
+    (closed)="closeAnalytics()"
+  />
 }

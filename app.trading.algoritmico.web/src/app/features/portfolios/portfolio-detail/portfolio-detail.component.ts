@@ -14,6 +14,7 @@ import {
   ColDef,
   ColGroupDef,
   CellValueChangedEvent,
+  CellClickedEvent,
   ICellRendererParams,
   ValueFormatterParams,
   themeQuartz,
@@ -38,6 +39,7 @@ import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.comp
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
 import { PortfolioTradesGridComponent } from '../portfolio-trades-grid/portfolio-trades-grid.component';
+import { StrategyAnalyticsModalComponent } from '../../broker-accounts/strategy-analytics-modal/strategy-analytics-modal.component';
 
 interface KpiCard {
   label: string;
@@ -99,6 +101,7 @@ type Tab = 'overview' | 'trades' | 'composition' | 'risk';
     SymbolDonutComponent,
     CorrelationMatrixComponent,
     PortfolioTradesGridComponent,
+    StrategyAnalyticsModalComponent,
   ],
   templateUrl: './portfolio-detail.component.html',
   styleUrl: './portfolio-detail.component.scss',
@@ -139,6 +142,8 @@ export class PortfolioDetailComponent implements OnInit {
   readonly candidates = signal<StrategyCandidateDto[]>([]);
   /** Per-strategy SQX + live KPIs (keyed by strategyId) for the composition comparison grid. */
   readonly memberKpis = signal<Map<string, StrategyCandidateDto>>(new Map());
+  /** Strategy whose analytics modal is open (reuses the demo-accounts strategy detail). */
+  readonly analyticsTargetStrategy = signal<{ id: string; name: string } | null>(null);
   addStrategyId = '';
   addWeight = 1;
 
@@ -424,8 +429,10 @@ export class PortfolioDetailComponent implements OnInit {
         {
           field: 'liveWinRate',
           headerName: 'Win %',
-          width: 90,
-          valueFormatter: (p) => this.pct(p.value),
+          width: 130,
+          headerTooltip: '(ganados / perdidos) win rate',
+          valueFormatter: (p: ValueFormatterParams<CompositionRow>) =>
+            this.liveWinRateLabel(p.data),
         },
         {
           field: 'liveProfitFactor',
@@ -450,6 +457,7 @@ export class PortfolioDetailComponent implements OnInit {
     },
     {
       headerName: '',
+      colId: 'actions',
       width: 60,
       sortable: false,
       filter: false,
@@ -471,6 +479,21 @@ export class PortfolioDetailComponent implements OnInit {
     if (e.colDef.field === 'weight' && e.data) {
       this.saveWeight(e.data.strategyId, e.newValue);
     }
+  }
+
+  /**
+   * Row click opens the strategy detail modal (the same one used in demo accounts).
+   * Skips the editable Peso cell, the actions cell, and the pinned TOTAL row.
+   */
+  onCompositionCellClicked(e: CellClickedEvent<CompositionRow>): void {
+    if (e.node.rowPinned || !e.data || e.data.isTotal) return;
+    const colId = e.column.getColId();
+    if (colId === 'weight' || colId === 'actions') return;
+    this.analyticsTargetStrategy.set({ id: e.data.strategyId, name: e.data.strategyName });
+  }
+
+  closeAnalytics(): void {
+    this.analyticsTargetStrategy.set(null);
   }
 
   ngOnInit(): void {
@@ -677,6 +700,21 @@ export class PortfolioDetailComponent implements OnInit {
   /** For values already stored as a percent number (SQX Win % = 51.96 → "51.96%"). */
   numPct(v: number | null | undefined): string {
     return v === null || v === undefined ? '—' : `${v.toFixed(2)}%`;
+  }
+
+  /**
+   * Live Win% with reconstructed counts: "(wins/losses) 40.00%".
+   * The per-strategy candidate feed has no explicit W/L counts, but wins are
+   * recoverable as round(winRate × trades) since the rate is derived from them.
+   */
+  liveWinRateLabel(row: CompositionRow | undefined): string {
+    if (!row) return '—';
+    const rate = row.liveWinRate;
+    const trades = row.liveTradeCount;
+    if (rate == null || trades == null || trades <= 0) return this.pct(rate);
+    const wins = Math.round(rate * trades);
+    const losses = trades - wins;
+    return `(${wins}/${losses}) ${this.pct(rate)}`;
   }
 
   /** Average count per ~month from a total and the day span (30.4375 days/month). */

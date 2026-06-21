@@ -197,6 +197,37 @@ public static class StrategyAnalyticsCalculator
         return result;
     }
 
+    /// <summary>
+    /// Builds the strategy equity curve: one point per CLOSED trade in chronological order,
+    /// walking running equity from <paramref name="initialBalance"/> with drawdown measured
+    /// against the running peak. Mirrors <see cref="PortfolioAnalyticsCalculator"/>.ComputeEquityCurve
+    /// so a single strategy and a portfolio are charted with the exact same logic.
+    /// </summary>
+    public static IReadOnlyList<StrategyEquityPointDto> ComputeEquityCurve(
+        decimal initialBalance,
+        IEnumerable<StrategyTrade> trades)
+    {
+        var closed = trades.Where(t => !t.IsOpen)
+            .OrderBy(t => t.CloseTime ?? t.OpenTime)
+            .ToList();
+
+        if (closed.Count == 0) return Array.Empty<StrategyEquityPointDto>();
+
+        var points = new List<StrategyEquityPointDto>(closed.Count);
+        var equity = initialBalance;
+        var peak = initialBalance;
+        foreach (var t in closed)
+        {
+            equity += NetOf(t);
+            if (equity > peak) peak = equity;
+            var dd = peak - equity;
+            var ddPct = peak > 0 ? dd / peak : 0m;
+            points.Add(new StrategyEquityPointDto(t.CloseTime ?? t.OpenTime, equity, dd, ddPct));
+        }
+
+        return points;
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

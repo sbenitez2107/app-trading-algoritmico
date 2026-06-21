@@ -195,4 +195,26 @@ public class StrategiesController(IStrategyService service, ITradeImportService 
             return NotFound();
         }
     }
+
+    /// <summary>
+    /// Returns the strategy's equity curve (one point per closed trade), ordered chronologically.
+    /// Covers all trades, independent of the trades pagination window.
+    /// </summary>
+    [HttpGet("api/strategies/{id:guid}/equity-curve")]
+    [ProducesResponseType(typeof(IReadOnlyList<StrategyEquityPointDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<StrategyEquityPointDto>>> GetEquityCurve(
+        [FromRoute] Guid id,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var curve = await tradeImportService.GetEquityCurveByStrategyAsync(id, ct);
+            return Ok(curve);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 }

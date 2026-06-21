@@ -25,6 +25,7 @@ import {
   StrategyService,
   StrategyDto,
   StrategyTradeSummaryDto,
+  StrategyEquityPointDto,
 } from '../../../core/services/strategy.service';
 import {
   TradingAccountService,
@@ -37,6 +38,7 @@ import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strat
 import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
+import { EquityChartComponent } from '../../portfolios/equity-chart/equity-chart.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 import { formatCurrency } from '../../../shared/utils/format';
@@ -157,6 +159,7 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     ImportTradesModalComponent,
     StrategyTradesGridComponent,
     StrategyAnalyticsModalComponent,
+    EquityChartComponent,
   ],
   templateUrl: './account-detail.component.html',
   styleUrl: './account-detail.component.scss',
@@ -192,6 +195,8 @@ export class AccountDetailComponent implements OnInit {
   readonly activeStrategyId = signal<string | null>(null);
   /** Target of the analytics modal — set from any row (Actions column) or the trades panel header. */
   readonly analyticsTargetStrategy = signal<StrategyDto | null>(null);
+  /** Equity curve of the active strategy, over the period its trades span (shown above the grid). */
+  readonly equityCurve = signal<StrategyEquityPointDto[]>([]);
 
   /** Currently selected strategy (or null when nothing is selected). */
   readonly activeStrategy = computed<StrategyDto | null>(() => {
@@ -242,11 +247,16 @@ export class AccountDetailComponent implements OnInit {
       const id = this.activeStrategyId();
       if (!id) {
         this.tradeSummary.set(null);
+        this.equityCurve.set([]);
         return;
       }
       this.strategyService.getTradesSummaryByStrategy(id).subscribe({
         next: (summary) => this.tradeSummary.set(summary),
         error: () => this.tradeSummary.set(null),
+      });
+      this.strategyService.getEquityCurveByStrategy(id).subscribe({
+        next: (curve) => this.equityCurve.set(curve),
+        error: () => this.equityCurve.set([]),
       });
     });
   }
@@ -386,7 +396,9 @@ export class AccountDetailComponent implements OnInit {
       },
     };
 
-    return [nameDef, symbolDef, timeframeDef, sqxGroup, mt4Group, deleteDef];
+    // Default group order: MT4 (Live) first, then SQX (Backtest) — live performance leads.
+    // Saved presets keep their own column order (see applyPreset), so this only affects the default.
+    return [nameDef, symbolDef, timeframeDef, mt4Group, sqxGroup, deleteDef];
   });
 
   ngOnInit(): void {

@@ -475,6 +475,10 @@
     background: rgba(59, 130, 246, 0.08);
     cursor: pointer;
   }
+  // Strategy rows are clickable (open the detail modal); the pinned TOTAL row is not.
+  .comp-grid .ag-row:not(.ag-row-pinned) {
+    cursor: pointer;
+  }
   .comp-grid__remove {
     background: none;
     border: none;

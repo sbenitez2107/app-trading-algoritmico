@@ -271,6 +271,36 @@ public sealed class TradeImportService(
         return StrategyAnalyticsCalculator.ComputeMonthlyReturns(initialBalance, trades);
     }
 
+    public async Task<IReadOnlyList<StrategyEquityPointDto>> GetEquityCurveByStrategyAsync(
+        Guid strategyId, CancellationToken ct)
+    {
+        var strategy = await db.Strategies
+            .AsNoTracking()
+            .Where(s => s.Id == strategyId)
+            .Select(s => new { s.Id, s.TradingAccountId })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException($"Strategy {strategyId} not found.");
+
+        var initialBalance = 100_000m;
+        if (strategy.TradingAccountId is Guid accountId)
+        {
+            var account = await db.TradingAccounts
+                .AsNoTracking()
+                .Where(a => a.Id == accountId)
+                .Select(a => new { a.InitialBalance })
+                .FirstOrDefaultAsync(ct);
+            if (account?.InitialBalance is decimal ib && ib > 0)
+                initialBalance = ib;
+        }
+
+        var trades = await db.StrategyTrades
+            .AsNoTracking()
+            .Where(t => t.StrategyId == strategyId)
+            .ToListAsync(ct);
+
+        return StrategyAnalyticsCalculator.ComputeEquityCurve(initialBalance, trades);
+    }
+
     public async Task<StrategyTradeSummaryDto> GetSummaryByStrategyAsync(
         Guid strategyId, CancellationToken ct)
     {

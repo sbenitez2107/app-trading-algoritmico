@@ -245,4 +245,52 @@ public class StrategyAnalyticsCalculatorTests
 
         dto.Exposure.Should().BeApproximately(1m, 0.001m, "overlapping intervals merge — both windows count once");
     }
+
+    [Fact]
+    public void ComputeEquityCurve_WalksRunningEquityAndDrawdownFromPeak()
+    {
+        // +500 (eq 100500, peak 100500, dd 0) → -300 (eq 100200, dd 300) → +100 (eq 100300, dd 200)
+        var d = new DateTime(2026, 1, 1);
+        var trades = new[]
+        {
+            Trade(d, d.AddHours(1), profit: 500m),
+            Trade(d.AddDays(1), d.AddDays(1).AddHours(1), profit: -300m),
+            Trade(d.AddDays(2), d.AddDays(2).AddHours(1), profit: 100m),
+        };
+
+        var curve = StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, trades);
+
+        curve.Should().HaveCount(3, "one point per closed trade");
+        curve[0].Equity.Should().Be(100_500m);
+        curve[0].Drawdown.Should().Be(0m);
+        curve[1].Equity.Should().Be(100_200m);
+        curve[1].Drawdown.Should().Be(300m, "100,500 peak − 100,200");
+        curve[2].Equity.Should().Be(100_300m);
+        curve[2].Drawdown.Should().Be(200m, "peak still 100,500");
+        curve[2].DrawdownPercent.Should().BeApproximately(200m / 100_500m, 0.0001m);
+    }
+
+    [Fact]
+    public void ComputeEquityCurve_ExcludesOpenTrades_AndSortsChronologically()
+    {
+        var d = new DateTime(2026, 1, 1);
+        var trades = new[]
+        {
+            Trade(d.AddDays(2), d.AddDays(2).AddHours(1), profit: 100m), // out of order
+            Trade(d, d.AddHours(1), profit: 50m),
+            Trade(d.AddDays(3), close: null, profit: 0m, isOpen: true),  // open → excluded
+        };
+
+        var curve = StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, trades);
+
+        curve.Should().HaveCount(2, "open trades are not on the realized equity curve");
+        curve[0].Equity.Should().Be(100_050m, "earliest close first");
+        curve[1].Equity.Should().Be(100_150m);
+    }
+
+    [Fact]
+    public void ComputeEquityCurve_NoTrades_ReturnsEmpty()
+    {
+        StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, []).Should().BeEmpty();
+    }
 }

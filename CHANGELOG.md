@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.0] - 2026-06-21
+
+### Added
+- **Strategy equity curve** — the EA detail (Cuentas Demo/Live) now shows an equity curve above the trades grid, covering the period the strategy's trades span. New `GET /api/strategies/{id}/equity-curve` endpoint (one point per closed trade, running equity from the account's initial balance with drawdown from the running peak) reusing the shared `AnalyticsSeries`; new `StrategyEquityPointDto`.
+- **Equity chart annotations** — both the strategy and portfolio equity charts now mark the **max drawdown** (a marker at the trough labelled with its % and $) and shade the **longest stagnation window** as a translucent vertical band.
+- **Strategy detail from a portfolio** — clicking a strategy row in the portfolio **Composición** grid opens the same strategy analytics modal used in the demo/live account detail.
+
+### Changed
+- **Portfolio Composición — Win % (MT4 Live)** now prepends the won/lost trade counts, e.g. `(2/3) 40.00%`.
+- **Account strategies grid** now shows the **MT4 (Live)** column group before **SQX (Backtest)** by default (saved column presets keep their own order).
+
+---
+
 ## [0.15.0] - 2026-06-18
 
 ### Added

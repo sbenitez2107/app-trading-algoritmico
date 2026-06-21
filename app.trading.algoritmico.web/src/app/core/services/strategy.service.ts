@@ -212,6 +212,14 @@ export interface StrategyTradeSummaryDto {
   netProfit: number;
 }
 
+/** One point on a strategy's equity curve (running equity + drawdown from peak per closed trade). */
+export interface StrategyEquityPointDto {
+  date: string;
+  equity: number;
+  drawdown: number;
+  drawdownPercent: number;
+}
+
 export interface StrategyTradeDto {
   id: string;
   ticket: number;
@@ -333,6 +341,12 @@ export class StrategyService {
   getMonthlyReturnsByStrategy(strategyId: string): Observable<MonthlyReturnDto[]> {
     return this.http.get<MonthlyReturnDto[]>(
       `${this.apiUrl}/api/strategies/${strategyId}/monthly-returns`,
+    );
+  }
+
+  getEquityCurveByStrategy(strategyId: string): Observable<StrategyEquityPointDto[]> {
+    return this.http.get<StrategyEquityPointDto[]>(
+      `${this.apiUrl}/api/strategies/${strategyId}/equity-curve`,
     );
   }
 
