@@ -25,6 +25,21 @@ public interface IPortfolioService
     Task<PortfolioDto> UpdateMemberWeightAsync(Guid portfolioId, Guid strategyId, decimal weight, CancellationToken ct = default);
     Task<PortfolioDto> RemoveMemberAsync(Guid portfolioId, Guid strategyId, CancellationToken ct = default);
 
+    // Summaries (header + analytics in one shot)
+    /// <summary>
+    /// Returns every portfolio (optionally filtered by <paramref name="broker"/>) ordered by
+    /// <c>CreatedAt DESC</c>, each enriched with its combined analytics KPIs — trades are bulk-loaded
+    /// in a single query to avoid N+1. Designed for grid display without a per-portfolio roundtrip.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioSummaryDto>> GetSummariesAsync(string? broker = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the monthly compounding returns of every portfolio (optionally filtered by
+    /// <paramref name="broker"/>) ordered by <c>CreatedAt DESC</c>. Trades are bulk-loaded in a single
+    /// query to avoid N+1, so the whole matrix costs one roundtrip instead of one per portfolio.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioMonthlyReturnsDto>> GetMonthlyReturnsByBrokerAsync(string? broker = null, CancellationToken ct = default);
+
     // Analytics (computed on demand)
     Task<PortfolioAnalyticsDto> GetAnalyticsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsAsync(Guid portfolioId, CancellationToken ct = default);

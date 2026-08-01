@@ -20,6 +20,7 @@ Full pipeline dashboard to manage the lifecycle of trading strategies created in
 - Connect and manage broker/platform accounts (MT4/MT5)
 - Darwinex (demo/live), FTMO and Axi support
 - AES-256 encryption for account credentials
+- Per-strategy monthly returns matrix (strategies × months, sortable, with year navigation)
 
 ### Strategy Portfolios
 Per-platform portfolios (under Darwinex / FTMO / Axi) that combine strategies of a single broker + account type (Demo or Live).
@@ -28,6 +29,7 @@ Per-platform portfolios (under Darwinex / FTMO / Axi) that combine strategies of
 - **SQX-style combination**: strategies combine at full size (weight = position multiplier); drawdown / Sharpe / profit factor / SQN recomputed on the merged stream (diversification, not averages)
 - **Combined stats**: KPI strip + full stats block, equity curve (Lightweight Charts), monthly returns heatmap, and a profit-by-symbol donut
 - **Risk**: Historical VaR (95%/99%, daily, rolling 250d) + per-broker prop-firm guardrails (daily/max loss, profit target) with VaR-vs-limit headroom — limits are user-sourced and verified, never hardcoded
+- **List management**: delete a portfolio from the grid, preview any portfolio's monthly returns in a hover tooltip, or switch the whole list to a portfolios × months matrix with year navigation
 
 ### User Preferences
 - Multi-language (EN/ES) with instant header toggle — default Spanish

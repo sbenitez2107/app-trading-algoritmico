@@ -62,9 +62,13 @@
   }
 }
 
-// Column-group header tints — applied via `headerClass` on the ColGroupDef.
-// Using ::ng-deep to reach inside the ag-grid encapsulated DOM.
+// ag-grid builds its cell/header DOM imperatively, so those nodes never receive
+// this component's `_ngcontent` attribute — a plain scoped selector would compile
+// to `.foo[_ngcontent-x]` and never match. `::ng-deep` compiles to
+// `[_nghost-x] .foo`, which does reach them. Every rule targeting grid-owned DOM
+// (headers, rows, and anything built inside a `cellRenderer`) must live in here.
 :host ::ng-deep {
+  // Column-group header tints — applied via `headerClass` on the ColGroupDef.
   .ag-header-group-cell.col-group-sqx {
     color: var(--color-accent, #89b4fa);
     font-weight: 600;
@@ -72,6 +76,55 @@
   .ag-header-group-cell.col-group-mt4 {
     color: var(--color-profit, #22c55e);
     font-weight: 600;
+  }
+
+  // Visual cue: clickable rows. Kept scoped to this component's grid so the
+  // unbounded `::ng-deep` cannot leak into other grids in the subtree.
+  .account-detail__grid .ag-row {
+    cursor: pointer;
+  }
+
+  // Action-cell buttons — built with `document.createElement` in the Actions
+  // column's cellRenderer (see account-detail.component.ts).
+  .grid-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    height: 100%;
+  }
+
+  .grid-action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--color-accent, #89b4fa);
+    padding: 0.25rem;
+    border-radius: 4px;
+    line-height: 1;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(137, 180, 250, 0.15);
+    }
+  }
+
+  .grid-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--color-error, #f38ba8);
+    padding: 0.25rem;
+    border-radius: 4px;
+    line-height: 1;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(243, 139, 168, 0.15);
+    }
   }
 }
 
@@ -86,12 +139,8 @@
     text-align: center;
   }
 
-  &__grid {
-    // Visual cue: clickable rows.
-    .ag-row {
-      cursor: pointer;
-    }
-  }
+  // NOTE: the clickable-row cursor for `&__grid` lives in the `:host ::ng-deep`
+  // block above — `.ag-row` is ag-grid-owned DOM and cannot be reached from here.
 
   &__trades-panel {
     margin-top: 1rem;
@@ -313,6 +362,11 @@
     }
   }
 
+  &--active {
+    border-color: var(--color-accent, #89b4fa);
+    color: var(--color-accent, #89b4fa);
+  }
+
   &--ghost {
     background-color: transparent;
     border-color: transparent;
@@ -470,43 +524,6 @@
   }
 }
 
-.grid-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  height: 100%;
-}
-
-.grid-action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--color-accent, #89b4fa);
-  padding: 0.25rem;
-  border-radius: 4px;
-  line-height: 1;
-  opacity: 0.7;
-
-  &:hover {
-    opacity: 1;
-    background-color: rgba(137, 180, 250, 0.15);
-  }
-}
-
-.grid-delete-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--color-error, #f38ba8);
-  padding: 0.25rem;
-  border-radius: 4px;
-  line-height: 1;
-  opacity: 0.7;
-
-  &:hover {
-    opacity: 1;
-    background-color: rgba(243, 139, 168, 0.15);
-  }
-}
+// NOTE: `.grid-actions`, `.grid-action-btn` and `.grid-delete-btn` intentionally
+// live in the `:host ::ng-deep` block near the top of this file — they style DOM
+// built by a cellRenderer, which scoped selectors cannot reach.

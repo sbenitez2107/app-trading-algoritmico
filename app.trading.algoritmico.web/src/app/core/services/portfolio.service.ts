@@ -275,6 +275,51 @@ export interface PortfolioTradeDto {
   isOpen: boolean;
 }
 
+/**
+ * Flat summary row for the portfolios list grid.
+ * Returned by GET /api/portfolios/summary?broker=<broker> as a plain array.
+ * Fraction fields (totalReturn, winRate, cagr, maxDrawdownPercent, exposure)
+ * are in [0..1] — multiply by 100 before displaying as percentages.
+ */
+export interface PortfolioSummaryDto {
+  id: string;
+  name: string;
+  broker: string;
+  accountType: AccountType;
+  initialCapital: number;
+  baseCurrency: string;
+  memberCount: number;
+  createdAt: string;
+  finalEquity: number;
+  netProfit: number;
+  totalReturn: number; // fraction, e.g. 0.0677 = 6.77%
+  returnDrawdownRatio: number;
+  profitFactor: number;
+  sharpeRatio: number;
+  cagr: number; // fraction
+  maxDrawdownPercent: number; // fraction
+  sqn: number;
+  exposure: number; // fraction
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number; // fraction
+  monthlyAvgProfit: number;
+  dailyAvgProfit: number;
+}
+
+/**
+ * Monthly returns of one portfolio, as returned by
+ * GET /api/portfolios/monthly-returns?broker=<broker> for every portfolio at once.
+ * `returnPercent` inside each entry is a fraction (0.0107 = 1.07%).
+ */
+export interface PortfolioMonthlyReturnsDto {
+  portfolioId: string;
+  name: string;
+  memberCount: number;
+  returns: MonthlyReturnDto[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class PortfolioService {
   private readonly http = inject(HttpClient);
@@ -287,6 +332,21 @@ export class PortfolioService {
       .set('page', page.toString())
       .set('pageSize', pageSize.toString());
     return this.http.get<PagedResult<PortfolioDto>>(this.base, { params });
+  }
+
+  /** Summary rows for the portfolios list grid — fuses header + analytics KPIs. */
+  getSummaries(broker: string): Observable<PortfolioSummaryDto[]> {
+    const params = new HttpParams().set('broker', broker);
+    return this.http.get<PortfolioSummaryDto[]>(`${this.base}/summary`, { params });
+  }
+
+  /**
+   * Monthly returns for every portfolio of the broker in one roundtrip.
+   * Feeds both the monthly-returns matrix view and the per-row tooltip in the list.
+   */
+  getMonthlyReturnsByBroker(broker: string): Observable<PortfolioMonthlyReturnsDto[]> {
+    const params = new HttpParams().set('broker', broker);
+    return this.http.get<PortfolioMonthlyReturnsDto[]>(`${this.base}/monthly-returns`, { params });
   }
 
   getById(id: string): Observable<PortfolioDto> {

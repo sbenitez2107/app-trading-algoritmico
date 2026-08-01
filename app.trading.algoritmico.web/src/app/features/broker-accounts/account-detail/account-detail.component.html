@@ -18,6 +18,15 @@
       </h1>
     </div>
     <div class="account-detail__actions">
+      <button
+        class="btn btn--secondary"
+        type="button"
+        [class.btn--active]="viewMode() === 'monthly'"
+        (click)="toggleMonthlyView()"
+        title="Toggle per-strategy monthly returns view"
+      >
+        Monthly Returns
+      </button>
       <div class="preset-toolbar">
         <button class="btn btn--secondary" type="button" (click)="togglePresetsDropdown()">
           Presets &#9662;
@@ -82,6 +91,8 @@
     <div class="account-detail__grid-wrapper">
       @if (isLoading()) {
         <div class="account-detail__loading">Loading strategies...</div>
+      } @else if (viewMode() === 'monthly') {
+        <app-strategy-monthly-returns [accountId]="accountId" />
       } @else {
         <ag-grid-angular
           class="account-detail__grid"

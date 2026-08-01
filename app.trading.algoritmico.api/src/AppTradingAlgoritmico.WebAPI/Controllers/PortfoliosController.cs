@@ -11,6 +11,35 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 [Authorize]
 public class PortfoliosController(IPortfolioService portfolioService) : ControllerBase
 {
+    /// <summary>
+    /// Returns all portfolios (optionally filtered by broker) with their combined analytics KPIs
+    /// in a single response, suitable for grid display. Trades are bulk-loaded in one query — no N+1.
+    /// </summary>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(IReadOnlyList<PortfolioSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PortfolioSummaryDto>>> GetSummaries(
+        [FromQuery] string? broker,
+        CancellationToken ct)
+    {
+        var result = await portfolioService.GetSummariesAsync(broker, ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns the monthly compounding returns of every portfolio (optionally filtered by broker),
+    /// ordered like the summaries grid. Powers the portfolios monthly-returns matrix and the
+    /// per-row monthly tooltip in a single roundtrip — trades are bulk-loaded in one query.
+    /// </summary>
+    [HttpGet("monthly-returns")]
+    [ProducesResponseType(typeof(IReadOnlyList<PortfolioMonthlyReturnsDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PortfolioMonthlyReturnsDto>>> GetMonthlyReturnsByBroker(
+        [FromQuery] string? broker,
+        CancellationToken ct)
+    {
+        var result = await portfolioService.GetMonthlyReturnsByBrokerAsync(broker, ct);
+        return Ok(result);
+    }
+
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<PortfolioDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResult<PortfolioDto>>> Get(

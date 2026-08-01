@@ -6,54 +6,91 @@
         Combiná estrategias de las cuentas {{ broker }} y medí el riesgo combinado.
       </p>
     </div>
-    <button class="btn btn--primary" (click)="openCreate()">+ Nuevo Portfolio</button>
+    <div class="portfolios__header-actions">
+      <button
+        class="btn btn--secondary"
+        type="button"
+        [class.btn--active]="viewMode() === 'monthly'"
+        (click)="toggleMonthlyView()"
+        title="Ver el retorno mensual de todos los portfolios"
+      >
+        Retorno mensual
+      </button>
+      <button class="btn btn--primary" type="button" (click)="openCreate()">
+        + Nuevo Portfolio
+      </button>
+    </div>
   </div>
 
   @if (error()) {
     <div class="portfolios__error">{{ error() }}</div>
   }
 
-  @if (isLoading()) {
-    <div class="portfolios__empty">Cargando portfolios...</div>
-  } @else if (portfolios().length === 0) {
-    <div class="portfolios__empty">
-      No hay portfolios todavía. Creá el primero para empezar a combinar estrategias.
-    </div>
-  } @else {
-    <div class="portfolios__grid">
-      @for (p of portfolios(); track p.id) {
-        <div class="pcard" (click)="open(p)">
-          <div class="pcard__top">
-            <span class="pcard__name">{{ p.name }}</span>
-            <span
-              class="pcard__badge"
-              [class.pcard__badge--live]="p.accountType === AccountType.Live"
-              [class.pcard__badge--demo]="p.accountType === AccountType.Demo"
-            >
-              {{ typeLabel(p.accountType) }}
-            </span>
-          </div>
-
-          @if (p.description) {
-            <p class="pcard__desc">{{ p.description }}</p>
-          }
-
-          <div class="pcard__stats">
-            <div class="pcard__stat">
-              <span class="pcard__stat-label">Estrategias</span>
-              <span class="pcard__stat-value">{{ p.memberCount }}</span>
-            </div>
-            <div class="pcard__stat">
-              <span class="pcard__stat-label">Capital base</span>
-              <span class="pcard__stat-value">{{
-                formatCurrency(p.initialCapital, p.baseCurrency)
-              }}</span>
-            </div>
-          </div>
-
-          <button class="pcard__delete" title="Eliminar" (click)="remove(p, $event)">🗑️</button>
-        </div>
-      }
-    </div>
-  }
+  <div class="portfolios__grid-host">
+    @if (viewMode() === 'monthly') {
+      <app-portfolio-monthly-returns
+        [rows]="monthlyRows()"
+        [isLoading]="monthlyLoading()"
+        [error]="monthlyError()"
+        (portfolioSelected)="openPortfolio($event)"
+      />
+    } @else if (isLoading()) {
+      <div class="portfolios__loading" role="status">Cargando portfolios...</div>
+    } @else if (portfolios().length === 0) {
+      <div class="portfolios__empty">
+        No hay portfolios todavía. Creá el primero para empezar a combinar estrategias.
+      </div>
+    } @else {
+      <ag-grid-angular
+        class="portfolios__grid"
+        [theme]="gridTheme"
+        [rowData]="portfolios()"
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        [animateRows]="true"
+        [pagination]="true"
+        [paginationPageSize]="25"
+        [paginationPageSizeSelector]="[10, 25, 50, 100]"
+        [tooltipShowDelay]="150"
+        [tooltipInteraction]="true"
+        (cellClicked)="onCellClicked($event)"
+      />
+    }
+  </div>
 </div>
+
+@if (pendingDelete(); as target) {
+  <div class="confirm-backdrop" (click)="cancelDelete()">
+    <div
+      class="confirm-dialog"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="delete-portfolio-title"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 id="delete-portfolio-title" class="confirm-dialog__title">Eliminar portfolio</h2>
+      <p class="confirm-dialog__body">
+        ¿Seguro que querés eliminar <strong>{{ target.name }}</strong
+        >? Se borra la combinación y sus pesos. Las estrategias y sus trades no se tocan.
+      </p>
+      <div class="confirm-dialog__actions">
+        <button
+          class="btn btn--secondary"
+          type="button"
+          [disabled]="isDeleting()"
+          (click)="cancelDelete()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn btn--danger"
+          type="button"
+          [disabled]="isDeleting()"
+          (click)="confirmDelete()"
+        >
+          {{ isDeleting() ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

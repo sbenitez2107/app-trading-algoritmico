@@ -196,6 +196,15 @@ export interface MonthlyReturnDto {
   tradeCount: number;
 }
 
+/** Monthly compounding returns of one strategy — account-level monthly view rows. */
+export interface StrategyMonthlyReturnsDto {
+  strategyId: string;
+  name: string;
+  symbol: string | null;
+  /** Empty when the strategy has no imported live trades. */
+  returns: MonthlyReturnDto[];
+}
+
 export interface StrategyTradeSummaryDto {
   tradeCount: number;
   closedCount: number;
@@ -341,6 +350,12 @@ export class StrategyService {
   getMonthlyReturnsByStrategy(strategyId: string): Observable<MonthlyReturnDto[]> {
     return this.http.get<MonthlyReturnDto[]>(
       `${this.apiUrl}/api/strategies/${strategyId}/monthly-returns`,
+    );
+  }
+
+  getMonthlyReturnsByAccount(accountId: string): Observable<StrategyMonthlyReturnsDto[]> {
+    return this.http.get<StrategyMonthlyReturnsDto[]>(
+      `${this.apiUrl}/api/trading-accounts/${accountId}/strategies/monthly-returns`,
     );
   }
 

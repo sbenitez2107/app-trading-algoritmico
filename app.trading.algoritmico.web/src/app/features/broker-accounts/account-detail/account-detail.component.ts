@@ -38,6 +38,7 @@ import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strat
 import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
+import { StrategyMonthlyReturnsComponent } from '../strategy-monthly-returns/strategy-monthly-returns.component';
 import { EquityChartComponent } from '../../portfolios/equity-chart/equity-chart.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
@@ -159,6 +160,7 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     ImportTradesModalComponent,
     StrategyTradesGridComponent,
     StrategyAnalyticsModalComponent,
+    StrategyMonthlyReturnsComponent,
     EquityChartComponent,
   ],
   templateUrl: './account-detail.component.html',
@@ -191,6 +193,8 @@ export class AccountDetailComponent implements OnInit {
   readonly showCommentsModal = signal(false);
   readonly selectedStrategyForComments = signal<StrategyDto | null>(null);
   readonly showImportModal = signal(false);
+  /** 'grid' = KPI grid (default); 'monthly' = per-strategy monthly returns view. */
+  readonly viewMode = signal<'grid' | 'monthly'>('grid');
   readonly showTradesGrid = signal(false);
   readonly activeStrategyId = signal<string | null>(null);
   /** Target of the analytics modal — set from any row (Actions column) or the trades panel header. */
@@ -442,6 +446,15 @@ export class AccountDetailComponent implements OnInit {
 
   toggleColumnPicker(): void {
     this.showColumnPicker.update((v) => !v);
+  }
+
+  toggleMonthlyView(): void {
+    this.viewMode.update((mode) => (mode === 'grid' ? 'monthly' : 'grid'));
+    // Grid-only side panels make no sense in the monthly view — close them.
+    if (this.viewMode() === 'monthly') {
+      this.showColumnPicker.set(false);
+      this.closeTradesPanel();
+    }
   }
 
   requestDelete(id: string): void {

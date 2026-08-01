@@ -288,6 +288,58 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
     // Analytics (computed on demand)
     // -------------------------------------------------------------------------
 
+    public async Task<IReadOnlyList<PortfolioSummaryDto>> GetSummariesAsync(string? broker = null, CancellationToken ct = default)
+    {
+        var loaded = await LoadPortfoliosWithMemberInputsAsync(broker, ct);
+
+        var results = new List<PortfolioSummaryDto>(loaded.Count);
+        foreach (var (p, inputs) in loaded)
+        {
+            var kpis = PortfolioAnalyticsCalculator.Compute(p.InitialCapital, inputs);
+
+            results.Add(new PortfolioSummaryDto(
+                Id: p.Id,
+                Name: p.Name,
+                Broker: p.Broker,
+                AccountType: p.AccountType,
+                InitialCapital: p.InitialCapital,
+                BaseCurrency: p.BaseCurrency,
+                MemberCount: p.Members.Count,
+                CreatedAt: p.CreatedAt,
+                FinalEquity: kpis.FinalEquity,
+                NetProfit: kpis.NetProfit,
+                TotalReturn: kpis.TotalReturn,
+                ReturnDrawdownRatio: kpis.ReturnDrawdownRatio,
+                ProfitFactor: kpis.ProfitFactor,
+                SharpeRatio: kpis.SharpeRatio,
+                Cagr: kpis.Cagr,
+                MaxDrawdownPercent: kpis.MaxDrawdownPercent,
+                Sqn: kpis.Sqn,
+                Exposure: kpis.Exposure,
+                TradeCount: kpis.TradeCount,
+                WinCount: kpis.WinCount,
+                LossCount: kpis.LossCount,
+                WinRate: kpis.WinRate,
+                MonthlyAvgProfit: kpis.MonthlyAvgProfit,
+                DailyAvgProfit: kpis.DailyAvgProfit));
+        }
+
+        return results;
+    }
+
+    public async Task<IReadOnlyList<PortfolioMonthlyReturnsDto>> GetMonthlyReturnsByBrokerAsync(string? broker = null, CancellationToken ct = default)
+    {
+        var loaded = await LoadPortfoliosWithMemberInputsAsync(broker, ct);
+
+        return loaded
+            .Select(x => new PortfolioMonthlyReturnsDto(
+                PortfolioId: x.Portfolio.Id,
+                Name: x.Portfolio.Name,
+                MemberCount: x.Portfolio.Members.Count,
+                Returns: PortfolioAnalyticsCalculator.ComputeMonthlyReturns(x.Portfolio.InitialCapital, x.Members)))
+            .ToList();
+    }
+
     public async Task<PortfolioAnalyticsDto> GetAnalyticsAsync(Guid portfolioId, CancellationToken ct = default)
     {
         var (initialCapital, members) = await LoadMemberInputsAsync(portfolioId, ct);
@@ -349,6 +401,68 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
     // -------------------------------------------------------------------------
     // Loading helpers
     // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Loads every portfolio (optionally broker-filtered, ordered <c>CreatedAt DESC</c> like the grid)
+    /// together with its calculator inputs. Strategy metadata and trades are each bulk-loaded in ONE
+    /// query across ALL portfolios, so the query count stays constant regardless of how many exist.
+    /// Shared by the summaries grid and the monthly-returns matrix.
+    /// </summary>
+    private async Task<List<(Portfolio Portfolio, List<PortfolioMemberInput> Members)>> LoadPortfoliosWithMemberInputsAsync(
+        string? broker, CancellationToken ct)
+    {
+        var query = db.Portfolios.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(broker))
+            query = query.Where(p => p.Broker == broker);
+
+        var portfolios = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Include(p => p.Members)
+            .ToListAsync(ct);
+
+        if (portfolios.Count == 0)
+            return [];
+
+        var allStrategyIds = portfolios
+            .SelectMany(p => p.Members.Select(m => m.StrategyId))
+            .Distinct()
+            .ToList();
+
+        // Strategy name + source broker (for per-service decomposition), via the account.
+        var stratInfo = await (
+            from s in db.Strategies.AsNoTracking()
+            where allStrategyIds.Contains(s.Id)
+            join a in db.TradingAccounts.AsNoTracking() on s.TradingAccountId equals a.Id into accs
+            from a in accs.DefaultIfEmpty()
+            select new { s.Id, s.Name, Broker = a != null ? a.Broker : null })
+            .ToListAsync(ct);
+
+        var infoMap = stratInfo.ToDictionary(s => s.Id);
+
+        var tradesByStrategy = (await db.StrategyTrades
+                .AsNoTracking()
+                .Where(t => allStrategyIds.Contains(t.StrategyId))
+                .ToListAsync(ct))
+            .GroupBy(t => t.StrategyId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<StrategyTrade>)g.ToList());
+
+        return portfolios
+            .Select(p => (
+                Portfolio: p,
+                Members: p.Members
+                    .Select(m =>
+                    {
+                        infoMap.TryGetValue(m.StrategyId, out var info);
+                        return new PortfolioMemberInput(
+                            m.StrategyId,
+                            info?.Name ?? "(unknown)",
+                            m.Weight,
+                            tradesByStrategy.TryGetValue(m.StrategyId, out var trades) ? trades : Array.Empty<StrategyTrade>(),
+                            info?.Broker);
+                    })
+                    .ToList()))
+            .ToList();
+    }
 
     /// <summary>Loads a portfolio's baseline + member inputs, bulk-loading all member trades in ONE query.</summary>
     private async Task<(decimal InitialCapital, List<PortfolioMemberInput> Members)> LoadMemberInputsAsync(

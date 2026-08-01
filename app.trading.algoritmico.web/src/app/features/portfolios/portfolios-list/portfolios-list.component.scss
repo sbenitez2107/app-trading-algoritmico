@@ -1,5 +1,8 @@
 .portfolios {
   padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 
   &__header {
     display: flex;
@@ -7,6 +10,7 @@
     align-items: flex-start;
     margin-bottom: var(--spacing-lg);
     gap: var(--spacing-md);
+    flex-shrink: 0;
   }
 
   &__title {
@@ -25,117 +29,105 @@
   &__error {
     padding: var(--spacing-md);
     background: rgba(255, 59, 48, 0.1);
-    color: #ff3b30;
+    color: var(--color-error, #ff3b30);
     border-radius: var(--radius-md);
     margin-bottom: var(--spacing-md);
+    flex-shrink: 0;
   }
 
+  &__grid-host {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+  }
+
+  &__loading,
   &__empty {
     text-align: center;
     padding: var(--spacing-xl);
     color: var(--text-muted);
   }
 
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+  }
+
   &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: var(--spacing-md);
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    cursor: pointer;
   }
 }
 
-.pcard {
-  position: relative;
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  cursor: pointer;
-  transition:
-    transform var(--transition-base),
-    border-color var(--transition-base);
-
-  &:hover {
-    transform: translateY(-2px);
-    border-color: var(--color-primary);
-  }
-
-  &__top {
+/* ----------------------------------------------------------------------------
+   Action-cell styles.
+   AG Grid builds cell DOM outside Angular's template compiler, so those nodes
+   never get the component's `_ngcontent` attribute — plain scoped rules would
+   silently never match. `::ng-deep` strips the scoping so they apply.
+   -------------------------------------------------------------------------- */
+:host ::ng-deep {
+  .grid-actions {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
+    justify-content: center;
+    gap: 0.25rem;
+    height: 100%;
   }
 
-  &__name {
-    font-weight: 600;
-    color: var(--text-main);
-    font-size: 1.05rem;
-  }
-
-  &__badge {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 8px;
-    border-radius: 999px;
-
-    &--demo {
-      background: rgba(59, 130, 246, 0.15);
-      color: #3b82f6;
-    }
-    &--live {
-      background: rgba(34, 197, 94, 0.15);
-      color: #22c55e;
-    }
-  }
-
-  &__desc {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin: 0 0 var(--spacing-sm);
-  }
-
-  &__stats {
-    display: flex;
-    gap: var(--spacing-lg);
-  }
-
-  &__stat {
-    display: flex;
-    flex-direction: column;
-  }
-
-  &__stat-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  &__stat-value {
-    font-weight: 600;
-    color: var(--text-main);
-  }
-
-  &__delete {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
+  .grid-delete-btn {
     background: none;
     border: none;
     cursor: pointer;
-    opacity: 0;
-    font-size: 0.9rem;
-    transition: opacity var(--transition-base);
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.25rem;
+    border-radius: 4px;
+    color: var(--color-error, #f38ba8);
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(243, 139, 168, 0.15);
+    }
   }
 
-  &:hover &__delete {
-    opacity: 0.7;
+  .monthly-cell {
+    cursor: help;
+    text-align: center;
   }
-  &__delete:hover {
+
+  .monthly-cell__icon {
+    font-size: 1rem;
+    line-height: 1;
+    opacity: 0.75;
+  }
+
+  .ag-cell.monthly-cell:hover .monthly-cell__icon {
     opacity: 1;
+  }
+
+  /* ---- account type cell classes (applied via `cellClass`) ---- */
+  .account-type--live {
+    color: #22c55e;
+    font-weight: 600;
+  }
+
+  .account-type--demo {
+    color: #3b82f6;
+    font-weight: 600;
+  }
+
+  /* ---- profit / loss cell classes (applied via `cellClass`) ---- */
+  .profit--positive {
+    color: #22c55e;
+  }
+
+  .profit--negative {
+    color: #ef4444;
   }
 }
 
@@ -152,86 +144,80 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
   &--primary {
     background: var(--color-primary);
     color: #fff;
   }
+
   &--primary:hover:not(:disabled) {
     opacity: 0.9;
   }
-  &--ghost {
-    background: transparent;
-    color: var(--text-muted);
-    border: 1px solid var(--color-border);
+
+  &--secondary {
+    background: var(--bg-surface-2, rgba(127, 127, 127, 0.12));
+    color: var(--text-main);
+    border: 1px solid var(--color-border, #313244);
+  }
+
+  &--secondary:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &--danger {
+    background: var(--color-error, #ef4444);
+    color: #fff;
+  }
+
+  &--danger:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  /* Toggle state for the monthly-returns view switch. */
+  &--active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
   }
 }
 
-/* ---- modal ---- */
-.modal {
+/* ---- delete confirmation ---- */
+.confirm-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: var(--spacing-md);
+}
 
-  &__box {
-    background: var(--bg-surface);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    width: min(480px, 92vw);
-    box-shadow: var(--shadow-sm);
-  }
+.confirm-dialog {
+  background: var(--bg-surface, #1e1e2e);
+  border: 1px solid var(--color-border, #313244);
+  border-radius: var(--radius-md, 8px);
+  padding: 1.5rem;
+  max-width: 440px;
+  width: 100%;
 
   &__title {
-    margin: 0 0 var(--spacing-md);
+    margin: 0 0 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
     color: var(--text-main);
-    font-size: 1.25rem;
   }
 
-  &__hint {
-    font-size: 0.8rem;
+  &__body {
+    margin: 0 0 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
     color: var(--text-muted);
-    margin: var(--spacing-sm) 0 0;
   }
 
   &__actions {
     display: flex;
     justify-content: flex-end;
     gap: var(--spacing-sm);
-    margin-top: var(--spacing-lg);
-  }
-}
-
-.field {
-  display: block;
-  margin-bottom: var(--spacing-md);
-
-  &__label {
-    display: block;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-  }
-
-  &__input {
-    width: 100%;
-    padding: var(--spacing-sm);
-    background: var(--bg-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    color: var(--text-main);
-    font-size: 0.95rem;
-    box-sizing: border-box;
-  }
-}
-
-.field-row {
-  display: flex;
-  gap: var(--spacing-md);
-
-  .field {
-    flex: 1;
   }
 }

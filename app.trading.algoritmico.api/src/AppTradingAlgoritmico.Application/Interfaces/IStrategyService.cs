@@ -23,6 +23,13 @@ public interface IStrategyService
     /// </exception>
     Task<StrategyDto> AssignMagicNumberAsync(Guid accountId, Guid strategyId, int magicNumber, CancellationToken ct = default);
 
+    /// <summary>
+    /// Monthly compounding returns for every strategy of the account (from imported live trades).
+    /// One row per strategy ordered by name; strategies without trades have an empty returns list.
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Trading account not found.</exception>
+    Task<IReadOnlyList<StrategyMonthlyReturnsDto>> GetMonthlyReturnsByAccountAsync(Guid accountId, CancellationToken ct = default);
+
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
     Task<IEnumerable<StrategyCommentDto>> GetCommentsAsync(Guid strategyId, CancellationToken ct = default);

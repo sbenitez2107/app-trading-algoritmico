@@ -1,0 +1,87 @@
+<div class="monthly-returns">
+  <div class="monthly-returns__toolbar">
+    <span class="monthly-returns__title">Monthly Returns (Compounding)</span>
+    <div class="monthly-returns__year-nav">
+      <button
+        class="monthly-returns__year-btn"
+        type="button"
+        [disabled]="!canPrev()"
+        (click)="prevYear()"
+        title="Previous year"
+        aria-label="Previous year"
+      >
+        &#8249;
+      </button>
+      <span class="monthly-returns__year">{{ selectedYear() }}</span>
+      <button
+        class="monthly-returns__year-btn"
+        type="button"
+        [disabled]="!canNext()"
+        (click)="nextYear()"
+        title="Next year"
+        aria-label="Next year"
+      >
+        &#8250;
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="monthly-returns__loading">Loading monthly returns...</div>
+  } @else if (error()) {
+    <div class="monthly-returns__error" role="alert">{{ error() }}</div>
+  } @else if (viewRows().length === 0) {
+    <p class="monthly-returns__empty">No strategies in this account yet.</p>
+  } @else {
+    <div class="monthly-returns__table-wrapper">
+      <table class="monthly-returns__table">
+        <thead>
+          <tr>
+            <th class="monthly-returns__name-h">
+              <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('name')">
+                Strategy {{ sortIndicator('name') }}
+              </button>
+            </th>
+            <th class="monthly-returns__symbol-h">
+              <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('symbol')">
+                Symbol {{ sortIndicator('symbol') }}
+              </button>
+            </th>
+            @for (m of monthLabels; track m; let i = $index) {
+              <th>
+                <button class="monthly-returns__sort-btn" type="button" (click)="sortBy(i)">
+                  {{ m }} {{ sortIndicator(i) }}
+                </button>
+              </th>
+            }
+            <th class="monthly-returns__total-h">
+              <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('total')">
+                Total {{ sortIndicator('total') }}
+              </button>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of sortedRows(); track row.strategyId) {
+            <tr>
+              <td class="monthly-returns__name" [title]="row.name">{{ row.name }}</td>
+              <td class="monthly-returns__symbol" [style]="symbolStyle(row.symbol)">
+                {{ row.symbol ?? '—' }}
+              </td>
+              @for (m of row.months; track $index) {
+                <td class="monthly-returns__cell" [style]="cellStyle(m)">{{ fmt(m) }}</td>
+              }
+              <td
+                class="monthly-returns__total"
+                [class.pos]="row.hasData && row.total > 0"
+                [class.neg]="row.hasData && row.total < 0"
+              >
+                {{ row.hasData ? fmt(row.total) : '—' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

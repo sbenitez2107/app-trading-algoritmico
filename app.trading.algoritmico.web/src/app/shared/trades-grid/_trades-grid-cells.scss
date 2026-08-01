@@ -2,39 +2,51 @@
 // Row tinting (open / profit / loss) is handled inline by the shared
 // `tradeRowStyle` helper — CSS row classes were unreliable against
 // ag-grid 35's own row backgrounds.
+//
+// These classes are attached via `cellClass` / `cellRenderer`, so they land on
+// DOM that ag-grid builds imperatively — nodes that never receive Angular's
+// `_ngcontent` scoping attribute. That makes them unreachable from a normal
+// selector in a component stylesheet.
+//
+// This file therefore exposes a MIXIN rather than bare rules: every consumer
+// must `@include trades-grid-cells` from inside its own `:host ::ng-deep`
+// block, which compiles to `[_nghost-x] .foo` and does reach the cells.
+// (`@use` is only legal at file root, so the import itself cannot be nested —
+// hence the mixin indirection.)
+@mixin trades-grid-cells {
+  // Status badges
+  .trade-status--open {
+    color: var(--color-profit, #22c55e) !important;
+    font-weight: 600;
+  }
+  .trade-status--closed {
+    color: var(--color-text-secondary, #a6adc8) !important;
+  }
 
-// Status badges
-:global(.trade-status--open) {
-  color: var(--color-profit, #22c55e) !important;
-  font-weight: 600;
-}
-:global(.trade-status--closed) {
-  color: var(--color-text-secondary, #a6adc8) !important;
-}
+  // Close-reason chips
+  .close-reason--tp {
+    color: var(--color-profit, #22c55e) !important;
+    font-weight: 600;
+  }
+  .close-reason--sl {
+    color: var(--color-loss, #f38ba8) !important;
+    font-weight: 600;
+  }
+  .close-reason--ts {
+    color: var(--color-warn, #f9c74f) !important;
+    font-weight: 600;
+  }
+  .close-reason--other {
+    color: var(--color-text-secondary, #a6adc8) !important;
+  }
 
-// Close-reason chips
-:global(.close-reason--tp) {
-  color: var(--color-profit, #22c55e) !important;
-  font-weight: 600;
-}
-:global(.close-reason--sl) {
-  color: var(--color-loss, #f38ba8) !important;
-  font-weight: 600;
-}
-:global(.close-reason--ts) {
-  color: var(--color-warn, #f9c74f) !important;
-  font-weight: 600;
-}
-:global(.close-reason--other) {
-  color: var(--color-text-secondary, #a6adc8) !important;
-}
-
-// Net profit colors
-:global(.profit--positive) {
-  color: var(--color-profit, #22c55e) !important;
-  font-weight: 600;
-}
-:global(.profit--negative) {
-  color: var(--color-loss, #f38ba8) !important;
-  font-weight: 600;
+  // Net profit colors
+  .profit--positive {
+    color: var(--color-profit, #22c55e) !important;
+    font-weight: 600;
+  }
+  .profit--negative {
+    color: var(--color-loss, #f38ba8) !important;
+    font-weight: 600;
+  }
 }

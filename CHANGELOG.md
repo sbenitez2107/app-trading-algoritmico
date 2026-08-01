@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.0] - 2026-08-01
+
+### Added
+- **Delete portfolios** — the portfolios list now has an **Acciones** column with a delete button and a confirmation dialog. The removed row leaves the grid without a refetch; member strategies and their trades are untouched.
+- **Monthly return tooltip per portfolio** — a new **Mensual** column shows each portfolio's monthly-returns heatmap on hover, so the figure is readable without opening the detail page. Reuses the same heatmap component rendered in the portfolio detail.
+- **Portfolios monthly returns matrix** — a **Retorno mensual** button next to *+ Nuevo Portfolio* swaps the KPI grid for a portfolios × months view with year navigation and per-column sorting, mirroring the per-strategy Monthly Returns view in the account detail.
+- **`GET /api/portfolios/monthly-returns?broker=`** — returns the monthly compounding returns of every portfolio of a broker in one request. Trades are bulk-loaded in a single query (no N+1); feeds both the matrix view and the row tooltips. New `PortfolioMonthlyReturnsDto`.
+- **Per-strategy monthly returns** — the account detail (Cuentas Demo/Live) gains a **Monthly Returns** toggle showing a strategies × months matrix, backed by `GET /api/trading-accounts/{accountId}/strategies/monthly-returns` and a new `StrategyMonthlyReturnsDto`.
+- **Portfolios list summary endpoint** — `GET /api/portfolios/summary?broker=` fuses each portfolio's header fields with its combined analytics KPIs so the grid loads in one roundtrip. New `PortfolioSummaryDto`.
+
+### Fixed
+- **AG Grid cell styling never applied (29 rules across 5 screens).** Styles written in component-scoped `.scss` compile to `.foo[_ngcontent-<hash>]`, but AG Grid builds its cell, header and `cellRenderer` DOM imperatively, so those nodes never carry the attribute and the rules could not match. A second variant used `:global(...)`, a CSS-Modules construct Angular neither understands nor strips, which emitted an invalid selector the browser discarded outright. All affected rules moved to `:host ::ng-deep`, anchored under each component's own grid class. Visible effects:
+  - *Trades grids (portfolio + strategy)*: net profit now renders green/red, close-reason chips green/red/amber/grey, and open vs closed status are distinguishable.
+  - *Expenses list*: the whole table now uses the app's theme tokens instead of AG Grid's stock palette; headers are uppercased, cells vertically centred, and the row action buttons lose their default browser chrome.
+  - *SQX asset overview*: timeframe, stage and status render as coloured pills, and the three status states are visually distinct.
+  - *Portfolios list*: profit/return/CAGR are colour-coded by sign and the account type is tinted Live/Demo.
+  - *Account detail*: strategy-grid action buttons render as borderless icons with hover states, and rows show a pointer cursor.
+- **Dangling CSS variable in the expenses grid** — `--ag-border-color` referenced `--color-border`, which is not defined anywhere (the token is `--border-color`). Harmless while the rule was dead; corrected as part of reviving it.
+
+### Changed
+- **Shared trades-grid cell styles are now a Sass mixin.** `shared/trades-grid/_trades-grid-cells.scss` exposes `@mixin trades-grid-cells` instead of bare rules, because `@use` is only legal at file root and therefore cannot be nested inside `:host ::ng-deep`. Consumers include it from within their own `::ng-deep` block.
+- **Portfolios list row navigation** moved from `rowClicked` to `cellClicked` so clicking the Mensual or Acciones columns no longer opens the portfolio detail.
+- **`PortfolioService` bulk loading refactored** — `GetSummariesAsync` and `GetMonthlyReturnsByBrokerAsync` now share one `LoadPortfoliosWithMemberInputsAsync` helper, keeping the query count constant regardless of how many portfolios exist.
+
+---
+
 ## [0.16.1] - 2026-06-21
 
 ### Security

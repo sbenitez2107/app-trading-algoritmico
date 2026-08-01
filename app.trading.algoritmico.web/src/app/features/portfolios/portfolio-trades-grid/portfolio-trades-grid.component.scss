@@ -63,3 +63,9 @@
 
 // Shared chip / status / profit cell colors live in
 // `shared/trades-grid/_trades-grid-cells.scss` (imported via @use above).
+// They target ag-grid-owned cell DOM, so they must be emitted through
+// `::ng-deep` — scoped selectors never match those nodes. Kept under
+// `&__grid` so the unbounded `::ng-deep` cannot leak into other grids.
+:host ::ng-deep .portfolio-trades-grid__grid {
+  @include trades-grid-cells.trades-grid-cells;
+}
