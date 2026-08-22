@@ -147,54 +147,21 @@ public static class StrategyAnalyticsCalculator
     }
 
     /// <summary>
-    /// Builds the monthly compounding return series.
-    /// Each bucket's `ReturnPercent` is computed against the equity at the start of that
-    /// month — so the values naturally compound (if Feb starts at $105k after a +5% Jan,
-    /// Feb's % is over $105k, not over the original $100k).
+    /// Builds the monthly performance series. The bucketing, compounding and per-month
+    /// drawdown/win-loss math live in <see cref="AnalyticsSeries.BuildMonthlyReturns"/>, shared
+    /// with <see cref="PortfolioAnalyticsCalculator"/> so neither copy can drift.
     /// </summary>
     public static IReadOnlyList<MonthlyReturnDto> ComputeMonthlyReturns(
         decimal initialBalance,
         IEnumerable<StrategyTrade> trades)
     {
-        var closed = trades.Where(t => !t.IsOpen)
+        var dated = trades
+            .Where(t => !t.IsOpen)
             .OrderBy(t => t.CloseTime ?? t.OpenTime)
+            .Select(t => (When: t.CloseTime ?? t.OpenTime, Net: NetOf(t)))
             .ToList();
 
-        if (closed.Count == 0) return Array.Empty<MonthlyReturnDto>();
-
-        var groups = closed
-            .GroupBy(t =>
-            {
-                var ts = t.CloseTime ?? t.OpenTime;
-                return new { ts.Year, ts.Month };
-            })
-            .OrderBy(g => g.Key.Year)
-            .ThenBy(g => g.Key.Month)
-            .ToList();
-
-        var equity = initialBalance;
-        var result = new List<MonthlyReturnDto>(groups.Count);
-
-        foreach (var g in groups)
-        {
-            var profit = g.Sum(NetOf);
-            var equityStart = equity;
-            var equityEnd = equityStart + profit;
-            var pct = equityStart != 0 ? profit / equityStart : 0m;
-
-            result.Add(new MonthlyReturnDto(
-                Year: g.Key.Year,
-                Month: g.Key.Month,
-                EquityStart: equityStart,
-                EquityEnd: equityEnd,
-                Profit: profit,
-                ReturnPercent: pct,
-                TradeCount: g.Count()));
-
-            equity = equityEnd;
-        }
-
-        return result;
+        return AnalyticsSeries.BuildMonthlyReturns(initialBalance, dated);
     }
 
     /// <summary>

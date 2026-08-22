@@ -1,24 +1,40 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PortfolioMonthlyReturnsDto } from '../../../core/services/portfolio.service';
+import {
+  MonthlyReturnDto,
+  PortfolioMonthlyReturnsDto,
+} from '../../../core/services/portfolio.service';
+import {
+  MonthlyMetric,
+  formatMonthlyMetric,
+  isLowerBetter,
+  monthlyMetricCellStyle,
+  monthlyMetricTooltip,
+  monthlyMetricTotal,
+  monthlyMetricValue,
+} from '../../../shared/utils/monthly-metric';
 
 interface MonthlyViewRow {
   portfolioId: string;
   name: string;
   memberCount: number;
-  months: (number | null)[]; // 12 entries, null = no data for that month
-  total: number;
+  /** 12 entries of the SELECTED metric, null = the month has no value to show. */
+  months: (number | null)[];
+  /** 12 entries of extra cell detail (win/loss counts), null = nothing to add. */
+  tooltips: (string | null)[];
+  total: number | null;
   hasData: boolean;
 }
 
-/** Sortable columns: text fields, the compounded total, or a month index (0-11). */
+/** Sortable columns: text fields, the year total, or a month index (0-11). */
 export type PortfolioMonthlySortKey = 'name' | 'memberCount' | 'total' | number;
 
 /**
- * Portfolios × months matrix of compounding returns for one year, mirroring the
- * per-strategy monthly returns view in the broker-accounts area.
- * Purely presentational: the parent owns the fetch so the same data also feeds
- * the per-row tooltip in the portfolios grid.
+ * Portfolios × months matrix for one year, mirroring the per-strategy monthly view in the
+ * broker-accounts area. The cell metric is selectable: compounding return, intra-month max
+ * drawdown, underwater depth, or win rate — see `shared/utils/monthly-metric`.
+ * Purely presentational: the parent owns the fetch so the same data also feeds the per-row
+ * tooltip in the portfolios grid.
  */
 @Component({
   selector: 'app-portfolio-monthly-returns',
@@ -36,6 +52,42 @@ export class PortfolioMonthlyReturnsComponent {
   readonly portfolioSelected = output<string>();
 
   readonly selectedYear = signal(new Date().getFullYear());
+  readonly metric = signal<MonthlyMetric>('return');
+
+  readonly metricOptions: ReadonlyArray<{ value: MonthlyMetric; label: string; hint: string }> = [
+    { value: 'return', label: 'Retorno', hint: 'Retorno compuesto del mes' },
+    {
+      value: 'maxDrawdown',
+      label: 'Max DD',
+      hint: 'Peor caída producida DENTRO del mes: el pico se reinicia el día 1, así que mide cuánto dolió ese mes',
+    },
+    {
+      value: 'underwater',
+      label: 'Bajo el agua',
+      hint: 'Distancia máxima por debajo del pico histórico durante el mes: la misma caída se repite hasta hacer un nuevo máximo',
+    },
+    { value: 'winRate', label: 'W/L', hint: 'Ganadores / (ganadores + perdedores) del mes' },
+  ];
+
+  readonly title = computed(() => {
+    switch (this.metric()) {
+      case 'return':
+        return 'Retorno mensual (compuesto)';
+      case 'maxDrawdown':
+        return 'Max DD del mes';
+      case 'underwater':
+        return 'Bajo el agua (pico histórico)';
+      case 'winRate':
+        return 'Win rate mensual';
+    }
+  });
+
+  /** Header of the year column, which aggregates differently per metric. */
+  readonly totalLabel = computed(() => {
+    const metric = this.metric();
+    if (isLowerBetter(metric)) return 'Peor';
+    return metric === 'winRate' ? 'Global' : 'Total';
+  });
 
   readonly monthLabels = [
     'Ene',
@@ -65,19 +117,24 @@ export class PortfolioMonthlyReturnsComponent {
 
   readonly viewRows = computed<MonthlyViewRow[]>(() => {
     const year = this.selectedYear();
+    const metric = this.metric();
+
     return this.rows().map((r) => {
-      const months: (number | null)[] = Array(12).fill(null);
+      const sources: (MonthlyReturnDto | null)[] = Array(12).fill(null);
       for (const m of r.returns) {
-        if (m.year === year) months[m.month - 1] = m.returnPercent;
+        if (m.year === year) sources[m.month - 1] = m;
       }
+
       return {
         portfolioId: r.portfolioId,
         name: r.name,
         memberCount: r.memberCount,
-        months,
-        // Compounded return across the year's months with data.
-        total: months.reduce<number>((acc, m) => (m == null ? acc : (1 + acc) * (1 + m) - 1), 0),
-        hasData: months.some((m) => m !== null),
+        months: sources.map((m) => (m === null ? null : monthlyMetricValue(m, metric))),
+        tooltips: sources.map((m) => monthlyMetricTooltip(m, metric)),
+        total: monthlyMetricTotal(sources, metric),
+        // Driven by the presence of months, NOT of values: a breakeven-only month reports no
+        // win rate, but the portfolio still traded that year.
+        hasData: sources.some((m) => m !== null),
       };
     });
   });
@@ -85,14 +142,26 @@ export class PortfolioMonthlyReturnsComponent {
   readonly sortKey = signal<PortfolioMonthlySortKey | null>(null);
   readonly sortDir = signal<'asc' | 'desc'>('asc');
 
-  /** Name starts ascending; numeric columns start descending (best first). */
+  setMetric(metric: MonthlyMetric): void {
+    if (this.metric() === metric) return;
+    this.metric.set(metric);
+    // The active sort now ranks a different quantity, so re-apply its best-first direction.
+    const key = this.sortKey();
+    if (key !== null && key !== 'name' && key !== 'memberCount') {
+      this.sortDir.set(isLowerBetter(metric) ? 'asc' : 'desc');
+    }
+  }
+
+  /** Name starts ascending; metric columns start best-first, which flips for drawdowns. */
   sortBy(key: PortfolioMonthlySortKey): void {
     if (this.sortKey() === key) {
       this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
       return;
     }
     this.sortKey.set(key);
-    this.sortDir.set(key === 'name' ? 'asc' : 'desc');
+    if (key === 'name') this.sortDir.set('asc');
+    else if (key === 'memberCount') this.sortDir.set('desc');
+    else this.sortDir.set(isLowerBetter(this.metric()) ? 'asc' : 'desc');
   }
 
   readonly sortedRows = computed<MonthlyViewRow[]>(() => {
@@ -103,7 +172,7 @@ export class PortfolioMonthlyReturnsComponent {
     const valueOf = (row: MonthlyViewRow): string | number | null => {
       if (key === 'name') return row.name;
       if (key === 'memberCount') return row.memberCount;
-      if (key === 'total') return row.hasData ? row.total : null;
+      if (key === 'total') return row.total;
       return row.months[key];
     };
 
@@ -132,18 +201,24 @@ export class PortfolioMonthlyReturnsComponent {
     if (this.canNext()) this.selectedYear.update((y) => y + 1);
   }
 
-  /** Months without data render as an em-dash; totals of empty rows too. */
+  /** Months without a value render as an em-dash. */
   fmt(v: number | null): string {
-    if (v === null) return '—';
-    return `${(v * 100).toFixed(2)}%`;
+    return formatMonthlyMetric(v);
   }
 
-  /** Green for gains, red for losses; neutral for zero/missing. Opacity scales with magnitude (capped at 10%). */
   cellStyle(v: number | null): Record<string, string> {
-    if (v === null || v === 0) return { background: 'var(--bg-surface-2)' };
-    const intensity = Math.min(Math.abs(v) / 0.1, 1) * 0.85 + 0.15;
-    const color =
-      v > 0 ? `rgba(34,197,94,${intensity.toFixed(2)})` : `rgba(255,59,48,${intensity.toFixed(2)})`;
-    return { background: color };
+    return monthlyMetricCellStyle(v, this.metric());
+  }
+
+  /**
+   * Colour of the year column. Returns and win rate diverge around their neutral point;
+   * any drawdown depth is bad news, so it never renders green.
+   */
+  totalTone(v: number | null): 'pos' | 'neg' | '' {
+    if (v === null) return '';
+    const metric = this.metric();
+    if (metric === 'winRate') return v > 0.5 ? 'pos' : v < 0.5 ? 'neg' : '';
+    if (isLowerBetter(metric)) return v > 0 ? 'neg' : '';
+    return v > 0 ? 'pos' : v < 0 ? 'neg' : '';
   }
 }

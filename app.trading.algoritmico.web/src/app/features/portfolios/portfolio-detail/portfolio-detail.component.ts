@@ -31,8 +31,10 @@ import {
   MonthlyReturnDto,
   StrategyCandidateDto,
   ServiceGuardrailDto,
+  VarTargetReadoutDto,
   FundingService,
   DrawdownModel,
+  GuardrailKind,
 } from '../../../core/services/portfolio.service';
 import { EquityChartComponent } from '../equity-chart/equity-chart.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
@@ -40,6 +42,7 @@ import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
 import { PortfolioTradesGridComponent } from '../portfolio-trades-grid/portfolio-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../../broker-accounts/strategy-analytics-modal/strategy-analytics-modal.component';
+import { RiskLimitsModalComponent } from '../risk-limits-modal/risk-limits-modal.component';
 
 interface KpiCard {
   label: string;
@@ -102,6 +105,7 @@ type Tab = 'overview' | 'trades' | 'composition' | 'risk';
     CorrelationMatrixComponent,
     PortfolioTradesGridComponent,
     StrategyAnalyticsModalComponent,
+    RiskLimitsModalComponent,
   ],
   templateUrl: './portfolio-detail.component.html',
   styleUrl: './portfolio-detail.component.scss',
@@ -126,19 +130,11 @@ export class PortfolioDetailComponent implements OnInit {
   readonly activeTab = signal<Tab>('overview');
 
   readonly showAddMember = signal(false);
-  readonly showLimitsModal = signal(false);
-  readonly savingLimits = signal(false);
+  /** The guardrail row currently being edited/configured in the extracted risk-limits modal. */
+  readonly selectedGuardrailForLimits = signal<ServiceGuardrailDto | null>(null);
   readonly FundingService = FundingService;
   readonly DrawdownModel = DrawdownModel;
-  limitsForm = {
-    broker: '',
-    fundingService: FundingService.Other,
-    dailyLossPct: null as number | null,
-    maxLossPct: null as number | null,
-    profitTargetPct: null as number | null,
-    drawdownModel: DrawdownModel.Static,
-    verified: false,
-  };
+  readonly GuardrailKind = GuardrailKind;
   readonly candidates = signal<StrategyCandidateDto[]>([]);
   /** Per-strategy SQX + live KPIs (keyed by strategyId) for the composition comparison grid. */
   readonly memberKpis = signal<Map<string, StrategyCandidateDto>>(new Map());
@@ -559,43 +555,27 @@ export class PortfolioDetailComponent implements OnInit {
   // ---- prop-firm guardrail limits ----
 
   openLimitsEditor(g: ServiceGuardrailDto): void {
-    this.limitsForm = {
-      broker: g.service,
-      fundingService: g.fundingService,
-      dailyLossPct: g.dailyLossLimitPct != null ? g.dailyLossLimitPct * 100 : null,
-      maxLossPct: g.maxLossLimitPct != null ? g.maxLossLimitPct * 100 : null,
-      profitTargetPct: g.profitTargetPct != null ? g.profitTargetPct * 100 : null,
-      drawdownModel: g.drawdownModel ?? DrawdownModel.Static,
-      verified: g.verified,
-    };
-    this.showLimitsModal.set(true);
+    this.selectedGuardrailForLimits.set(g);
   }
 
-  saveLimits(): void {
-    const f = this.limitsForm;
-    const toFrac = (v: number | null) => (v == null || isNaN(v) ? undefined : v / 100);
-    this.savingLimits.set(true);
-    this.service
-      .upsertRiskLimits({
-        broker: f.broker,
-        fundingService: f.fundingService,
-        dailyLossLimitPct: toFrac(f.dailyLossPct),
-        maxLossLimitPct: toFrac(f.maxLossPct),
-        profitTargetPct: toFrac(f.profitTargetPct),
-        drawdownModel: f.drawdownModel,
-        verified: f.verified,
-      })
-      .subscribe({
-        next: () => {
-          this.savingLimits.set(false);
-          this.showLimitsModal.set(false);
-          this.loadRisk();
-        },
-        error: () => {
-          this.savingLimits.set(false);
-          this.error.set('No se pudieron guardar los límites');
-        },
-      });
+  closeLimitsEditor(): void {
+    this.selectedGuardrailForLimits.set(null);
+  }
+
+  onLimitsSaved(): void {
+    this.selectedGuardrailForLimits.set(null);
+    this.loadRisk();
+  }
+
+  /** Band position vs [floor, target] — no pass/fail colouring (funding-guardrails spec). */
+  varBandLabel(vt: VarTargetReadoutDto): string {
+    if (vt.monthlyVar95Percent == null || vt.varFloorPct == null || vt.targetVarPct == null)
+      return '—';
+    if (vt.monthlyVar95Percent < vt.varFloorPct) {
+      return 'Por debajo del floor — el motor puede escalar la exposición al alza (no es más seguro)';
+    }
+    if (vt.monthlyVar95Percent > vt.targetVarPct) return 'Por encima del target';
+    return 'Dentro de la banda';
   }
 
   fundingLabel(fs: FundingService): string {

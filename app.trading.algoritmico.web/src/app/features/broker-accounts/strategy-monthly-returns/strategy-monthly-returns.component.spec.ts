@@ -18,6 +18,10 @@ function makeReturn(overrides: Partial<MonthlyReturnDto> = {}): MonthlyReturnDto
     profit: 150,
     returnPercent: 0.015,
     tradeCount: 2,
+    maxDrawdownPercent: 0.004,
+    underwaterPercent: 0.004,
+    winCount: 1,
+    lossCount: 1,
     ...overrides,
   };
 }
@@ -223,6 +227,84 @@ describe('StrategyMonthlyReturnsComponent', () => {
     ]);
 
     expect(fixture.componentInstance.sortedRows().map((r) => r.name)).toEqual(['Zeta', 'Alpha']);
+  });
+
+  it('metric_DefaultsToReturn', () => {
+    const fixture = create();
+    expect(fixture.componentInstance.metric()).toBe('return');
+  });
+
+  it('setMetric_SwapsTheValueRenderedInEveryCell', () => {
+    const fixture = create([
+      makeRow({
+        returns: [
+          makeReturn({
+            month: 1,
+            returnPercent: 0.05,
+            maxDrawdownPercent: 0.02,
+            underwaterPercent: 0.09,
+          }),
+        ],
+      }),
+    ]);
+    const cmp = fixture.componentInstance;
+
+    expect(cmp.viewRows()[0].months[0]).toBe(0.05);
+
+    cmp.setMetric('maxDrawdown');
+    expect(cmp.viewRows()[0].months[0]).toBe(0.02);
+
+    cmp.setMetric('underwater');
+    expect(cmp.viewRows()[0].months[0]).toBe(0.09);
+  });
+
+  it('setMetric_WinRate_DerivesTheRateAndExposesTheRawCounts', () => {
+    const fixture = create([
+      makeRow({ returns: [makeReturn({ month: 1, winCount: 3, lossCount: 1 })] }),
+    ]);
+    const cmp = fixture.componentInstance;
+    cmp.setMetric('winRate');
+
+    expect(cmp.viewRows()[0].months[0]).toBe(0.75);
+    expect(cmp.viewRows()[0].tooltips[0]).toBe('3 W / 1 L');
+  });
+
+  it('total_TakesTheWorstMonth_ForDrawdownMetrics_NotACompoundedSum', () => {
+    const fixture = create([
+      makeRow({
+        returns: [
+          makeReturn({ month: 1, underwaterPercent: 0.03 }),
+          makeReturn({ month: 2, underwaterPercent: 0.08 }),
+        ],
+      }),
+    ]);
+    const cmp = fixture.componentInstance;
+    cmp.setMetric('underwater');
+
+    expect(cmp.viewRows()[0].total).toBe(0.08);
+  });
+
+  it('sortBy_DefaultsToAscending_WhenLowerIsBetter', () => {
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+
+    cmp.sortBy('total');
+    expect(cmp.sortDir()).toBe('desc');
+
+    cmp.setMetric('maxDrawdown');
+    // The same column now ranks drawdowns, where the SMALLEST value is the best row.
+    expect(cmp.sortDir()).toBe('asc');
+  });
+
+  it('setMetric_LeavesTextColumnSortUntouched', () => {
+    const fixture = create();
+    const cmp = fixture.componentInstance;
+
+    cmp.sortBy('name');
+    cmp.setMetric('maxDrawdown');
+
+    expect(cmp.sortKey()).toBe('name');
+    expect(cmp.sortDir()).toBe('asc');
   });
 
   it('serviceError_SetsErrorAndStopsLoading', () => {

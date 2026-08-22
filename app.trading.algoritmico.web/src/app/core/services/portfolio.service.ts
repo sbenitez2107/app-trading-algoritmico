@@ -20,6 +20,16 @@ export enum DrawdownModel {
   Trailing = 1,
 }
 
+/**
+ * Discriminates how a broker's risk limits are modeled. `LossLimits` (FTMO/Axi/Other) keeps
+ * today's breach-style fields; `VarTarget` (Darwinex Zero) models a monthly VaR-target rulebook
+ * with NO breach semantics — missing the target rescales leverage, it does not breach the account.
+ */
+export enum GuardrailKind {
+  LossLimits = 0,
+  VarTarget = 1,
+}
+
 export interface PortfolioMemberDto {
   strategyId: string;
   strategyName: string;
@@ -140,6 +150,12 @@ export interface MonthlyReturnDto {
   profit: number;
   returnPercent: number;
   tradeCount: number;
+  /** Worst drawdown produced INSIDE the month — the peak resets on the 1st. 0 for an up-only month. */
+  maxDrawdownPercent: number;
+  /** Deepest distance below the ALL-TIME equity peak during the month (peak carried across months). */
+  underwaterPercent: number;
+  winCount: number;
+  lossCount: number;
 }
 
 export interface PortfolioEquityPointDto {
@@ -155,11 +171,39 @@ export interface ServiceRiskDto {
   netProfit: number;
   var95: number;
   var95Percent: number;
+  /** 30-calendar-day rolling-window VaR95 estimate — guardrail-agnostic, computed for every service. */
+  monthlyVarInsufficientHistory: boolean;
+  monthlyVarObservationDays: number;
+  monthlyVarOverlappingWindows: number;
+  monthlyVarIndependentWindows: number;
+  monthlyVar95?: number;
+  monthlyVar95Percent?: number;
 }
 
-export interface ServiceGuardrailDto {
+/**
+ * Monthly VaR-target readout for a `VarTarget` guardrail. Every field is either the user-sourced
+ * band (targetVarPct/varFloorPct) or DERIVED analytics output — never guardrail configuration.
+ * No breach/headroom fields (`funding-guardrails` spec).
+ */
+export interface VarTargetReadoutDto {
+  targetVarPct?: number;
+  varFloorPct?: number;
+  /** DERIVED, not stored — echoes the calculator's 30-day horizon constant. */
+  horizonDays: number;
+  insufficientHistory: boolean;
+  observationDays: number;
+  overlappingWindows: number;
+  independentWindows: number;
+  monthlyVar95?: number;
+  monthlyVar95Percent?: number;
+  /** TargetVar / StrategyVar (KB §3). Undefined when the estimate is absent, insufficient, or zero. */
+  impliedMultiplier?: number;
+}
+
+export interface LossLimitsGuardrailDto {
   service: string;
   fundingService: FundingService;
+  kind: GuardrailKind.LossLimits;
   configured: boolean;
   verified: boolean;
   dailyLossLimitPct?: number;
@@ -169,7 +213,27 @@ export interface ServiceGuardrailDto {
   serviceVar95Percent: number;
   dailyHeadroomPct?: number;
   dailyBreached: boolean;
+  varTarget: null;
 }
+
+export interface VarTargetGuardrailDto {
+  service: string;
+  fundingService: FundingService;
+  kind: GuardrailKind.VarTarget;
+  configured: boolean;
+  verified: boolean;
+  dailyLossLimitPct: null;
+  maxLossLimitPct: null;
+  profitTargetPct: null;
+  drawdownModel: null;
+  serviceVar95Percent: number;
+  dailyHeadroomPct: null;
+  dailyBreached: boolean;
+  varTarget: VarTargetReadoutDto;
+}
+
+/** Discriminated union on `kind` — the field set is only valid for its own kind (backend-enforced). */
+export type ServiceGuardrailDto = LossLimitsGuardrailDto | VarTargetGuardrailDto;
 
 export interface PortfolioRiskDto {
   initialCapital: number;
@@ -198,20 +262,26 @@ export interface BrokerRiskLimitsDto {
   id: string;
   broker: string;
   fundingService: FundingService;
+  kind: GuardrailKind;
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
   drawdownModel: DrawdownModel;
+  targetVarPct?: number;
+  varFloorPct?: number;
   verified: boolean;
 }
 
 export interface UpsertBrokerRiskLimitsDto {
   broker: string;
   fundingService: FundingService;
+  kind: GuardrailKind;
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
   drawdownModel: DrawdownModel;
+  targetVarPct?: number;
+  varFloorPct?: number;
   verified: boolean;
 }
 

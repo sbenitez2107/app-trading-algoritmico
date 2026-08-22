@@ -1,0 +1,131 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal-dialog" role="dialog">
+    <h3 class="modal-dialog__title">Límites de riesgo — {{ guardrail().service }}</h3>
+    <p class="modal-dialog__desc">
+      Cargá los números de la rulebook real del servicio. Marcá "verificado" cuando los hayas
+      confirmado contra los términos vigentes — no vienen precargados a propósito.
+    </p>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <div class="modal-field">
+        <label class="modal-field__label" for="rl-funding-service">Servicio de fondeo</label>
+        <select
+          id="rl-funding-service"
+          class="modal-field__select"
+          formControlName="fundingService"
+        >
+          <option [ngValue]="FundingService.Ftmo">FTMO</option>
+          <option [ngValue]="FundingService.Axi">Axi</option>
+          <option [ngValue]="FundingService.DarwinexZero">Darwinex Zero</option>
+          <option [ngValue]="FundingService.Other">Otro</option>
+        </select>
+      </div>
+
+      @if (isVarTarget()) {
+        <p class="modal-hint">
+          Darwinex Zero no tiene límites de pérdida — el motor de riesgo reescala el apalancamiento
+          hacia un VaR objetivo mensual (no es un breach). Cargá la banda [floor, target] confirmada
+          contra la rulebook.
+        </p>
+        <div class="modal-field-row">
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-target-var">VaR objetivo (%)</label>
+            <input
+              id="rl-target-var"
+              class="modal-field__input"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              formControlName="targetVarPct"
+              placeholder="ej: 6.5"
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-floor-var">VaR floor (%)</label>
+            <input
+              id="rl-floor-var"
+              class="modal-field__input"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              formControlName="varFloorPct"
+              placeholder="ej: 3.25"
+            />
+          </div>
+        </div>
+      } @else {
+        <div class="modal-field-row">
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-daily-loss">Pérdida diaria máx. (%)</label>
+            <input
+              id="rl-daily-loss"
+              class="modal-field__input"
+              type="number"
+              min="0"
+              step="0.1"
+              formControlName="dailyLossPct"
+              placeholder="ej: 5"
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-max-loss">Pérdida total máx. (%)</label>
+            <input
+              id="rl-max-loss"
+              class="modal-field__input"
+              type="number"
+              min="0"
+              step="0.1"
+              formControlName="maxLossPct"
+              placeholder="ej: 10"
+            />
+          </div>
+        </div>
+        <div class="modal-field-row">
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-profit-target">Profit target (%)</label>
+            <input
+              id="rl-profit-target"
+              class="modal-field__input"
+              type="number"
+              min="0"
+              step="0.1"
+              formControlName="profitTargetPct"
+              placeholder="ej: 10"
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-drawdown-model">Modelo de drawdown</label>
+            <select
+              id="rl-drawdown-model"
+              class="modal-field__select"
+              formControlName="drawdownModel"
+            >
+              <option [ngValue]="DrawdownModel.Static">Static</option>
+              <option [ngValue]="DrawdownModel.Trailing">Trailing</option>
+            </select>
+          </div>
+        </div>
+      }
+
+      <label class="modal-field modal-field--check">
+        <input type="checkbox" formControlName="verified" />
+        <span>Verificado contra los términos vigentes del servicio</span>
+      </label>
+
+      @if (errorMessage()) {
+        <div class="modal-error">{{ errorMessage() }}</div>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn--cancel" (click)="cancelled.emit()">
+          Cancelar
+        </button>
+        <button type="submit" class="modal-btn modal-btn--submit" [disabled]="saving()">
+          {{ saving() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

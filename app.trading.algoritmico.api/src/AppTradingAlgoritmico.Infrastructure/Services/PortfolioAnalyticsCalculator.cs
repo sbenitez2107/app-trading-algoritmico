@@ -168,41 +168,17 @@ public static class PortfolioAnalyticsCalculator
         return sep > 0 ? s[..sep] : s;
     }
 
-    /// <summary>Monthly compounding return series on the merged weighted stream.</summary>
+    /// <summary>
+    /// Monthly performance series on the merged weighted stream. The bucketing, compounding and
+    /// per-month drawdown/win-loss math live in <see cref="AnalyticsSeries.BuildMonthlyReturns"/>,
+    /// so a portfolio is measured exactly like a single strategy.
+    /// </summary>
     public static IReadOnlyList<MonthlyReturnDto> ComputeMonthlyReturns(
         decimal initialCapital, IReadOnlyList<PortfolioMemberInput> members)
     {
         var events = BuildWeightedEvents(EffectiveWeights(members), members);
-        if (events.Count == 0) return Array.Empty<MonthlyReturnDto>();
-
-        var groups = events
-            .GroupBy(e => new { e.When.Year, e.When.Month })
-            .OrderBy(g => g.Key.Year)
-            .ThenBy(g => g.Key.Month)
-            .ToList();
-
-        var equity = initialCapital;
-        var result = new List<MonthlyReturnDto>(groups.Count);
-        foreach (var g in groups)
-        {
-            var profit = g.Sum(e => e.Net);
-            var equityStart = equity;
-            var equityEnd = equityStart + profit;
-            var pct = equityStart != 0 ? profit / equityStart : 0m;
-
-            result.Add(new MonthlyReturnDto(
-                Year: g.Key.Year,
-                Month: g.Key.Month,
-                EquityStart: equityStart,
-                EquityEnd: equityEnd,
-                Profit: profit,
-                ReturnPercent: pct,
-                TradeCount: g.Count()));
-
-            equity = equityEnd;
-        }
-
-        return result;
+        return AnalyticsSeries.BuildMonthlyReturns(
+            initialCapital, events.Select(e => (e.When, e.Net)).ToList());
     }
 
     /// <summary>Forward-walked combined equity curve: one point per closed trade (chronological).</summary>
@@ -255,12 +231,19 @@ public static class PortfolioAnalyticsCalculator
                 var groupNets = WindowedDailyNets(initialCapital, grp, windowDays);
                 var (gv95, _, _, _) = VarFromDaily(groupNets);
                 var net = grp.Sum(x => x.w * x.m.Trades.Where(t => !t.IsOpen).Sum(AnalyticsSeries.NetOf));
+                var monthly = ComputeMonthlyVar(groupNets, initialCapital);
                 return new ServiceRiskDto(
                     Service: g.Key,
                     StrategyCount: grp.Count,
                     NetProfit: net,
                     Var95: gv95,
-                    Var95Percent: initialCapital > 0 ? gv95 / initialCapital : 0m);
+                    Var95Percent: initialCapital > 0 ? gv95 / initialCapital : 0m,
+                    MonthlyVarInsufficientHistory: monthly.insufficientHistory,
+                    MonthlyVarObservationDays: groupNets.Count,
+                    MonthlyVarOverlappingWindows: monthly.overlappingWindows,
+                    MonthlyVarIndependentWindows: monthly.independentWindows,
+                    MonthlyVar95: monthly.monthlyVar95,
+                    MonthlyVar95Percent: monthly.monthlyVar95Percent);
             })
             .OrderByDescending(s => s.Var95)
             .ToList();
@@ -416,6 +399,32 @@ public static class PortfolioAnalyticsCalculator
         var worst = -sorted[0];        // most negative day, as a positive loss
         var best = sorted[^1];
         return (var95, var99, worst, best);
+    }
+
+    /// <summary>
+    /// Monthly VaR95 estimate from a dense daily NET series (`portfolio-monthly-var` spec):
+    /// rolling <see cref="AnalyticsSeries.MonthlyVarHorizonDays"/>-calendar-day window sums, 5th
+    /// percentile taken directly with NO √t scaling (KB §5 trap 1 — the series is already
+    /// calendar-day dense, so a 30-element window already spans Darwinex's stated monthly horizon).
+    /// Requires <see cref="AnalyticsSeries.MinHistoryDays"/> of history; below that, no numeric
+    /// estimate is produced. Guardrail-agnostic — computed unconditionally for every service so any
+    /// broker can back a future `VarTarget` readout.
+    /// </summary>
+    private static (bool insufficientHistory, int overlappingWindows, int independentWindows,
+        decimal? monthlyVar95, decimal? monthlyVar95Percent) ComputeMonthlyVar(
+        List<decimal> dailyNets, decimal initialCapital)
+    {
+        const int horizon = AnalyticsSeries.MonthlyVarHorizonDays;
+        var n = dailyNets.Count;
+        if (n < AnalyticsSeries.MinHistoryDays)
+            return (true, 0, 0, null, null);
+
+        var sums = AnalyticsSeries.RollingWindowSums(dailyNets, horizon).OrderBy(x => x).ToList();
+        var monthlyVar95 = -Percentile(sums, 0.05);
+        var monthlyVar95Percent = initialCapital > 0 ? monthlyVar95 / initialCapital : 0m;
+        var overlappingWindows = n - horizon + 1;
+        var independentWindows = n / horizon;
+        return (false, overlappingWindows, independentWindows, monthlyVar95, monthlyVar95Percent);
     }
 
     /// <summary>Linear-interpolated percentile of an ascending-sorted list. p in [0,1].</summary>

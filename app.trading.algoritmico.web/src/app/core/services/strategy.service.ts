@@ -194,6 +194,12 @@ export interface MonthlyReturnDto {
   /** Compounding return — `profit / equityStart` (decimal, e.g. 0.05 = 5%). */
   returnPercent: number;
   tradeCount: number;
+  /** Worst drawdown produced INSIDE the month — the peak resets on the 1st. 0 for an up-only month. */
+  maxDrawdownPercent: number;
+  /** Deepest distance below the ALL-TIME equity peak during the month (peak carried across months). */
+  underwaterPercent: number;
+  winCount: number;
+  lossCount: number;
 }
 
 /** Monthly compounding returns of one strategy — account-level monthly view rows. */

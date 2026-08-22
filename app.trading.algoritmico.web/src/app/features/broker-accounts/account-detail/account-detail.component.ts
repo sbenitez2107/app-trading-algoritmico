@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
+  CellClassParams,
   ColDef,
   ColGroupDef,
   GridApi,
@@ -55,6 +56,8 @@ export interface KpiColDef {
   percent?: boolean;
   /** When true, render as `wins/losses (rate%)` using `liveWinCount` + `liveLossCount` from the row. */
   winLossPair?: boolean;
+  /** When true, tint the cell green for positive values and red for negative ones. */
+  signed?: boolean;
 }
 
 /** MT4 live KPI columns shown under the "MT4 (Live)" group. */
@@ -62,11 +65,11 @@ export const MT4_KPI_COLS: KpiColDef[] = [
   { field: 'magicNumber', headerName: 'Magic Number', text: true },
   { field: 'liveTradeCount', headerName: '# Trades', text: true },
   { field: 'liveWinCount', headerName: 'Win / Loss', winLossPair: true },
-  { field: 'liveNetProfit', headerName: 'Net Profit', currency: true },
-  { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true },
+  { field: 'liveNetProfit', headerName: 'Net Profit', currency: true, signed: true },
+  { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true, signed: true },
   { field: 'liveWinRate', headerName: 'Win %', percent: true },
   { field: 'liveProfitFactor', headerName: 'Profit Factor' },
-  { field: 'liveReturnDrawdownRatio', headerName: 'Return / DD' },
+  { field: 'liveReturnDrawdownRatio', headerName: 'Return / DD', signed: true },
   { field: 'liveMaxDrawdownPercent', headerName: 'Max DD %', percent: true },
   { field: 'liveSharpeRatio', headerName: 'Sharpe' },
 ];
@@ -330,12 +333,34 @@ export class AccountDetailComponent implements OnInit {
           p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—';
       }
 
+      // Green/red tint: win rate above 50% for the Win/Loss pair, sign for the
+      // signed metrics. The pinned TOTAL row is left neutral.
+      let cellClass: ColDef<StrategyDto>['cellClass'];
+      if (c.winLossPair) {
+        cellClass = (p: CellClassParams<StrategyDto>) => {
+          if (p.node?.rowPinned) return '';
+          const wins = p.data?.liveWinCount ?? 0;
+          const losses = p.data?.liveLossCount ?? 0;
+          const total = wins + losses;
+          if (total === 0) return '';
+          return wins / total > 0.5 ? 'profit--positive' : 'profit--negative';
+        };
+      } else if (c.signed) {
+        cellClass = (p: CellClassParams<StrategyDto>) => {
+          if (p.node?.rowPinned) return '';
+          const value = p.value as number | null | undefined;
+          if (value === null || value === undefined) return '';
+          return value > 0 ? 'profit--positive' : 'profit--negative';
+        };
+      }
+
       const colDef: ColDef<StrategyDto> = {
         field: c.field,
         headerName: c.headerName,
         width: 150,
         hide: !visible.includes(c.field),
         ...(formatter ? { valueFormatter: formatter } : {}),
+        ...(cellClass ? { cellClass } : {}),
       };
       return colDef;
     };

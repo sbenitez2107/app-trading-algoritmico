@@ -1,6 +1,22 @@
 <div class="monthly-returns">
   <div class="monthly-returns__toolbar">
-    <span class="monthly-returns__title">Retorno mensual (compuesto)</span>
+    <span class="monthly-returns__title">{{ title() }}</span>
+
+    <div class="monthly-returns__metrics" role="group" aria-label="Métrica de la matriz">
+      @for (opt of metricOptions; track opt.value) {
+        <button
+          class="monthly-returns__metric-btn"
+          type="button"
+          [class.is-active]="metric() === opt.value"
+          [attr.aria-pressed]="metric() === opt.value"
+          [title]="opt.hint"
+          (click)="setMetric(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      }
+    </div>
+
     <div class="monthly-returns__year-nav">
       <button
         class="monthly-returns__year-btn"
@@ -60,7 +76,7 @@
             }
             <th class="monthly-returns__total-h">
               <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('total')">
-                Total {{ sortIndicator('total') }}
+                {{ totalLabel() }} {{ sortIndicator('total') }}
               </button>
             </th>
           </tr>
@@ -79,15 +95,21 @@
                 </button>
               </td>
               <td class="monthly-returns__members">{{ row.memberCount }}</td>
-              @for (m of row.months; track $index) {
-                <td class="monthly-returns__cell" [style]="cellStyle(m)">{{ fmt(m) }}</td>
+              @for (m of row.months; track $index; let i = $index) {
+                <td
+                  class="monthly-returns__cell"
+                  [style]="cellStyle(m)"
+                  [attr.title]="row.tooltips[i]"
+                >
+                  {{ fmt(m) }}
+                </td>
               }
               <td
                 class="monthly-returns__total"
-                [class.pos]="row.hasData && row.total > 0"
-                [class.neg]="row.hasData && row.total < 0"
+                [class.pos]="totalTone(row.total) === 'pos'"
+                [class.neg]="totalTone(row.total) === 'neg'"
               >
-                {{ row.hasData ? fmt(row.total) : '—' }}
+                {{ fmt(row.total) }}
               </td>
             </tr>
           }

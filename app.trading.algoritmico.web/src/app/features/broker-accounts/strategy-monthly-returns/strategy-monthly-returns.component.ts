@@ -11,19 +11,32 @@ import { CommonModule } from '@angular/common';
 import {
   StrategyService,
   StrategyMonthlyReturnsDto,
+  MonthlyReturnDto,
 } from '../../../core/services/strategy.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
+import {
+  MonthlyMetric,
+  formatMonthlyMetric,
+  isLowerBetter,
+  monthlyMetricCellStyle,
+  monthlyMetricTooltip,
+  monthlyMetricTotal,
+  monthlyMetricValue,
+} from '../../../shared/utils/monthly-metric';
 
 interface MonthlyViewRow {
   strategyId: string;
   name: string;
   symbol: string | null;
-  months: (number | null)[]; // 12 entries, null = no data for that month
-  total: number;
+  /** 12 entries of the SELECTED metric, null = the month has no value to show. */
+  months: (number | null)[];
+  /** 12 entries of extra cell detail (win/loss counts), null = nothing to add. */
+  tooltips: (string | null)[];
+  total: number | null;
   hasData: boolean;
 }
 
-/** Sortable columns: text fields, the compounded total, or a month index (0-11). */
+/** Sortable columns: text fields, the year total, or a month index (0-11). */
 export type MonthlySortKey = 'name' | 'symbol' | 'total' | number;
 
 @Component({
@@ -43,6 +56,42 @@ export class StrategyMonthlyReturnsComponent {
   readonly isLoading = signal(true);
   readonly error = signal<string | null>(null);
   readonly selectedYear = signal(new Date().getFullYear());
+  readonly metric = signal<MonthlyMetric>('return');
+
+  readonly metricOptions: ReadonlyArray<{ value: MonthlyMetric; label: string; hint: string }> = [
+    { value: 'return', label: 'Return', hint: "The month's compounding return" },
+    {
+      value: 'maxDrawdown',
+      label: 'Max DD',
+      hint: 'Worst drawdown produced INSIDE the month — the peak resets on the 1st, so it measures how much that month hurt',
+    },
+    {
+      value: 'underwater',
+      label: 'Underwater',
+      hint: 'Deepest distance below the all-time peak during the month — the same drawdown repeats until a new high is made',
+    },
+    { value: 'winRate', label: 'W/L', hint: 'Wins / (wins + losses) for the month' },
+  ];
+
+  readonly title = computed(() => {
+    switch (this.metric()) {
+      case 'return':
+        return 'Monthly Returns (Compounding)';
+      case 'maxDrawdown':
+        return 'Max Drawdown Within Month';
+      case 'underwater':
+        return 'Underwater (All-Time Peak)';
+      case 'winRate':
+        return 'Monthly Win Rate';
+    }
+  });
+
+  /** Header of the year column, which aggregates differently per metric. */
+  readonly totalLabel = computed(() => {
+    const metric = this.metric();
+    if (isLowerBetter(metric)) return 'Worst';
+    return metric === 'winRate' ? 'Overall' : 'Total';
+  });
 
   readonly monthLabels = [
     'Jan',
@@ -90,19 +139,24 @@ export class StrategyMonthlyReturnsComponent {
 
   readonly viewRows = computed<MonthlyViewRow[]>(() => {
     const year = this.selectedYear();
+    const metric = this.metric();
+
     return this.rows().map((r) => {
-      const months: (number | null)[] = Array(12).fill(null);
+      const sources: (MonthlyReturnDto | null)[] = Array(12).fill(null);
       for (const m of r.returns) {
-        if (m.year === year) months[m.month - 1] = m.returnPercent;
+        if (m.year === year) sources[m.month - 1] = m;
       }
+
       return {
         strategyId: r.strategyId,
         name: r.name,
         symbol: r.symbol,
-        months,
-        // Compounded return across the year's months with data.
-        total: months.reduce<number>((acc, m) => (m == null ? acc : (1 + acc) * (1 + m) - 1), 0),
-        hasData: months.some((m) => m !== null),
+        months: sources.map((m) => (m === null ? null : monthlyMetricValue(m, metric))),
+        tooltips: sources.map((m) => monthlyMetricTooltip(m, metric)),
+        total: monthlyMetricTotal(sources, metric),
+        // Driven by the presence of months, NOT of values: a breakeven-only month reports no
+        // win rate, but the strategy still traded that year.
+        hasData: sources.some((m) => m !== null),
       };
     });
   });
@@ -110,14 +164,25 @@ export class StrategyMonthlyReturnsComponent {
   readonly sortKey = signal<MonthlySortKey | null>(null);
   readonly sortDir = signal<'asc' | 'desc'>('asc');
 
-  /** New text column starts ascending; numeric columns start descending (best first). */
+  setMetric(metric: MonthlyMetric): void {
+    if (this.metric() === metric) return;
+    this.metric.set(metric);
+    // The active sort now ranks a different quantity, so re-apply its best-first direction.
+    const key = this.sortKey();
+    if (key !== null && key !== 'name' && key !== 'symbol') {
+      this.sortDir.set(isLowerBetter(metric) ? 'asc' : 'desc');
+    }
+  }
+
+  /** Text columns start ascending; metric columns start best-first, which flips for drawdowns. */
   sortBy(key: MonthlySortKey): void {
     if (this.sortKey() === key) {
       this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
       return;
     }
     this.sortKey.set(key);
-    this.sortDir.set(key === 'name' || key === 'symbol' ? 'asc' : 'desc');
+    if (key === 'name' || key === 'symbol') this.sortDir.set('asc');
+    else this.sortDir.set(isLowerBetter(this.metric()) ? 'asc' : 'desc');
   }
 
   readonly sortedRows = computed<MonthlyViewRow[]>(() => {
@@ -128,7 +193,7 @@ export class StrategyMonthlyReturnsComponent {
     const valueOf = (row: MonthlyViewRow): string | number | null => {
       if (key === 'name') return row.name;
       if (key === 'symbol') return row.symbol;
-      if (key === 'total') return row.hasData ? row.total : null;
+      if (key === 'total') return row.total;
       return row.months[key];
     };
 
@@ -157,19 +222,25 @@ export class StrategyMonthlyReturnsComponent {
     if (this.canNext()) this.selectedYear.update((y) => y + 1);
   }
 
-  /** Months without data render as an em-dash; totals of empty rows too. */
+  /** Months without a value render as an em-dash. */
   fmt(v: number | null): string {
-    if (v === null) return '—';
-    return `${(v * 100).toFixed(2)}%`;
+    return formatMonthlyMetric(v);
   }
 
-  /** Green for gains, red for losses; neutral for zero/missing. Opacity scales with magnitude (capped at 10%). */
   cellStyle(v: number | null): Record<string, string> {
-    if (v === null || v === 0) return { background: 'var(--bg-surface-2)' };
-    const intensity = Math.min(Math.abs(v) / 0.1, 1) * 0.85 + 0.15;
-    const color =
-      v > 0 ? `rgba(34,197,94,${intensity.toFixed(2)})` : `rgba(255,59,48,${intensity.toFixed(2)})`;
-    return { background: color };
+    return monthlyMetricCellStyle(v, this.metric());
+  }
+
+  /**
+   * Colour of the year column. Returns and win rate diverge around their neutral point;
+   * any drawdown depth is bad news, so it never renders green.
+   */
+  totalTone(v: number | null): 'pos' | 'neg' | '' {
+    if (v === null) return '';
+    const metric = this.metric();
+    if (metric === 'winRate') return v > 0.5 ? 'pos' : v < 0.5 ? 'neg' : '';
+    if (isLowerBetter(metric)) return v > 0 ? 'neg' : '';
+    return v > 0 ? 'pos' : v < 0 ? 'neg' : '';
   }
 
   symbolStyle(symbol: string | null): Record<string, string> {

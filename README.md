@@ -28,8 +28,8 @@ Per-platform portfolios (under Darwinex / FTMO / Axi) that combine strategies of
 - **Builder**: pick Demo/Live, filter by account, multi-select strategies with SQX (Backtest) + MT4 (Live) KPI columns
 - **SQX-style combination**: strategies combine at full size (weight = position multiplier); drawdown / Sharpe / profit factor / SQN recomputed on the merged stream (diversification, not averages)
 - **Combined stats**: KPI strip + full stats block, equity curve (Lightweight Charts), monthly returns heatmap, and a profit-by-symbol donut
-- **Risk**: Historical VaR (95%/99%, daily, rolling 250d) + per-broker prop-firm guardrails (daily/max loss, profit target) with VaR-vs-limit headroom — limits are user-sourced and verified, never hardcoded
-- **List management**: delete a portfolio from the grid, preview any portfolio's monthly returns in a hover tooltip, or switch the whole list to a portfolios × months matrix with year navigation
+- **Risk**: Historical VaR (95%/99%, daily, rolling 250d) and a rolling 30-day monthly VaR estimate + per-broker guardrails typed by kind — `LossLimits` (daily/max loss, profit target, with VaR-vs-limit headroom) or `VarTarget` (monthly VaR band and implied Risk Engine multiplier, for services that define no loss limits). Limits are user-sourced and verified, never hardcoded
+- **List management**: delete a portfolio from the grid, preview any portfolio's monthly returns in a hover tooltip, or switch the whole list to a portfolios × months matrix with year navigation and a selectable cell metric — return, max drawdown within the month, underwater depth, or win rate
 
 ### User Preferences
 - Multi-language (EN/ES) with instant header toggle — default Spanish

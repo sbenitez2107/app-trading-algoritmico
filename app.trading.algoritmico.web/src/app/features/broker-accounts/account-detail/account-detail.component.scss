@@ -84,6 +84,19 @@
     cursor: pointer;
   }
 
+  // Green/red KPI cells — applied via `cellClass` on the MT4 column defs.
+  .account-detail__grid {
+    .profit--positive {
+      color: var(--color-profit, #22c55e) !important;
+      font-weight: 600;
+    }
+
+    .profit--negative {
+      color: var(--color-loss, #f38ba8) !important;
+      font-weight: 600;
+    }
+  }
+
   // Action-cell buttons — built with `document.createElement` in the Actions
   // column's cellRenderer (see account-detail.component.ts).
   .grid-actions {

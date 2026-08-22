@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.0] - 2026-08-21
+
+### Added
+- **Selectable metric in the monthly matrices** — both the portfolios × months view and the per-strategy view in the account detail gain a metric switch: compounding **Return** (default), **Max DD within month**, **Underwater**, and **W/L** (win rate). The two drawdown metrics are offered side by side because they answer different questions: *Max DD within month* resets its peak on the 1st, so a cell reports how much that month hurt and reads 0 for an up-only month; *Underwater* carries the all-time peak (the same convention as the headline Max DD column), so one bad month keeps surfacing until a new high is made. Win-rate cells expose the raw win/loss counts on hover.
+- **Per-month drawdown and win/loss data** — `MonthlyReturnDto` now carries `MaxDrawdownPercent`, `UnderwaterPercent`, `WinCount` and `LossCount`, computed in the same pass over the month's trades, so no extra query or roundtrip is involved.
+- **Typed funding guardrails (`GuardrailKind`)** — guardrails are discriminated into `LossLimits` (Other/FTMO/Axi) and `VarTarget` (Darwinex Zero), so a service whose rulebook defines no daily-loss limit is no longer forced to invent one. The risk-limits modal switches its field set with the selected funding service, and `RiskLimitsService.UpsertAsync` validates per kind. Additive migration; existing rows become `LossLimits`.
+- **Monthly VaR estimator** — rolling 30-calendar-day sums of the existing daily net series with the 5th percentile taken directly (no √t scaling). Reported portfolio-wide and per broker, alongside band position against `[floor, target]` and the implied Risk Engine multiplier. Labelled as an honest approximation wherever it appears.
+
+### Changed
+- **Monthly bucketing math now lives in one place.** `PortfolioAnalyticsCalculator` and `StrategyAnalyticsCalculator` each carried their own copy of the month grouping and compounding loop. Both now delegate to `AnalyticsSeries.BuildMonthlyReturns`, so a weighted portfolio stream and a single strategy's trades are measured by the exact same code and cannot drift.
+- **Year column adapts to the selected metric.** Returns compound, drawdowns report the worst month (header becomes *Peor* / *Worst*), and the win rate is recomputed from the summed counts rather than averaged across months — averaging would weigh a 2-trade month like a 200-trade one. Sorting also flips to ascending for the drawdown metrics, where the smallest value is the best row.
+
+---
+
 ## [0.17.0] - 2026-08-01
 
 ### Added

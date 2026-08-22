@@ -20,6 +20,7 @@ Agents MUST read this file first before making any domain-related decision. Then
 | [XAUUSD_Profile.md](XAUUSD_Profile.md) | `concept` | Asset profile for Gold (XAUUSD): bullish bias (Long-Only), key building blocks (BB, ATR, Session Levels), IMOX config (spread 1.5-2.5, H1+H4 filter, Trailing Stop mandatory), mining strategy |
 | [GDAXI_Profile.md](GDAXI_Profile.md) | `concept` | Asset profile for DAX 40 (GDAXI): explosive European hours, gap-prone, key blocks (HMA, Opening Range, ADX, SMA200), IMOX config (spread 1-2, H1, 08:00-18:00 CET only), mining strategy |
 | [US100_Profile.md](US100_Profile.md) | `concept` | Asset profile for Nasdaq (US100): prolonged trends, tech-correlated, key blocks (EMAs, LinReg, Donchian, MACD), IMOX config (spread 1-1.5, H1, WFM mandatory), mining strategy |
+| [Darwinex_Zero_Risk_Model.md](Darwinex_Zero_Risk_Model.md) | `vendor-rulebook` | **NOT academy doctrine.** Darwinex Zero / DARWIN proprietary risk model: monthly VaR standard (6.5% target, 3.25-6.5% range, 95% confidence, 45-day window), Risk Engine leverage multiplier and D-Leverage caps, absence of daily/total loss limits, and how it contrasts with this app's daily VaR |
 
 ---
 
@@ -39,6 +40,7 @@ Agents MUST read this file first before making any domain-related decision. Then
 | Working on GDAXI (DAX) features | `GDAXI_Profile.md` + `01_Fundamentos_y_Data.md` |
 | Working on US100 (Nasdaq) features | `US100_Profile.md` + `01_Fundamentos_y_Data.md` |
 | Working on money management, risk, lot sizing | `06_Money Management.md` |
+| Working on Darwinex Zero / DARWIN risk, VaR guardrails, or funding-service limits | `Darwinex_Zero_Risk_Model.md` |
 | Working on SQX building blocks, indicators, or signals | `02_Manual_BuildingBlocks.pdf` |
 | Understanding domain terminology (drawdown, Sharpe, IS/OOS, etc.) | `02_sqx_metrics.md` + `01_Fundamentos_y_Data.md` |
 | Making Demo → Live deployment decisions | `02_Mineria_y_Genetica.md` + `03_Validacion_y_Stress_Test.md` |
@@ -64,6 +66,11 @@ These are non-negotiable criteria from the academy. Never invent alternatives.
 | Max Stagnation | < 365 days | Optimizer | `03_Validacion_y_Stress_Test.md` |
 | Risk per trade | $200 (0.20% of $100k) | All | `06_Money Management.md` |
 
+> This table holds **academy criteria only**. Broker- and platform-specific risk numbers (e.g. the
+> Darwinex Zero VaR band) are **vendor rulebook**, are set externally, and change over time — they
+> live in their own document and must never be promoted into this table. See
+> `Darwinex_Zero_Risk_Model.md`.
+
 ---
 
 ## Usage Protocol for Agents
@@ -79,6 +86,9 @@ These are non-negotiable criteria from the academy. Never invent alternatives.
 ## About This Knowledge Base
 
 Source: IMOX Algorithmic Trading Academy — 9-class program by Aritz.
-Last updated: 2026-04-15
+Last updated: 2026-08-14
 Platform: StrategyQuant X v136
 Primary broker: Darwinex (DMA, low spread); secondary: Axi (swing on indices)
+
+Documents typed `vendor-rulebook` are **not** academy material. They capture external platform
+rules, carry their own source URL and retrieval date, and must be re-verified before use.

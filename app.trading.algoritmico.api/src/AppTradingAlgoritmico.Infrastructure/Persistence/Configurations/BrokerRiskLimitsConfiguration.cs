@@ -17,10 +17,13 @@ public class BrokerRiskLimitsConfiguration : IEntityTypeConfiguration<BrokerRisk
 
         builder.Property(x => x.FundingService).HasConversion<int>();
         builder.Property(x => x.DrawdownModel).HasConversion<int>();
+        builder.Property(x => x.Kind).HasConversion<int>();
 
         builder.Property(x => x.DailyLossLimitPct).HasPrecision(9, 6);
         builder.Property(x => x.MaxLossLimitPct).HasPrecision(9, 6);
         builder.Property(x => x.ProfitTargetPct).HasPrecision(9, 6);
+        builder.Property(x => x.TargetVarPct).HasPrecision(9, 6);
+        builder.Property(x => x.VarFloorPct).HasPrecision(9, 6);
 
         // One limits row per broker.
         builder.HasIndex(x => x.Broker).IsUnique();

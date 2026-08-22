@@ -50,6 +50,10 @@ function makeMonth(overrides: Partial<MonthlyReturnDto> = {}): MonthlyReturnDto 
     profit: 100,
     returnPercent: 0.01,
     tradeCount: 4,
+    maxDrawdownPercent: 0.003,
+    underwaterPercent: 0.003,
+    winCount: 3,
+    lossCount: 1,
     ...overrides,
   };
 }

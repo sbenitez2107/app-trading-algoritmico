@@ -374,10 +374,51 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         var guardrails = risk.ByService.Select(s =>
         {
             limitsByBroker.TryGetValue(s.Service, out var lim);
+            var kind = lim?.Kind ?? GuardrailKind.LossLimits;
+
+            // VarTarget: no breach/headroom semantics (funding-guardrails spec) — the readout is a
+            // band position + implied multiplier instead, gated by the estimator's history check.
+            if (kind == GuardrailKind.VarTarget)
+            {
+                var targetVarPct = lim?.TargetVarPct;
+                var impliedMultiplier = targetVarPct is decimal tv && s.MonthlyVar95Percent is decimal mv && mv > 0
+                    ? tv / mv
+                    : (decimal?)null;
+
+                var varTarget = new VarTargetReadoutDto(
+                    TargetVarPct: targetVarPct,
+                    VarFloorPct: lim?.VarFloorPct,
+                    HorizonDays: AnalyticsSeries.MonthlyVarHorizonDays,
+                    InsufficientHistory: s.MonthlyVarInsufficientHistory,
+                    ObservationDays: s.MonthlyVarObservationDays,
+                    OverlappingWindows: s.MonthlyVarOverlappingWindows,
+                    IndependentWindows: s.MonthlyVarIndependentWindows,
+                    MonthlyVar95: s.MonthlyVar95,
+                    MonthlyVar95Percent: s.MonthlyVar95Percent,
+                    ImpliedMultiplier: impliedMultiplier);
+
+                return new ServiceGuardrailDto(
+                    Service: s.Service,
+                    FundingService: lim?.FundingService ?? FundingService.Other,
+                    Kind: kind,
+                    Configured: lim is not null,
+                    Verified: lim?.Verified ?? false,
+                    DailyLossLimitPct: null,
+                    MaxLossLimitPct: null,
+                    ProfitTargetPct: null,
+                    DrawdownModel: null,
+                    ServiceVar95Percent: s.Var95Percent,
+                    DailyHeadroomPct: null,
+                    DailyBreached: false,
+                    VarTarget: varTarget);
+            }
+
+            // LossLimits — byte-identical to the pre-existing behaviour.
             var dailyLimit = lim?.DailyLossLimitPct;
             return new ServiceGuardrailDto(
                 Service: s.Service,
                 FundingService: lim?.FundingService ?? FundingService.Other,
+                Kind: kind,
                 Configured: lim is not null,
                 Verified: lim?.Verified ?? false,
                 DailyLossLimitPct: dailyLimit,
@@ -386,7 +427,8 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
                 DrawdownModel: lim?.DrawdownModel,
                 ServiceVar95Percent: s.Var95Percent,
                 DailyHeadroomPct: dailyLimit.HasValue ? dailyLimit.Value - s.Var95Percent : null,
-                DailyBreached: dailyLimit.HasValue && s.Var95Percent > dailyLimit.Value);
+                DailyBreached: dailyLimit.HasValue && s.Var95Percent > dailyLimit.Value,
+                VarTarget: null);
         }).ToList();
 
         return risk with { Guardrails = guardrails };

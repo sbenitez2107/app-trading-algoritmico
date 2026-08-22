@@ -19,6 +19,41 @@
     letter-spacing: 0.05em;
   }
 
+  &__metrics {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--color-border, #313244);
+    border-radius: var(--radius-md, 8px);
+  }
+
+  &__metric-btn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: var(--color-text-secondary, #a6adc8);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 6px 10px;
+    white-space: nowrap;
+
+    &:hover:not(.is-active) {
+      color: var(--color-text-primary, #cdd6f4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.is-active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    }
+  }
+
   &__year-nav {
     display: flex;
     align-items: center;

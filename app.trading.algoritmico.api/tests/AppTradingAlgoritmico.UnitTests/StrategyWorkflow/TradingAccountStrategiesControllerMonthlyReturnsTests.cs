@@ -23,7 +23,7 @@ public class TradingAccountStrategiesControllerMonthlyReturnsTests
         var rows = new List<StrategyMonthlyReturnsDto>
         {
             new(Guid.NewGuid(), "Alpha", "EURUSD",
-                [new MonthlyReturnDto(2026, 1, 10_000m, 10_150m, 150m, 0.015m, 2)])
+                [new MonthlyReturnDto(2026, 1, 10_000m, 10_150m, 150m, 0.015m, 2, 0.005m, 0.005m, 1, 1)])
         };
 
         var serviceMock = new Mock<IStrategyService>();
