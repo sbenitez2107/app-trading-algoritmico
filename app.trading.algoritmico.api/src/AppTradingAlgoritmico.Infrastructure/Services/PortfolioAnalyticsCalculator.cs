@@ -17,7 +17,8 @@ public sealed record PortfolioMemberInput(
 /// by its NORMALIZED weight and all members are merged into ONE chronological stream; the combined
 /// KPIs, equity curve and monthly returns are then computed on that merged stream using the shared
 /// <see cref="AnalyticsSeries"/> primitives — the exact same math a single strategy uses. Weights
-/// are normalized at read time (w_i / Σw); all-zero weights fall back to equal-weight.
+/// are RAW position-size multipliers, NOT shares of a total (see <c>EffectiveWeights</c>): N
+/// strategies at weight 1 sum their full P/L, exactly like an SQX portfolio.
 /// </summary>
 public static class PortfolioAnalyticsCalculator
 {
@@ -179,6 +180,52 @@ public static class PortfolioAnalyticsCalculator
         var events = BuildWeightedEvents(EffectiveWeights(members), members);
         return AnalyticsSeries.BuildMonthlyReturns(
             initialCapital, events.Select(e => (e.When, e.Net)).ToList());
+    }
+
+    /// <summary>
+    /// Per-member CONTRIBUTION curves: for each member, the cumulative weighted net P/L it has
+    /// added to the portfolio, one point per closed trade in chronological order.
+    ///
+    /// Deliberately NOT each strategy's standalone equity curve. A standalone curve runs on the
+    /// account's own initial balance and therefore assumes the strategy traded the whole capital
+    /// alone; drawn against the combined curve those numbers would not reconcile. Weighting every
+    /// net by the member's normalized weight makes the decomposition exact: the final
+    /// contributions sum to the combined curve's gain over initial capital.
+    ///
+    /// Members with no closed trades keep a row with an empty series, so the UI can still list
+    /// them instead of silently dropping them.
+    /// </summary>
+    public static IReadOnlyList<PortfolioMemberEquityCurveDto> ComputeMemberEquityCurves(
+        IReadOnlyList<PortfolioMemberInput> members)
+    {
+        var norm = EffectiveWeights(members);
+        var result = new List<PortfolioMemberEquityCurveDto>(members.Count);
+
+        for (var i = 0; i < members.Count; i++)
+        {
+            var weight = norm[i];
+            var closed = members[i].Trades
+                .Where(t => !t.IsOpen)
+                .OrderBy(t => t.CloseTime ?? t.OpenTime)
+                .ToList();
+
+            var cumulative = 0m;
+            var points = new List<PortfolioContributionPointDto>(closed.Count);
+            foreach (var t in closed)
+            {
+                cumulative += weight * AnalyticsSeries.NetOf(t);
+                points.Add(new PortfolioContributionPointDto(t.CloseTime ?? t.OpenTime, cumulative));
+            }
+
+            result.Add(new PortfolioMemberEquityCurveDto(
+                StrategyId: members[i].StrategyId,
+                StrategyName: members[i].StrategyName,
+                RawWeight: weight,
+                FinalContribution: cumulative,
+                Points: points));
+        }
+
+        return result;
     }
 
     /// <summary>Forward-walked combined equity curve: one point per closed trade (chronological).</summary>
@@ -455,7 +502,7 @@ public static class PortfolioAnalyticsCalculator
         return result;
     }
 
-    /// <summary>Merges every member's CLOSED trades, scaling each net by the member's normalized weight.</summary>
+    /// <summary>Merges every member's CLOSED trades, scaling each net by the member's raw weight.</summary>
     private static List<WeightedEvent> BuildWeightedEvents(decimal[] norm, IReadOnlyList<PortfolioMemberInput> members)
     {
         var events = new List<WeightedEvent>();

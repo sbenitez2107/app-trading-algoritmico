@@ -42,6 +42,8 @@ describe('StrategyMonthlyReturnsComponent', () => {
   beforeEach(() => {
     serviceMock = { getMonthlyReturnsByAccount: vi.fn() };
 
+    localStorage.clear();
+
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [StrategyMonthlyReturnsComponent],
@@ -227,6 +229,35 @@ describe('StrategyMonthlyReturnsComponent', () => {
     ]);
 
     expect(fixture.componentInstance.sortedRows().map((r) => r.name)).toEqual(['Zeta', 'Alpha']);
+  });
+
+  it('metric_RestoresTheRememberedChoice_OnANewInstance', () => {
+    // Written before creation on purpose: the signal reads storage at construction time.
+    localStorage.setItem('monthly_metric_strategies', 'underwater');
+    const fixture = create();
+
+    expect(fixture.componentInstance.metric()).toBe('underwater');
+  });
+
+  it('setMetric_RemembersTheChoice', () => {
+    const fixture = create();
+    fixture.componentInstance.setMetric('winRate');
+
+    expect(localStorage.getItem('monthly_metric_strategies')).toBe('winRate');
+  });
+
+  it('metric_IgnoresAStoredValue_ThatIsNoLongerAMetric', () => {
+    localStorage.setItem('monthly_metric_strategies', 'sharpe');
+    const fixture = create();
+
+    expect(fixture.componentInstance.metric()).toBe('return');
+  });
+
+  it('metric_UsesItsOwnKey_SoThePortfoliosMatrixIsIndependent', () => {
+    localStorage.setItem('monthly_metric_portfolios', 'maxDrawdown');
+    const fixture = create();
+
+    expect(fixture.componentInstance.metric()).toBe('return');
   });
 
   it('metric_DefaultsToReturn', () => {

@@ -28,6 +28,7 @@ import {
   PortfolioRiskDto,
   PortfolioCorrelationDto,
   PortfolioEquityPointDto,
+  PortfolioMemberEquityCurveDto,
   MonthlyReturnDto,
   StrategyCandidateDto,
   ServiceGuardrailDto,
@@ -36,7 +37,15 @@ import {
   DrawdownModel,
   GuardrailKind,
 } from '../../../core/services/portfolio.service';
-import { EquityChartComponent } from '../equity-chart/equity-chart.component';
+import {
+  EQUITY_OVERLAY_PALETTE,
+  EquityChartComponent,
+  EquityOverlay,
+} from '../equity-chart/equity-chart.component';
+import {
+  ContributionLegendComponent,
+  ContributionLegendRow,
+} from '../contribution-legend/contribution-legend.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
@@ -100,6 +109,7 @@ type Tab = 'overview' | 'trades' | 'composition' | 'risk';
     FormsModule,
     AgGridAngular,
     EquityChartComponent,
+    ContributionLegendComponent,
     MonthlyHeatmapComponent,
     SymbolDonutComponent,
     CorrelationMatrixComponent,
@@ -124,6 +134,11 @@ export class PortfolioDetailComponent implements OnInit {
   readonly risk = signal<PortfolioRiskDto | null>(null);
   readonly correlation = signal<PortfolioCorrelationDto | null>(null);
   readonly equityCurve = signal<PortfolioEquityPointDto[]>([]);
+  readonly memberCurves = signal<PortfolioMemberEquityCurveDto[]>([]);
+  /** Strategy ids whose contribution line is drawn over the combined curve. Empty by default. */
+  readonly selectedMemberCurves = signal<Set<string>>(new Set());
+  /** Draw every remaining member as a faint grey line, to read the shape of the fan. */
+  readonly showGhostCurves = signal(false);
   readonly monthlyReturns = signal<MonthlyReturnDto[]>([]);
   readonly isLoading = signal(true);
   readonly error = signal<string | null>(null);
@@ -532,6 +547,94 @@ export class PortfolioDetailComponent implements OnInit {
       next: (m) => this.monthlyReturns.set(m),
       error: () => this.monthlyReturns.set([]),
     });
+    this.service.getMemberEquityCurves(this.portfolioId).subscribe({
+      next: (c) => this.memberCurves.set(c),
+      error: () => this.memberCurves.set([]),
+    });
+  }
+
+  // --- Contribution overlays -------------------------------------------------
+  //
+  // The lines drawn here are each member's cumulative WEIGHTED net P/L, not its standalone equity
+  // curve. A standalone curve runs on the account's full initial balance, so it would not
+  // reconcile with the combined curve sitting right next to it. Contributions do: they sum to the
+  // combined gain over initial capital.
+
+  /** Members ranked by absolute impact, so the biggest movers are the easiest to reach. */
+  readonly rankedMemberCurves = computed(() =>
+    [...this.memberCurves()].sort(
+      (a, b) => Math.abs(b.finalContribution) - Math.abs(a.finalContribution),
+    ),
+  );
+
+  /** Past this many lines the palette repeats and the chart stops being readable. */
+  readonly maxOverlays = EQUITY_OVERLAY_PALETTE.length;
+
+  readonly overlayLimitReached = computed(
+    () => this.selectedMemberCurves().size >= this.maxOverlays,
+  );
+
+  readonly equityOverlays = computed<EquityOverlay[]>(() => {
+    const selected = this.selectedMemberCurves();
+    const ranked = this.rankedMemberCurves();
+    const toPoints = (c: PortfolioMemberEquityCurveDto) =>
+      c.points.map((p) => ({ date: p.date, value: p.contribution }));
+
+    const colored = ranked
+      .filter((c) => selected.has(c.strategyId))
+      .map((c, i) => ({
+        id: c.strategyId,
+        label: c.strategyName,
+        color: EQUITY_OVERLAY_PALETTE[i % EQUITY_OVERLAY_PALETTE.length],
+        points: toPoints(c),
+      }));
+
+    if (!this.showGhostCurves()) return colored;
+
+    const ghosts = ranked
+      .filter((c) => !selected.has(c.strategyId) && c.points.length > 0)
+      .map((c) => ({
+        id: c.strategyId,
+        label: c.strategyName,
+        // Ghosts are painted by the chart, not from the palette — this value is never read.
+        color: '',
+        points: toPoints(c),
+        ghost: true,
+      }));
+
+    // Ghosts FIRST: the chart draws in creation order, so the coloured lines land on top of the fan.
+    return [...ghosts, ...colored];
+  });
+
+  toggleGhostCurves(): void {
+    this.showGhostCurves.update((on) => !on);
+  }
+
+  /** Ranked members decorated with the colour and draw state the legend renders. */
+  readonly legendRows = computed<ContributionLegendRow[]>(() => {
+    const selected = this.selectedMemberCurves();
+    const colorById = new Map(this.equityOverlays().map((o) => [o.id, o.color]));
+    return this.rankedMemberCurves().map((c) => ({
+      strategyId: c.strategyId,
+      strategyName: c.strategyName,
+      finalContribution: c.finalContribution,
+      color: colorById.get(c.strategyId) ?? null,
+      selected: selected.has(c.strategyId),
+    }));
+  });
+
+  toggleMemberCurve(strategyId: string): void {
+    this.selectedMemberCurves.update((current) => {
+      const next = new Set(current);
+      if (next.has(strategyId)) next.delete(strategyId);
+      // Silently ignoring the click past the cap would look broken; the button is disabled instead.
+      else if (next.size < this.maxOverlays) next.add(strategyId);
+      return next;
+    });
+  }
+
+  clearMemberCurves(): void {
+    this.selectedMemberCurves.set(new Set());
   }
 
   loadRisk(): void {

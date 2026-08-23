@@ -15,6 +15,7 @@ import {
 } from '../../../core/services/strategy.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 import {
+  MONTHLY_METRICS,
   MonthlyMetric,
   formatMonthlyMetric,
   isLowerBetter,
@@ -23,6 +24,7 @@ import {
   monthlyMetricTotal,
   monthlyMetricValue,
 } from '../../../shared/utils/monthly-metric';
+import { readViewPreference, writeViewPreference } from '../../../shared/utils/view-preference';
 
 interface MonthlyViewRow {
   strategyId: string;
@@ -56,7 +58,14 @@ export class StrategyMonthlyReturnsComponent {
   readonly isLoading = signal(true);
   readonly error = signal<string | null>(null);
   readonly selectedYear = signal(new Date().getFullYear());
-  readonly metric = signal<MonthlyMetric>('return');
+  /**
+   * Remembered per screen, so the per-strategy matrix can sit on a different metric than the other
+   * one — reading drawdowns here and returns there is a normal way to work.
+   */
+  private readonly metricStorageKey = 'monthly_metric_strategies';
+  readonly metric = signal<MonthlyMetric>(
+    readViewPreference(this.metricStorageKey, MONTHLY_METRICS, 'return'),
+  );
 
   readonly metricOptions: ReadonlyArray<{ value: MonthlyMetric; label: string; hint: string }> = [
     { value: 'return', label: 'Return', hint: "The month's compounding return" },
@@ -167,6 +176,7 @@ export class StrategyMonthlyReturnsComponent {
   setMetric(metric: MonthlyMetric): void {
     if (this.metric() === metric) return;
     this.metric.set(metric);
+    writeViewPreference(this.metricStorageKey, metric);
     // The active sort now ranks a different quantity, so re-apply its best-first direction.
     const key = this.sortKey();
     if (key !== null && key !== 'name' && key !== 'symbol') {

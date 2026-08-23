@@ -165,6 +165,26 @@ export interface PortfolioEquityPointDto {
   drawdownPercent: number;
 }
 
+/** One point on a member's contribution curve — cumulative WEIGHTED net P/L, not standalone equity. */
+export interface PortfolioContributionPointDto {
+  date: string;
+  contribution: number;
+}
+
+/**
+ * One member's contribution curve. Every net is scaled by the member's normalized portfolio
+ * weight, so the contributions of all members sum to the combined curve's gain over initial
+ * capital. This is NOT the strategy's standalone equity curve.
+ */
+export interface PortfolioMemberEquityCurveDto {
+  strategyId: string;
+  strategyName: string;
+  /** RAW SQX-style size multiplier actually applied (1 = full size, 2 = double), not a share. */
+  rawWeight: number;
+  finalContribution: number;
+  points: PortfolioContributionPointDto[];
+}
+
 export interface ServiceRiskDto {
   service: string;
   strategyCount: number;
@@ -479,6 +499,12 @@ export class PortfolioService {
 
   getEquityCurve(portfolioId: string): Observable<PortfolioEquityPointDto[]> {
     return this.http.get<PortfolioEquityPointDto[]>(`${this.base}/${portfolioId}/equity-curve`);
+  }
+
+  getMemberEquityCurves(portfolioId: string): Observable<PortfolioMemberEquityCurveDto[]> {
+    return this.http.get<PortfolioMemberEquityCurveDto[]>(
+      `${this.base}/${portfolioId}/member-equity-curves`,
+    );
   }
 
   getRisk(portfolioId: string): Observable<PortfolioRiskDto> {

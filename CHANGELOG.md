@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.19.0] - 2026-08-23
+
+### Added
+- **Per-strategy contribution curves on the portfolio equity chart** — the combined curve can now be overlaid with each member's cumulative **weighted** P/L, so you can see who built the equity and who dragged it down. These are contribution curves, NOT each strategy's standalone equity: a standalone curve runs on the account's full initial balance and would not reconcile with the combined line next to it. Weighting by portfolio weight makes the decomposition exact — the final contributions sum to the combined curve's gain over initial capital.
+- **`GET /api/portfolios/{id}/member-equity-curves`** — every member's contribution series in one request, computed from the same bulk trade load the combined curve already performs, so the chart never fans out into one request per strategy. New `PortfolioMemberEquityCurveDto`.
+- **"Ver todas" ghost mode** — draws every remaining member as a faint grey line so the shape of the fan is readable at any member count. Ghosts carry no palette, so they are not subject to the eight-line colour cap.
+- **Hover identifies any line** — pointing at a curve names the strategy and shows its contribution at that date. This is what makes the ghost fan usable, since those lines have no colour identity.
+- **The monthly matrix remembers the selected metric** — return, max drawdown, underwater or win rate now survives navigation, stored per screen so the portfolios matrix and the per-strategy matrix can sit on different metrics.
+
+### Changed
+- **Contribution legend extracted into its own component** — `ContributionLegendComponent` is presentational; the parent keeps ownership of selection state and colour assignment.
+- **Production build budgets aligned with the `docker` configuration** (initial 1MB warning / 2MB error, component styles 12kB error). The `production` entry still carried the stock Angular CLI defaults, which contradicted the calibrated values the `docker` configuration has used for a long time. `ng build` completes again.
+
+### Security
+- **AngleSharp 1.1.2 → 1.7.1** — patches GHSA-pgww-w46g-26qg (moderate). AngleSharp backs the SQX HTML report and MT statement parsers; the parser and import test suites (50 tests, including one over a real HTML fixture) pass unchanged.
+- **Microsoft.EntityFrameworkCore.Sqlite 10.0.0 → 10.0.11** — pulls a patched `SQLitePCLRaw.lib.e_sqlite3`, closing GHSA-2m69-gcr7-jv3q (high, test-only). `dotnet list package --vulnerable --include-transitive` now reports all five projects clean.
+
+### Removed
+- **Redundant `Microsoft.Extensions.Configuration.Abstractions` package reference** from the Infrastructure project (NU1510) — it already arrives transitively. Removing it is what surfaced both advisories above, which it had been masking under `-warnaserror`.
+
+---
+
 ## [0.18.0] - 2026-08-21
 
 ### Added

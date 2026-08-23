@@ -105,6 +105,37 @@ public sealed record PortfolioMemberContributionDto(
     decimal WeightedNetProfit,
     decimal ContributionPercent);
 
+/// <summary>
+/// One point on a member's CONTRIBUTION curve: the cumulative weighted net P/L that this strategy
+/// has added to (or taken from) the portfolio up to and including that trade. Starts at the
+/// member's first closed trade, not at the portfolio's inception.
+/// </summary>
+public sealed record PortfolioContributionPointDto(
+    DateTime Date,
+    decimal Contribution);
+
+/// <summary>
+/// One member's contribution curve — the time-series form of
+/// <see cref="PortfolioMemberContributionDto.WeightedNetProfit"/>.
+///
+/// IMPORTANT: this is NOT the strategy's standalone equity curve (see
+/// `GET /api/strategies/{id}/equity-curve` for that one, which runs on the ACCOUNT's initial
+/// balance). Here every net is scaled by the member's normalized portfolio weight, so the
+/// contributions of all members sum exactly to the combined curve's gain over initial capital.
+/// Plotting a standalone curve against the combined one would not reconcile.
+/// </summary>
+/// <param name="RawWeight">
+/// The SQX-style position-size multiplier actually applied to this member's nets (1.0 = full size,
+/// 2.0 = double, 0.5 = half). Deliberately the RAW weight, not a share of the total — that is what
+/// the combination uses, so it is what makes these curves reconcile.
+/// </param>
+public sealed record PortfolioMemberEquityCurveDto(
+    Guid StrategyId,
+    string StrategyName,
+    decimal RawWeight,
+    decimal FinalContribution,
+    IReadOnlyList<PortfolioContributionPointDto> Points);
+
 /// <summary>One point on a portfolio equity curve (running combined equity + drawdown from peak).</summary>
 public sealed record PortfolioEquityPointDto(
     DateTime Date,

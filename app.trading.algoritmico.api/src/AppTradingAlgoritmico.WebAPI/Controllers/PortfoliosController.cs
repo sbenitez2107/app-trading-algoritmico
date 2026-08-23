@@ -168,6 +168,15 @@ public class PortfoliosController(IPortfolioService portfolioService) : Controll
         catch (KeyNotFoundException) { return NotFound(); }
     }
 
+    [HttpGet("{id:guid}/member-equity-curves")]
+    [ProducesResponseType(typeof(IReadOnlyList<PortfolioMemberEquityCurveDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<PortfolioMemberEquityCurveDto>>> GetMemberEquityCurves(Guid id, CancellationToken ct = default)
+    {
+        try { return Ok(await portfolioService.GetMemberEquityCurvesAsync(id, ct)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+    }
+
     [HttpGet("{id:guid}/risk")]
     [ProducesResponseType(typeof(PortfolioRiskDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

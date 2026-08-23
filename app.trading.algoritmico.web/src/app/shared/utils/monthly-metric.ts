@@ -5,7 +5,10 @@
  * `maxDrawdown` resets its peak every month ("how much did THIS month hurt"), while `underwater`
  * carries the all-time peak, so one bad month keeps showing up until a new high is made.
  */
-export type MonthlyMetric = 'return' | 'maxDrawdown' | 'underwater' | 'winRate';
+export const MONTHLY_METRICS = ['return', 'maxDrawdown', 'underwater', 'winRate'] as const;
+
+/** Derived from MONTHLY_METRICS so the runtime allow-list and the type cannot drift apart. */
+export type MonthlyMetric = (typeof MONTHLY_METRICS)[number];
 
 /** Structural shape shared by the portfolio and strategy monthly DTOs. */
 export interface MonthlyMetricSource {

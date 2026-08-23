@@ -358,6 +358,14 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         return PortfolioAnalyticsCalculator.ComputeEquityCurve(initialCapital, members);
     }
 
+    public async Task<IReadOnlyList<PortfolioMemberEquityCurveDto>> GetMemberEquityCurvesAsync(Guid portfolioId, CancellationToken ct = default)
+    {
+        // Same bulk load the combined curve already does — the per-member split is free from here,
+        // so the chart never fans out into one request per strategy.
+        var (_, members) = await LoadMemberInputsAsync(portfolioId, ct);
+        return PortfolioAnalyticsCalculator.ComputeMemberEquityCurves(members);
+    }
+
     public async Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default)
     {
         var (initialCapital, riskMembers) = await LoadMemberInputsAsync(portfolioId, ct);

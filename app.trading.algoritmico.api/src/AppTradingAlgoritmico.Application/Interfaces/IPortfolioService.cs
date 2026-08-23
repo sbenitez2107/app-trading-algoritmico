@@ -44,6 +44,12 @@ public interface IPortfolioService
     Task<PortfolioAnalyticsDto> GetAnalyticsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioEquityPointDto>> GetEquityCurveAsync(Guid portfolioId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Per-member contribution curves for the portfolio's equity chart. Weighted, so they
+    /// reconcile with the combined curve — NOT each strategy's standalone equity.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioMemberEquityCurveDto>> GetMemberEquityCurvesAsync(Guid portfolioId, CancellationToken ct = default);
     Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default);
     Task<PortfolioCorrelationDto> GetCorrelationAsync(Guid portfolioId, CancellationToken ct = default);
 }

@@ -92,3 +92,6 @@ TEST*.xml
 
 # Local test data — SQX .sqx/.html pairs used for manual smoke tests
 /strategies/
+
+# Generated skill-registry cache (rebuilt on demand, never source of truth)
+.atl/.skill-registry.cache.json

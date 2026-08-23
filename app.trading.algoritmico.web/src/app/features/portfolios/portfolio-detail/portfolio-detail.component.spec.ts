@@ -26,6 +26,7 @@ describe('PortfolioDetailComponent', () => {
       getAnalytics: vi.fn().mockReturnValue(of(null)),
       getEquityCurve: vi.fn().mockReturnValue(of([])),
       getMonthlyReturns: vi.fn().mockReturnValue(of([])),
+      getMemberEquityCurves: vi.fn().mockReturnValue(of([])),
       getCandidates: vi.fn().mockReturnValue(of([])),
       getRisk: vi.fn().mockReturnValue(of(null)),
       getCorrelation: vi.fn().mockReturnValue(of(null)),
@@ -45,6 +46,162 @@ describe('PortfolioDetailComponent', () => {
   function create(): PortfolioDetailComponent {
     return TestBed.createComponent(PortfolioDetailComponent).componentInstance;
   }
+
+  // --- Contribution overlays -------------------------------------------------
+
+  function makeCurve(id: string, name: string, finalContribution: number) {
+    return {
+      strategyId: id,
+      strategyName: name,
+      rawWeight: 1,
+      finalContribution,
+      points: [{ date: '2026-01-05T12:00:00', contribution: finalContribution }],
+    };
+  }
+
+  it('equityOverlays_StartEmpty_SoTheChartIsNotSpaghettiByDefault', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500), makeCurve('s2', 'Beta', -200)]);
+
+    expect(cmp.equityOverlays()).toEqual([]);
+  });
+
+  it('rankedMemberCurves_OrdersByAbsoluteImpact_SoBigLosersRankHighToo', () => {
+    const cmp = create();
+    cmp.memberCurves.set([
+      makeCurve('s1', 'Small', 50),
+      makeCurve('s2', 'BigLoser', -900),
+      makeCurve('s3', 'BigWinner', 400),
+    ]);
+
+    expect(cmp.rankedMemberCurves().map((c) => c.strategyName)).toEqual([
+      'BigLoser',
+      'BigWinner',
+      'Small',
+    ]);
+  });
+
+  it('toggleMemberCurve_AddsAndRemovesTheLine', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500)]);
+
+    cmp.toggleMemberCurve('s1');
+    expect(cmp.equityOverlays().map((o) => o.id)).toEqual(['s1']);
+    expect(cmp.equityOverlays()[0].points).toEqual([{ date: '2026-01-05T12:00:00', value: 500 }]);
+
+    cmp.toggleMemberCurve('s1');
+    expect(cmp.equityOverlays()).toEqual([]);
+  });
+
+  it('toggleMemberCurve_StopsAtTheOverlayCap', () => {
+    const cmp = create();
+    const many = Array.from({ length: cmp.maxOverlays + 3 }, (_, i) =>
+      makeCurve(`s${i}`, `S${i}`, 1000 - i),
+    );
+    cmp.memberCurves.set(many);
+
+    for (const c of many) cmp.toggleMemberCurve(c.strategyId);
+
+    expect(cmp.equityOverlays()).toHaveLength(cmp.maxOverlays);
+    expect(cmp.overlayLimitReached()).toBe(true);
+  });
+
+  it('equityOverlays_GiveEveryLineADistinctColour', () => {
+    const cmp = create();
+    const curves = Array.from({ length: 4 }, (_, i) => makeCurve(`s${i}`, `S${i}`, 100 - i));
+    cmp.memberCurves.set(curves);
+    for (const c of curves) cmp.toggleMemberCurve(c.strategyId);
+
+    const colors = cmp.equityOverlays().map((o) => o.color);
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+
+  it('ghostCurves_AreOff_ByDefault', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500), makeCurve('s2', 'Beta', 300)]);
+
+    expect(cmp.showGhostCurves()).toBe(false);
+    expect(cmp.equityOverlays()).toEqual([]);
+  });
+
+  it('ghostCurves_DrawEveryUnselectedMember_WithoutTheEightLineCap', () => {
+    const cmp = create();
+    const many = Array.from({ length: 20 }, (_, i) => makeCurve(`s${i}`, `S${i}`, 100 - i));
+    cmp.memberCurves.set(many);
+
+    cmp.toggleGhostCurves();
+
+    // The cap only ever governed COLOURED lines; ghosts carry no palette to run out of.
+    expect(cmp.equityOverlays()).toHaveLength(20);
+    expect(cmp.equityOverlays().every((o) => o.ghost)).toBe(true);
+  });
+
+  it('ghostCurves_ComeFirst_SoColouredLinesDrawOnTop', () => {
+    const cmp = create();
+    cmp.memberCurves.set([
+      makeCurve('s1', 'Alpha', 900),
+      makeCurve('s2', 'Beta', 500),
+      makeCurve('s3', 'Gamma', 100),
+    ]);
+    cmp.toggleGhostCurves();
+    cmp.toggleMemberCurve('s2');
+
+    const overlays = cmp.equityOverlays();
+    const lastGhost = overlays.map((o) => o.ghost === true).lastIndexOf(true);
+    const firstColoured = overlays.findIndex((o) => o.ghost !== true);
+
+    expect(firstColoured).toBeGreaterThan(lastGhost);
+  });
+
+  it('ghostCurves_NeverDuplicateASelectedMember', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 900), makeCurve('s2', 'Beta', 500)]);
+    cmp.toggleGhostCurves();
+    cmp.toggleMemberCurve('s1');
+
+    const ids = cmp.equityOverlays().map((o) => o.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    expect(cmp.equityOverlays().find((o) => o.id === 's1')?.ghost).toBeUndefined();
+  });
+
+  it('ghostCurves_SkipMembersWithNoClosedTrades', () => {
+    const cmp = create();
+    const silent = { ...makeCurve('s2', 'Silent', 0), points: [] };
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 900), silent]);
+
+    cmp.toggleGhostCurves();
+
+    // A flat line at zero adds noise and says nothing.
+    expect(cmp.equityOverlays().map((o) => o.id)).toEqual(['s1']);
+  });
+
+  it('legendRows_CarryColourAndDrawState_ForTheExtractedLegend', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 900), makeCurve('s2', 'Beta', 100)]);
+    cmp.toggleMemberCurve('s1');
+
+    const [drawn, idle] = cmp.legendRows();
+    expect(drawn.strategyId).toBe('s1');
+    expect(drawn.selected).toBe(true);
+    expect(drawn.color).toBeTruthy();
+
+    // An unselected member still gets a row, but no colour — nothing is drawn for it.
+    expect(idle.selected).toBe(false);
+    expect(idle.color).toBeNull();
+  });
+
+  it('clearMemberCurves_RemovesEveryLine', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500), makeCurve('s2', 'Beta', 300)]);
+    cmp.toggleMemberCurve('s1');
+    cmp.toggleMemberCurve('s2');
+
+    cmp.clearMemberCurves();
+
+    expect(cmp.equityOverlays()).toEqual([]);
+    expect(cmp.overlayLimitReached()).toBe(false);
+  });
 
   type Row = Parameters<PortfolioDetailComponent['liveWinRateLabel']>[0];
 
@@ -236,6 +393,7 @@ describe('PortfolioDetailComponent — Risk tab by GuardrailKind', () => {
       getAnalytics: vi.fn().mockReturnValue(of(null)),
       getEquityCurve: vi.fn().mockReturnValue(of([])),
       getMonthlyReturns: vi.fn().mockReturnValue(of([])),
+      getMemberEquityCurves: vi.fn().mockReturnValue(of([])),
       getCandidates: vi.fn().mockReturnValue(of([])),
       getRisk: vi.fn().mockReturnValue(of(null)),
       getCorrelation: vi.fn().mockReturnValue(of(null)),

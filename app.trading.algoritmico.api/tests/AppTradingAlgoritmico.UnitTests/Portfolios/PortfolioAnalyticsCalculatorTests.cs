@@ -410,4 +410,93 @@ public class PortfolioAnalyticsCalculatorTests
         jan.WinCount.Should().Be(2);
         jan.LossCount.Should().Be(1, "the flat trade counts as neither a win nor a loss");
     }
+
+    [Fact]
+    public void ComputeMemberEquityCurves_ContributionsAreWeightedAndCumulative()
+    {
+        var d = new DateTime(2026, 1, 1);
+        // Weights are RAW size multipliers, not shares: 0.5 = half size, 2 = double size.
+        var curves = PortfolioAnalyticsCalculator.ComputeMemberEquityCurves([
+            Member("A", 0.5m,
+                Trade(d, d.AddHours(1), 1_000m),
+                Trade(d.AddDays(2), d.AddDays(2).AddHours(1), -400m)),
+            Member("B", 2m,
+                Trade(d.AddDays(1), d.AddDays(1).AddHours(1), 600m)),
+        ]);
+
+        curves.Should().HaveCount(2);
+
+        var a = curves[0];
+        a.RawWeight.Should().Be(0.5m);
+        a.Points.Should().HaveCount(2);
+        a.Points[0].Contribution.Should().Be(500m, "1,000 at half size");
+        a.Points[1].Contribution.Should().Be(300m, "500 - 200, cumulative");
+        a.FinalContribution.Should().Be(300m);
+
+        var b = curves[1];
+        b.RawWeight.Should().Be(2m);
+        b.Points.Should().ContainSingle();
+        b.FinalContribution.Should().Be(1_200m, "600 at double size");
+    }
+
+    [Fact]
+    public void ComputeMemberEquityCurves_SumOfContributions_ReconcilesWithCombinedEquityCurve()
+    {
+        // The decomposition must be HONEST: every unit of combined profit belongs to exactly one
+        // member, so the contributions add up to the combined curve's gain over initial capital.
+        var d = new DateTime(2026, 1, 1);
+        var members = new[]
+        {
+            Member("A", 3m,
+                Trade(d, d.AddHours(1), 1_000m),
+                Trade(d.AddDays(3), d.AddDays(3).AddHours(1), -400m)),
+            Member("B", 1m,
+                Trade(d.AddDays(1), d.AddDays(1).AddHours(1), 600m),
+                Trade(d.AddDays(4), d.AddDays(4).AddHours(1), 250m)),
+        };
+
+        var curves = PortfolioAnalyticsCalculator.ComputeMemberEquityCurves(members);
+        var combined = PortfolioAnalyticsCalculator.ComputeEquityCurve(100_000m, members);
+
+        var totalContribution = curves.Sum(c => c.FinalContribution);
+        var combinedGain = combined[^1].Equity - 100_000m;
+
+        totalContribution.Should().BeApproximately(combinedGain, 0.0001m);
+    }
+
+    [Fact]
+    public void ComputeMemberEquityCurves_AppliesRawSizeMultiplier_WithoutRenormalizing()
+    {
+        var d = new DateTime(2026, 1, 1);
+        // Weight 3 means TRIPLE size, not 75% of the book — the portfolio never rescales to 1.
+        var curves = PortfolioAnalyticsCalculator.ComputeMemberEquityCurves([
+            Member("A", 3m, Trade(d, d.AddHours(1), 1_000m)),
+            Member("B", 1m, Trade(d.AddDays(1), d.AddDays(1).AddHours(1), 1_000m)),
+        ]);
+
+        curves[0].RawWeight.Should().Be(3m);
+        curves[0].FinalContribution.Should().Be(3_000m);
+        curves[1].RawWeight.Should().Be(1m);
+        curves[1].FinalContribution.Should().Be(1_000m);
+    }
+
+    [Fact]
+    public void ComputeMemberEquityCurves_ExcludesOpenTrades_AndKeepsEmptyMembers()
+    {
+        var d = new DateTime(2026, 1, 1);
+        var curves = PortfolioAnalyticsCalculator.ComputeMemberEquityCurves([
+            Member("A", 1m,
+                Trade(d, d.AddHours(1), 1_000m),
+                Trade(d.AddDays(1), close: null, profit: 5_000m, isOpen: true)),
+            Member("Silent", 1m),
+        ]);
+
+        curves[0].Points.Should().ContainSingle("the open trade contributes nothing");
+        curves[0].FinalContribution.Should().Be(1_000m, "weight 1 = full size");
+
+        // A member with no closed trades still gets a row, so the selector can show it as flat.
+        curves[1].Points.Should().BeEmpty();
+        curves[1].FinalContribution.Should().Be(0m);
+        curves[1].StrategyName.Should().Be("Silent");
+    }
 }

@@ -5,6 +5,7 @@ import {
   PortfolioMonthlyReturnsDto,
 } from '../../../core/services/portfolio.service';
 import {
+  MONTHLY_METRICS,
   MonthlyMetric,
   formatMonthlyMetric,
   isLowerBetter,
@@ -13,6 +14,7 @@ import {
   monthlyMetricTotal,
   monthlyMetricValue,
 } from '../../../shared/utils/monthly-metric';
+import { readViewPreference, writeViewPreference } from '../../../shared/utils/view-preference';
 
 interface MonthlyViewRow {
   portfolioId: string;
@@ -52,7 +54,14 @@ export class PortfolioMonthlyReturnsComponent {
   readonly portfolioSelected = output<string>();
 
   readonly selectedYear = signal(new Date().getFullYear());
-  readonly metric = signal<MonthlyMetric>('return');
+  /**
+   * Remembered per screen, so the portfolios matrix can sit on a different metric than the other
+   * one — reading drawdowns here and returns there is a normal way to work.
+   */
+  private readonly metricStorageKey = 'monthly_metric_portfolios';
+  readonly metric = signal<MonthlyMetric>(
+    readViewPreference(this.metricStorageKey, MONTHLY_METRICS, 'return'),
+  );
 
   readonly metricOptions: ReadonlyArray<{ value: MonthlyMetric; label: string; hint: string }> = [
     { value: 'return', label: 'Retorno', hint: 'Retorno compuesto del mes' },
@@ -145,6 +154,7 @@ export class PortfolioMonthlyReturnsComponent {
   setMetric(metric: MonthlyMetric): void {
     if (this.metric() === metric) return;
     this.metric.set(metric);
+    writeViewPreference(this.metricStorageKey, metric);
     // The active sort now ranks a different quantity, so re-apply its best-first direction.
     const key = this.sortKey();
     if (key !== null && key !== 'name' && key !== 'memberCount') {
