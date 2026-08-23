@@ -26,6 +26,9 @@
   }
 
   &__ghosts {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: transparent;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -101,6 +104,11 @@
     border-radius: 2px;
     border: 1px solid var(--color-border);
     flex: none;
+
+    // Matches the combined curve's line colour in the chart.
+    &--combined {
+      background: #3b82f6;
+    }
   }
 
   &__name {

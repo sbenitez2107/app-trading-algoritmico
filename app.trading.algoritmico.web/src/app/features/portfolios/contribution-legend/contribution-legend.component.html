@@ -15,6 +15,17 @@
     >
       {{ ghostsOn() ? 'Ocultar el resto' : 'Ver todas' }}
     </button>
+    <button
+      class="contrib__ghosts"
+      type="button"
+      [class.is-on]="combinedOn()"
+      [attr.aria-pressed]="combinedOn()"
+      title="Muestra u oculta la curva combinada. Ocultarla deja todo el canvas para las contribuciones, que son dos órdenes de magnitud más chicas."
+      (click)="combinedToggled.emit()"
+    >
+      <span class="contrib__swatch contrib__swatch--combined"></span>
+      Combinada
+    </button>
     @if (selectedCount() > 0) {
       <button class="contrib__clear" type="button" (click)="cleared.emit()">
         Limpiar ({{ selectedCount() }})

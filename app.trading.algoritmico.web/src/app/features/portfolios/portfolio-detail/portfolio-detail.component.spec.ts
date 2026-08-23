@@ -116,6 +116,22 @@ describe('PortfolioDetailComponent', () => {
     expect(new Set(colors).size).toBe(colors.length);
   });
 
+  it('combinedCurve_IsShown_ByDefault_AndTogglesIndependentlyOfOverlays', () => {
+    const cmp = create();
+    cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500)]);
+    cmp.toggleMemberCurve('s1');
+
+    expect(cmp.showCombinedCurve()).toBe(true);
+
+    cmp.toggleCombinedCurve();
+    expect(cmp.showCombinedCurve()).toBe(false);
+    // Hiding the combined curve must not disturb the contribution lines.
+    expect(cmp.equityOverlays().map((o) => o.id)).toEqual(['s1']);
+
+    cmp.toggleCombinedCurve();
+    expect(cmp.showCombinedCurve()).toBe(true);
+  });
+
   it('ghostCurves_AreOff_ByDefault', () => {
     const cmp = create();
     cmp.memberCurves.set([makeCurve('s1', 'Alpha', 500), makeCurve('s2', 'Beta', 300)]);

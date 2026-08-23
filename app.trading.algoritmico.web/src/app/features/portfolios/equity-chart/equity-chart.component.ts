@@ -190,6 +190,13 @@ export class EquityChartComponent implements OnDestroy {
    */
   readonly overlays = input<EquityOverlay[]>([]);
 
+  /**
+   * Whether the main (combined) curve is drawn. Hiding it hands the whole canvas to the overlays,
+   * which is the only way to compare contributions against each other rather than against a line
+   * two orders of magnitude larger.
+   */
+  readonly showMain = input(true);
+
   private chart?: IChartApi;
   private series?: ISeriesApi<'Area'>;
   private markers?: ISeriesMarkersPluginApi<Time>;
@@ -213,6 +220,7 @@ export class EquityChartComponent implements OnDestroy {
       const el = this.container()?.nativeElement;
       const pts = this.points();
       const overlays = this.overlays();
+      const showMain = this.showMain();
       if (!el) return;
 
       if (!this.chart) {
@@ -241,7 +249,11 @@ export class EquityChartComponent implements OnDestroy {
       }
 
       this.series!.setData(this.toDailyData(pts));
-      this.applyAnnotations(pts);
+      this.series!.applyOptions({ visible: showMain });
+      // The annotations belong to the combined curve, so they follow its visibility. The
+      // stagnation band especially: it is a hand-drawn primitive and would keep painting over an
+      // empty chart otherwise.
+      this.applyAnnotations(showMain ? pts : []);
       this.syncOverlays(overlays);
       this.chart.timeScale().fitContent();
     });

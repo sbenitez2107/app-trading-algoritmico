@@ -139,6 +139,8 @@ export class PortfolioDetailComponent implements OnInit {
   readonly selectedMemberCurves = signal<Set<string>>(new Set());
   /** Draw every remaining member as a faint grey line, to read the shape of the fan. */
   readonly showGhostCurves = signal(false);
+  /** The combined curve can be hidden so the contribution lines get the whole canvas. */
+  readonly showCombinedCurve = signal(true);
   readonly monthlyReturns = signal<MonthlyReturnDto[]>([]);
   readonly isLoading = signal(true);
   readonly error = signal<string | null>(null);
@@ -608,6 +610,10 @@ export class PortfolioDetailComponent implements OnInit {
 
   toggleGhostCurves(): void {
     this.showGhostCurves.update((on) => !on);
+  }
+
+  toggleCombinedCurve(): void {
+    this.showCombinedCurve.update((on) => !on);
   }
 
   /** Ranked members decorated with the colour and draw state the legend renders. */

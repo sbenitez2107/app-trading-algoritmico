@@ -34,10 +34,13 @@ export class ContributionLegendComponent {
 
   /** Whether the faint "every other member" fan is currently drawn. */
   readonly ghostsOn = input(false);
+  /** Whether the combined curve itself is currently drawn. */
+  readonly combinedOn = input(true);
 
   readonly toggled = output<string>();
   readonly cleared = output<void>();
   readonly ghostsToggled = output<void>();
+  readonly combinedToggled = output<void>();
 
   money(v: number): string {
     return formatCurrency(v);

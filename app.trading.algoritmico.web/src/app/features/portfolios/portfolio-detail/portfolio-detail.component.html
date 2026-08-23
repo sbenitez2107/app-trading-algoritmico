@@ -118,7 +118,11 @@
         @if (equityCurve().length > 0) {
           <h3 class="section-title">Curva de equity combinada</h3>
           <div class="panel">
-            <app-equity-chart [points]="equityCurve()" [overlays]="equityOverlays()" />
+            <app-equity-chart
+              [points]="equityCurve()"
+              [overlays]="equityOverlays()"
+              [showMain]="showCombinedCurve()"
+            />
 
             @if (legendRows().length > 0) {
               <app-contribution-legend
@@ -127,9 +131,11 @@
                 [limitReached]="overlayLimitReached()"
                 [selectedCount]="selectedMemberCurves().size"
                 [ghostsOn]="showGhostCurves()"
+                [combinedOn]="showCombinedCurve()"
                 (toggled)="toggleMemberCurve($event)"
                 (cleared)="clearMemberCurves()"
                 (ghostsToggled)="toggleGhostCurves()"
+                (combinedToggled)="toggleCombinedCurve()"
               />
             }
           </div>

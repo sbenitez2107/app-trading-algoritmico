@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.0] - 2026-08-23
+
+### Added
+- **Toggle the combined curve on the portfolio equity chart** — a **Combinada** button next to the ghost-mode toggle hides or shows the combined line. Hiding it hands the whole canvas to the contribution curves, which otherwise sit compressed against their own axis while being compared to a line two orders of magnitude larger. The Max DD marker and the stagnation band belong to the combined curve and follow its visibility, so the hand-drawn band no longer paints over an empty chart.
+
+---
+
 ## [0.19.0] - 2026-08-23
 
 ### Added
