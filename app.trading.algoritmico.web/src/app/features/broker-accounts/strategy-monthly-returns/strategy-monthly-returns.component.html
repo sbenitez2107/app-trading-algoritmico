@@ -42,12 +42,161 @@
     </div>
   </div>
 
+  <div class="monthly-returns__filters">
+    <input
+      class="monthly-returns__search"
+      type="search"
+      autocomplete="off"
+      placeholder="Filter strategy..."
+      aria-label="Filter by strategy name"
+      [value]="nameFilter()"
+      (input)="nameFilter.set($any($event.target).value)"
+    />
+
+    <select
+      class="monthly-returns__select"
+      aria-label="Filter by symbol"
+      [value]="symbolFilter() ?? ''"
+      (change)="setSymbolFilter($any($event.target).value)"
+    >
+      <option value="">All symbols</option>
+      @for (s of availableSymbols(); track s) {
+        <option [value]="s">{{ s }}</option>
+      }
+    </select>
+
+    <select
+      class="monthly-returns__select"
+      aria-label="Filter by timeframe"
+      [value]="timeframeFilter() ?? ''"
+      (change)="setTimeframeFilter($any($event.target).value)"
+    >
+      <option value="">All timeframes</option>
+      @for (tf of availableTimeframes(); track tf) {
+        <option [value]="tf">{{ tf }}</option>
+      }
+    </select>
+
+    <label class="monthly-returns__threshold">
+      <span>Max DD &lt;</span>
+      <input
+        type="number"
+        min="0"
+        step="0.5"
+        inputmode="decimal"
+        placeholder="%"
+        aria-label="Keep strategies whose every month stayed below this max drawdown percentage"
+        title="Every month must stay below this drawdown - one deeper month disqualifies the strategy"
+        [value]="maxDdFilter() ?? ''"
+        (input)="setMaxDdFilter($any($event.target).value)"
+      />
+    </label>
+
+    <label class="monthly-returns__threshold">
+      <span>Return &gt;</span>
+      <input
+        type="number"
+        step="0.1"
+        inputmode="decimal"
+        placeholder="%"
+        aria-label="Keep strategies whose every month returned more than this percentage"
+        title="Every month must beat this return - one worse month disqualifies the strategy"
+        [value]="minReturnFilter() ?? ''"
+        (input)="setMinReturnFilter($any($event.target).value)"
+      />
+    </label>
+
+    <label class="monthly-returns__threshold">
+      <span>W/L &gt;</span>
+      <input
+        type="number"
+        min="0"
+        max="100"
+        step="1"
+        inputmode="decimal"
+        placeholder="%"
+        aria-label="Keep strategies whose every month won more than this percentage of its trades"
+        title="Every month must beat this win rate - one worse month disqualifies the strategy"
+        [value]="minWinRateFilter() ?? ''"
+        (input)="setMinWinRateFilter($any($event.target).value)"
+      />
+    </label>
+
+    <label class="monthly-returns__threshold">
+      <span>Trades &ge;</span>
+      <input
+        type="number"
+        min="0"
+        step="1"
+        inputmode="numeric"
+        placeholder="year"
+        aria-label="Keep strategies with at least this many trades across the year"
+        title="Total trades in the selected year"
+        [value]="minTotalTradesFilter() ?? ''"
+        (input)="setMinTotalTradesFilter($any($event.target).value)"
+      />
+      <input
+        type="number"
+        min="0"
+        step="1"
+        inputmode="numeric"
+        placeholder="month"
+        aria-label="Keep strategies where every month had at least this many trades"
+        title="Every month must reach this trade count - one thinner month disqualifies the strategy"
+        [value]="minMonthlyTradesFilter() ?? ''"
+        (input)="setMinMonthlyTradesFilter($any($event.target).value)"
+      />
+    </label>
+
+    <div class="monthly-returns__tones" role="group" aria-label="Filter by year total">
+      @for (opt of totalFilterOptions; track opt.value) {
+        <button
+          class="monthly-returns__tone-btn"
+          type="button"
+          [class.is-active]="totalFilter() === opt.value"
+          [attr.aria-pressed]="totalFilter() === opt.value"
+          [title]="opt.hint"
+          (click)="totalFilter.set(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      }
+    </div>
+
+    @if (hasActiveFilters()) {
+      <span class="monthly-returns__count"
+        >{{ filteredRows().length }} / {{ viewRows().length }}</span
+      >
+      <button
+        class="monthly-returns__clear"
+        type="button"
+        (click)="clearFilters()"
+        title="Clear filters"
+      >
+        Clear
+      </button>
+    }
+
+    @if (canCreatePortfolio()) {
+      <button
+        class="monthly-returns__build"
+        type="button"
+        (click)="openCreatePortfolio()"
+        title="Create a portfolio holding exactly these strategies"
+      >
+        Create portfolio ({{ filteredRows().length }})
+      </button>
+    }
+  </div>
+
   @if (isLoading()) {
     <div class="monthly-returns__loading">Loading monthly returns...</div>
   } @else if (error()) {
     <div class="monthly-returns__error" role="alert">{{ error() }}</div>
   } @else if (viewRows().length === 0) {
     <p class="monthly-returns__empty">No strategies in this account yet.</p>
+  } @else if (filteredRows().length === 0) {
+    <p class="monthly-returns__empty">No strategies match the current filters.</p>
   } @else {
     <div class="monthly-returns__table-wrapper">
       <table class="monthly-returns__table">
@@ -61,6 +210,11 @@
             <th class="monthly-returns__symbol-h">
               <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('symbol')">
                 Symbol {{ sortIndicator('symbol') }}
+              </button>
+            </th>
+            <th class="monthly-returns__tf-h">
+              <button class="monthly-returns__sort-btn" type="button" (click)="sortBy('timeframe')">
+                TF {{ sortIndicator('timeframe') }}
               </button>
             </th>
             @for (m of monthLabels; track m; let i = $index) {
@@ -78,19 +232,41 @@
           </tr>
         </thead>
         <tbody>
+          <tr class="monthly-returns__summary">
+            <td class="monthly-returns__name">Total ({{ summaryRow().count }})</td>
+            <td></td>
+            <td></td>
+            @for (m of summaryRow().months; track $index) {
+              <td
+                class="monthly-returns__cell"
+                [class.pos]="m.tone === 'pos'"
+                [class.neg]="m.tone === 'neg'"
+              >
+                {{ m.text }}
+              </td>
+            }
+            <td
+              class="monthly-returns__total"
+              [class.pos]="summaryRow().total.tone === 'pos'"
+              [class.neg]="summaryRow().total.tone === 'neg'"
+            >
+              {{ summaryRow().total.text }}
+            </td>
+          </tr>
           @for (row of sortedRows(); track row.strategyId) {
             <tr>
               <td class="monthly-returns__name" [title]="row.name">{{ row.name }}</td>
               <td class="monthly-returns__symbol" [style]="symbolStyle(row.symbol)">
                 {{ row.symbol ?? '—' }}
               </td>
+              <td class="monthly-returns__tf">{{ row.timeframe ?? '—' }}</td>
               @for (m of row.months; track $index; let i = $index) {
                 <td
                   class="monthly-returns__cell"
                   [style]="cellStyle(m)"
                   [attr.title]="row.tooltips[i]"
                 >
-                  {{ fmt(m) }}
+                  {{ row.monthTexts[i] }}
                 </td>
               }
               <td
@@ -98,7 +274,7 @@
                 [class.pos]="totalTone(row.total) === 'pos'"
                 [class.neg]="totalTone(row.total) === 'neg'"
               >
-                {{ fmt(row.total) }}
+                {{ row.totalText }}
               </td>
             </tr>
           }
@@ -107,3 +283,13 @@
     </div>
   }
 </div>
+
+@if (isCreatingPortfolio()) {
+  <app-create-portfolio-modal
+    [strategyIds]="portfolioStrategyIds()"
+    [broker]="broker()!"
+    [accountType]="accountType()!"
+    (created)="onPortfolioCreated($event)"
+    (cancelled)="closeCreatePortfolio()"
+  />
+}

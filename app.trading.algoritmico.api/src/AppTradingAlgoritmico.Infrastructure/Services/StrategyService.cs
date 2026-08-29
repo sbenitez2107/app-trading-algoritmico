@@ -142,7 +142,7 @@ public sealed class StrategyService(
             .AsNoTracking()
             .Where(x => x.TradingAccountId == accountId)
             .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.Symbol })
+            .Select(x => new { x.Id, x.Name, x.Symbol, x.Timeframe })
             .ToListAsync(ct);
 
         if (strategies.Count == 0)
@@ -163,6 +163,7 @@ public sealed class StrategyService(
                 s.Id,
                 s.Name,
                 s.Symbol,
+                s.Timeframe,
                 tradesByStrategy.TryGetValue(s.Id, out var trades)
                     ? StrategyAnalyticsCalculator.ComputeMonthlyReturns(initialBalance, trades)
                     : []))

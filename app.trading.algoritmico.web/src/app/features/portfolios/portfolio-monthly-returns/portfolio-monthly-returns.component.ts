@@ -7,7 +7,8 @@ import {
 import {
   MONTHLY_METRICS,
   MonthlyMetric,
-  formatMonthlyMetric,
+  formatMonthlyCell,
+  formatMonthlyTotalCell,
   isLowerBetter,
   monthlyMetricCellStyle,
   monthlyMetricTooltip,
@@ -20,11 +21,15 @@ interface MonthlyViewRow {
   portfolioId: string;
   name: string;
   memberCount: number;
-  /** 12 entries of the SELECTED metric, null = the month has no value to show. */
+  /** 12 entries of the SELECTED metric, null = the month has no value to show. Drives sorting
+   *  and the heatmap; what the cell READS is `monthTexts`, which the win rate formats differently. */
   months: (number | null)[];
+  /** 12 entries of rendered cell text, aligned with `months`. */
+  monthTexts: string[];
   /** 12 entries of extra cell detail (win/loss counts), null = nothing to add. */
   tooltips: (string | null)[];
   total: number | null;
+  totalText: string;
   hasData: boolean;
 }
 
@@ -139,8 +144,10 @@ export class PortfolioMonthlyReturnsComponent {
         name: r.name,
         memberCount: r.memberCount,
         months: sources.map((m) => (m === null ? null : monthlyMetricValue(m, metric))),
+        monthTexts: sources.map((m) => formatMonthlyCell(m, metric)),
         tooltips: sources.map((m) => monthlyMetricTooltip(m, metric)),
         total: monthlyMetricTotal(sources, metric),
+        totalText: formatMonthlyTotalCell(sources, metric),
         // Driven by the presence of months, NOT of values: a breakeven-only month reports no
         // win rate, but the portfolio still traded that year.
         hasData: sources.some((m) => m !== null),
@@ -209,11 +216,6 @@ export class PortfolioMonthlyReturnsComponent {
 
   nextYear(): void {
     if (this.canNext()) this.selectedYear.update((y) => y + 1);
-  }
-
-  /** Months without a value render as an em-dash. */
-  fmt(v: number | null): string {
-    return formatMonthlyMetric(v);
   }
 
   cellStyle(v: number | null): Record<string, string> {

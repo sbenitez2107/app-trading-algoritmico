@@ -207,6 +207,8 @@ export interface StrategyMonthlyReturnsDto {
   strategyId: string;
   name: string;
   symbol: string | null;
+  /** Null for strategies that never came from a parsed SQX report. */
+  timeframe: string | null;
   /** Empty when the strategy has no imported live trades. */
   returns: MonthlyReturnDto[];
 }

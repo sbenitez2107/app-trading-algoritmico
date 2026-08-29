@@ -92,7 +92,11 @@
       @if (isLoading()) {
         <div class="account-detail__loading">Loading strategies...</div>
       } @else if (viewMode() === 'monthly') {
-        <app-strategy-monthly-returns [accountId]="accountId" />
+        <app-strategy-monthly-returns
+          [accountId]="accountId"
+          [broker]="account()?.broker ?? null"
+          [accountType]="account()?.accountType ?? null"
+        />
       } @else {
         <ag-grid-angular
           class="account-detail__grid"

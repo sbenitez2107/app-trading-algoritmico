@@ -101,7 +101,7 @@
                   [style]="cellStyle(m)"
                   [attr.title]="row.tooltips[i]"
                 >
-                  {{ fmt(m) }}
+                  {{ row.monthTexts[i] }}
                 </td>
               }
               <td
@@ -109,7 +109,7 @@
                 [class.pos]="totalTone(row.total) === 'pos'"
                 [class.neg]="totalTone(row.total) === 'neg'"
               >
-                {{ fmt(row.total) }}
+                {{ row.totalText }}
               </td>
             </tr>
           }

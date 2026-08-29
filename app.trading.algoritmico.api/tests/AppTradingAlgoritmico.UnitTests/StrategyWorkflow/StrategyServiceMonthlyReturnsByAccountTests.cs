@@ -35,8 +35,9 @@ public class StrategyServiceMonthlyReturnsByAccountTests
             InitialBalance = initialBalance
         };
 
-    private static Strategy MakeStrategy(Guid id, string name, Guid accountId, string? symbol = "EURUSD") =>
-        new() { Id = id, Name = name, TradingAccountId = accountId, Symbol = symbol };
+    private static Strategy MakeStrategy(
+        Guid id, string name, Guid accountId, string? symbol = "EURUSD", string? timeframe = null) =>
+        new() { Id = id, Name = name, TradingAccountId = accountId, Symbol = symbol, Timeframe = timeframe };
 
     private static StrategyTrade Trade(
         Guid strategyId,
@@ -245,4 +246,33 @@ public class StrategyServiceMonthlyReturnsByAccountTests
         result[0].Returns[0].Profit.Should().Be(80m);
         result[0].Returns[0].TradeCount.Should().Be(1);
     }
+
+    [Fact]
+    public async Task GetMonthlyReturnsByAccountAsync_ProjectsTheStrategyTimeframe()
+    {
+        // Arrange
+        var accountId = Guid.NewGuid();
+        var withTimeframe = Guid.NewGuid();
+        var withoutTimeframe = Guid.NewGuid();
+        var dbName = Guid.NewGuid().ToString();
+
+        await using (var seedDb = InMemoryDbContextFactory.Create(dbName))
+        {
+            seedDb.TradingAccounts.Add(MakeAccount(accountId));
+            seedDb.Strategies.Add(MakeStrategy(withTimeframe, "Alpha", accountId, timeframe: "H4"));
+            seedDb.Strategies.Add(MakeStrategy(withoutTimeframe, "Beta", accountId));
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using var db = InMemoryDbContextFactory.Create(dbName);
+        var sut = CreateSut(db);
+
+        // Act
+        var result = await sut.GetMonthlyReturnsByAccountAsync(accountId);
+
+        // Assert - a strategy that never came from a parsed report simply has none.
+        result.Single(r => r.StrategyId == withTimeframe).Timeframe.Should().Be("H4");
+        result.Single(r => r.StrategyId == withoutTimeframe).Timeframe.Should().BeNull();
+    }
+
 }

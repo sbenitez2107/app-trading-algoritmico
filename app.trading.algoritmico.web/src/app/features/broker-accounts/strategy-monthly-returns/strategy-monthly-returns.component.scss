@@ -19,7 +19,120 @@
     letter-spacing: 0.05em;
   }
 
-  &__metrics {
+  &__filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  // One shell for every control in the filter bar; each rule below only says how it differs.
+  &__search,
+  &__select,
+  &__threshold,
+  &__clear {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--color-border, #313244);
+    border-radius: var(--radius-md, 8px);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 0.78rem;
+    line-height: 1;
+    padding: 7px 10px;
+  }
+
+  &__search,
+  &__select {
+    &:focus-visible {
+      outline: 2px solid var(--color-primary, #89b4fa);
+      outline-offset: 1px;
+    }
+  }
+
+  &__search {
+    min-width: 200px;
+  }
+
+  &__select {
+    max-width: 240px;
+  }
+
+  &__threshold {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary, #a6adc8);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding-right: 0;
+    white-space: nowrap;
+
+    input {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      padding: 0 10px 0 0;
+      width: 62px;
+
+      // The trade filter carries two boxes, so the second needs its own separator.
+      & + input {
+        border-left: 1px solid var(--color-border, #313244);
+        padding-left: 8px;
+      }
+
+      &:focus-visible {
+        outline: none;
+      }
+    }
+
+    &:focus-within {
+      outline: 2px solid var(--color-primary, #89b4fa);
+      outline-offset: 1px;
+    }
+  }
+
+  &__clear {
+    background: transparent;
+    color: var(--color-text-secondary, #a6adc8);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    &:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  &__build {
+    background: var(--color-primary, #89b4fa);
+    border: none;
+    border-radius: var(--radius-md, 8px);
+    color: #11111b;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-left: auto;
+    padding: 7px 12px;
+    white-space: nowrap;
+
+    &:hover {
+      filter: brightness(1.08);
+    }
+  }
+
+  &__count {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__metrics,
+  &__tones {
     display: inline-flex;
     align-items: center;
     gap: 2px;
@@ -29,7 +142,8 @@
     border-radius: var(--radius-md, 8px);
   }
 
-  &__metric-btn {
+  &__metric-btn,
+  &__tone-btn {
     background: transparent;
     border: none;
     border-radius: 5px;
@@ -148,9 +262,33 @@
       font-size: 0.72rem;
     }
 
+    .monthly-returns__tf-h,
+    .monthly-returns__tf {
+      font-size: 0.72rem;
+      color: var(--color-text-secondary, #a6adc8);
+    }
+
     .monthly-returns__cell {
       min-width: 52px;
       font-variant-numeric: tabular-nums;
+    }
+
+    // Reads as a header for the grid below it, not as one more strategy.
+    .monthly-returns__summary td {
+      background: var(--bg-surface-2);
+      border-bottom: 2px solid var(--color-border, #313244);
+      font-weight: 700;
+      color: var(--text-main);
+
+      // Coloured text rather than the per-cell heatmap: the row already carries its own
+      // background, and a book-wide figure saturates a ramp built for a single strategy.
+      &.pos {
+        color: #22c55e;
+      }
+
+      &.neg {
+        color: #ff3b30;
+      }
     }
 
     .monthly-returns__total {

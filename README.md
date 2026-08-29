@@ -20,7 +20,11 @@ Full pipeline dashboard to manage the lifecycle of trading strategies created in
 - Connect and manage broker/platform accounts (MT4/MT5)
 - Darwinex (demo/live), FTMO and Axi support
 - AES-256 encryption for account credentials
-- Per-strategy monthly returns matrix (strategies × months, sortable, with year navigation)
+- **Per-strategy monthly returns matrix** (strategies × months, sortable, with year navigation and a selectable cell metric: return, max drawdown within the month, underwater depth, or win rate)
+  - Filter by strategy name, symbol, timeframe, or the sign of the year total
+  - Per-month gates — `Max DD <`, `Return >`, `W/L >`, minimum trades per month — where EVERY month has to clear the bar, so one bad month disqualifies a strategy however good its year total looks
+  - A Total row above the grid aggregates every column across the filtered strategies, recomputed live as you filter
+  - Create a portfolio straight from the filtered set, at equal weights
 
 ### Strategy Portfolios
 Per-platform portfolios (under Darwinex / FTMO / Axi) that combine strategies of a single broker + account type (Demo or Live).

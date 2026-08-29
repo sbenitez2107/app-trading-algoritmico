@@ -1,6 +1,12 @@
 import {
   MonthlyMetricSource,
+  formatMonthlyCell,
+  formatMonthlyColumnGrandTotal,
+  formatMonthlyColumnTotal,
+  monthlyColumnGrandTotal,
+  monthlyColumnTotal,
   formatMonthlyMetric,
+  formatMonthlyTotalCell,
   isLowerBetter,
   monthlyMetricCellStyle,
   monthlyMetricTooltip,
@@ -101,5 +107,124 @@ describe('metric helpers', () => {
     expect(monthlyMetricTooltip(m, 'winRate')).toBe('12 W / 8 L');
     expect(monthlyMetricTooltip(m, 'return')).toBeNull();
     expect(monthlyMetricTooltip(null, 'winRate')).toBeNull();
+  });
+});
+
+describe('formatMonthlyCell', () => {
+  it('leadsTheWinRateWithItsRawCounts', () => {
+    expect(formatMonthlyCell(month({ winCount: 3, lossCount: 1 }), 'winRate')).toBe('3/1 (75%)');
+  });
+
+  it('roundsTheWinRatePercentageBecauseTheCountsCarryThePrecision', () => {
+    expect(formatMonthlyCell(month({ winCount: 4, lossCount: 5 }), 'winRate')).toBe('4/5 (44%)');
+  });
+
+  it('keepsThePlainPercentageForEveryOtherMetric', () => {
+    expect(formatMonthlyCell(month({ returnPercent: 0.0123 }), 'return')).toBe('1.23%');
+  });
+
+  it('rendersAnEmDashWhenTheMonthHasNothingToReport', () => {
+    expect(formatMonthlyCell(null, 'winRate')).toBe('—');
+    // A month of nothing but breakeven trades has no win rate.
+    expect(formatMonthlyCell(month({ winCount: 0, lossCount: 0 }), 'winRate')).toBe('—');
+  });
+});
+
+describe('formatMonthlyTotalCell', () => {
+  it('sumsTheCountsAcrossMonthsForTheWinRate', () => {
+    const months = [
+      month({ winCount: 3, lossCount: 1 }),
+      null,
+      month({ winCount: 1, lossCount: 3 }),
+    ];
+    expect(formatMonthlyTotalCell(months, 'winRate')).toBe('4/4 (50%)');
+  });
+
+  it('keepsThePlainPercentageForEveryOtherMetric', () => {
+    const months = [month({ returnPercent: 0.1 }), month({ returnPercent: 0.1 })];
+    expect(formatMonthlyTotalCell(months, 'return')).toBe('21.00%');
+  });
+
+  it('rendersAnEmDashWhenNoMonthHasData', () => {
+    expect(formatMonthlyTotalCell([null, null], 'winRate')).toBe('—');
+  });
+});
+
+describe('formatMonthlyColumnTotal', () => {
+  it('sumsReturnsAcrossStrategiesBecauseTheyShareOneAccountBalance', () => {
+    const cells = [month({ returnPercent: 0.01 }), month({ returnPercent: 0.005 }), null];
+    expect(formatMonthlyColumnTotal(cells, 'return')).toBe('1.50%');
+  });
+
+  it('sumsDrawdownsOnTheSameBase', () => {
+    const cells = [month({ maxDrawdownPercent: 0.02 }), month({ maxDrawdownPercent: 0.03 })];
+    expect(formatMonthlyColumnTotal(cells, 'maxDrawdown')).toBe('5.00%');
+  });
+
+  it('poolsTheWinRateCountsInsteadOfAddingPercentages', () => {
+    const cells = [month({ winCount: 3, lossCount: 1 }), month({ winCount: 1, lossCount: 3 })];
+    // Adding 75% and 25% would read 100%; the pooled figure is 4/4 = 50%.
+    expect(formatMonthlyColumnTotal(cells, 'winRate')).toBe('4/4 (50%)');
+  });
+
+  it('rendersAnEmDashWhenNoStrategyTradedThatMonth', () => {
+    expect(formatMonthlyColumnTotal([null, null], 'return')).toBe('—');
+    // Every strategy traded, but none decided a trade: still nothing to report.
+    expect(formatMonthlyColumnTotal([month(), month()], 'winRate')).toBe('—');
+  });
+});
+
+describe('formatMonthlyColumnGrandTotal', () => {
+  it('compoundsWithinEachStrategyThenSumsAcrossThem', () => {
+    const a = [month({ returnPercent: 0.1 }), month({ returnPercent: 0.1 })];
+    const b = [month({ returnPercent: 0.05 })];
+    // a compounds to 21%, b is 5%.
+    expect(formatMonthlyColumnGrandTotal([a, b], 'return')).toBe('26.00%');
+  });
+
+  it('sumsTheWorstMonthOfEachStrategyForDrawdowns', () => {
+    const a = [month({ maxDrawdownPercent: 0.02 }), month({ maxDrawdownPercent: 0.06 })];
+    const b = [month({ maxDrawdownPercent: 0.01 })];
+    expect(formatMonthlyColumnGrandTotal([a, b], 'maxDrawdown')).toBe('7.00%');
+  });
+
+  it('poolsEveryCountOfEveryStrategyForTheWinRate', () => {
+    const a = [month({ winCount: 3, lossCount: 1 }), month({ winCount: 1, lossCount: 1 })];
+    const b = [month({ winCount: 0, lossCount: 2 })];
+    expect(formatMonthlyColumnGrandTotal([a, b], 'winRate')).toBe('4/4 (50%)');
+  });
+
+  it('rendersAnEmDashWithNoStrategies', () => {
+    expect(formatMonthlyColumnGrandTotal([], 'return')).toBe('—');
+  });
+});
+
+describe('monthlyColumnTotal', () => {
+  it('returnsTheRawSumSoCallersCanColourIt', () => {
+    const cells = [month({ returnPercent: 0.01 }), month({ returnPercent: -0.03 })];
+    expect(monthlyColumnTotal(cells, 'return')).toBeCloseTo(-0.02, 10);
+  });
+
+  it('returnsThePooledRatioForTheWinRate', () => {
+    const cells = [month({ winCount: 3, lossCount: 1 }), month({ winCount: 1, lossCount: 3 })];
+    expect(monthlyColumnTotal(cells, 'winRate')).toBe(0.5);
+  });
+
+  it('returnsNullWhenThereIsNothingToAggregate', () => {
+    expect(monthlyColumnTotal([null], 'return')).toBeNull();
+    expect(monthlyColumnTotal([month()], 'winRate')).toBeNull();
+  });
+});
+
+describe('monthlyColumnGrandTotal', () => {
+  it('agreesWithItsFormattedCounterpart', () => {
+    const a = [month({ returnPercent: 0.1 }), month({ returnPercent: 0.1 })];
+    const b = [month({ returnPercent: 0.05 })];
+    expect(monthlyColumnGrandTotal([a, b], 'return')).toBeCloseTo(0.26, 10);
+    expect(formatMonthlyColumnGrandTotal([a, b], 'return')).toBe('26.00%');
+  });
+
+  it('returnsNullWithNoStrategies', () => {
+    expect(monthlyColumnGrandTotal([], 'return')).toBeNull();
   });
 });

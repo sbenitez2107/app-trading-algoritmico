@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.0] - 2026-08-29
+
+### Added
+- **Filter bar on the account monthly matrix** — strategy name search, symbol picker, timeframe picker, a positive/negative toggle on the year total, and numeric thresholds, all composing with AND. The row count shows how much the filter narrowed the account, and filters are deliberately transient: a narrowed matrix surviving a reload reads as missing data.
+- **Per-month threshold gates** — `Max DD <`, `Return >`, `W/L >` and a monthly trade count. EVERY month that reports the quantity has to clear the bar, so a single bad month disqualifies a strategy however good its year total looks. The gates read the raw months rather than the selected metric, so they keep biting while the matrix shows something else, and a strategy with no months in the year is excluded — an absent month is not a passing month.
+- **Trade count filters** — one on the year total, one as the per-month gate above, for screening out strategies whose numbers rest on too few trades.
+- **Timeframe (TF) column** — sortable, plus its own picker in the filter bar. Empty for strategies that never came from a parsed SQX report.
+- **Total row above the grid** — every month column and the year column aggregated across the currently filtered strategies, recomputed as you filter so the effect on the book is visible while choosing rather than after scrolling. Coloured by sign, following the same rule as the rest of the screen: the win rate splits at 50%, and a drawdown is never green.
+- **Create a portfolio from the filtered strategies** — a dialog asking only for name and starting capital; broker, account type and equal weights come from the account the matrix belongs to. Weights are adjusted afterwards in the portfolio detail.
+
+### Changed
+- **Win rate cells lead with their trade counts** — `3/1 (75%)` instead of `75.00%`, in both the per-strategy and the portfolios matrices, and in the year column. The counts carry the confidence the percentage hides: 3/1 and 30/10 are both 75%, and only one of them means anything. They also make the decimals redundant, so the percentage rounds.
+- **`GET /api/trading-accounts/{id}/strategies/monthly-returns` now returns `timeframe`** — read from the strategy, no extra query and no migration.
+
+---
+
 ## [0.20.0] - 2026-08-23
 
 ### Added

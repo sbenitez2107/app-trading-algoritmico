@@ -12,4 +12,5 @@ public sealed record StrategyMonthlyReturnsDto(
     Guid StrategyId,
     string Name,
     string? Symbol,
+    string? Timeframe,
     IReadOnlyList<MonthlyReturnDto> Returns);
