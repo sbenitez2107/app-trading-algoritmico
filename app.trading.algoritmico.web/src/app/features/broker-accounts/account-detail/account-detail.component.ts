@@ -11,6 +11,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
+  CellClassParams,
   ColDef,
   ColGroupDef,
   GridApi,
@@ -25,6 +26,7 @@ import {
   StrategyService,
   StrategyDto,
   StrategyTradeSummaryDto,
+  StrategyEquityPointDto,
 } from '../../../core/services/strategy.service';
 import {
   TradingAccountService,
@@ -37,6 +39,8 @@ import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strat
 import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
+import { StrategyMonthlyReturnsComponent } from '../strategy-monthly-returns/strategy-monthly-returns.component';
+import { EquityChartComponent } from '../../portfolios/equity-chart/equity-chart.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 import { formatCurrency } from '../../../shared/utils/format';
@@ -52,6 +56,8 @@ export interface KpiColDef {
   percent?: boolean;
   /** When true, render as `wins/losses (rate%)` using `liveWinCount` + `liveLossCount` from the row. */
   winLossPair?: boolean;
+  /** When true, tint the cell green for positive values and red for negative ones. */
+  signed?: boolean;
 }
 
 /** MT4 live KPI columns shown under the "MT4 (Live)" group. */
@@ -59,11 +65,11 @@ export const MT4_KPI_COLS: KpiColDef[] = [
   { field: 'magicNumber', headerName: 'Magic Number', text: true },
   { field: 'liveTradeCount', headerName: '# Trades', text: true },
   { field: 'liveWinCount', headerName: 'Win / Loss', winLossPair: true },
-  { field: 'liveNetProfit', headerName: 'Net Profit', currency: true },
-  { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true },
+  { field: 'liveNetProfit', headerName: 'Net Profit', currency: true, signed: true },
+  { field: 'liveTotalReturn', headerName: 'Total Return %', percent: true, signed: true },
   { field: 'liveWinRate', headerName: 'Win %', percent: true },
   { field: 'liveProfitFactor', headerName: 'Profit Factor' },
-  { field: 'liveReturnDrawdownRatio', headerName: 'Return / DD' },
+  { field: 'liveReturnDrawdownRatio', headerName: 'Return / DD', signed: true },
   { field: 'liveMaxDrawdownPercent', headerName: 'Max DD %', percent: true },
   { field: 'liveSharpeRatio', headerName: 'Sharpe' },
 ];
@@ -157,6 +163,8 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     ImportTradesModalComponent,
     StrategyTradesGridComponent,
     StrategyAnalyticsModalComponent,
+    StrategyMonthlyReturnsComponent,
+    EquityChartComponent,
   ],
   templateUrl: './account-detail.component.html',
   styleUrl: './account-detail.component.scss',
@@ -188,10 +196,14 @@ export class AccountDetailComponent implements OnInit {
   readonly showCommentsModal = signal(false);
   readonly selectedStrategyForComments = signal<StrategyDto | null>(null);
   readonly showImportModal = signal(false);
+  /** 'grid' = KPI grid (default); 'monthly' = per-strategy monthly returns view. */
+  readonly viewMode = signal<'grid' | 'monthly'>('grid');
   readonly showTradesGrid = signal(false);
   readonly activeStrategyId = signal<string | null>(null);
   /** Target of the analytics modal — set from any row (Actions column) or the trades panel header. */
   readonly analyticsTargetStrategy = signal<StrategyDto | null>(null);
+  /** Equity curve of the active strategy, over the period its trades span (shown above the grid). */
+  readonly equityCurve = signal<StrategyEquityPointDto[]>([]);
 
   /** Currently selected strategy (or null when nothing is selected). */
   readonly activeStrategy = computed<StrategyDto | null>(() => {
@@ -242,11 +254,16 @@ export class AccountDetailComponent implements OnInit {
       const id = this.activeStrategyId();
       if (!id) {
         this.tradeSummary.set(null);
+        this.equityCurve.set([]);
         return;
       }
       this.strategyService.getTradesSummaryByStrategy(id).subscribe({
         next: (summary) => this.tradeSummary.set(summary),
         error: () => this.tradeSummary.set(null),
+      });
+      this.strategyService.getEquityCurveByStrategy(id).subscribe({
+        next: (curve) => this.equityCurve.set(curve),
+        error: () => this.equityCurve.set([]),
       });
     });
   }
@@ -316,12 +333,34 @@ export class AccountDetailComponent implements OnInit {
           p.value !== null && p.value !== undefined ? p.value.toFixed(2) : '—';
       }
 
+      // Green/red tint: win rate above 50% for the Win/Loss pair, sign for the
+      // signed metrics. The pinned TOTAL row is left neutral.
+      let cellClass: ColDef<StrategyDto>['cellClass'];
+      if (c.winLossPair) {
+        cellClass = (p: CellClassParams<StrategyDto>) => {
+          if (p.node?.rowPinned) return '';
+          const wins = p.data?.liveWinCount ?? 0;
+          const losses = p.data?.liveLossCount ?? 0;
+          const total = wins + losses;
+          if (total === 0) return '';
+          return wins / total > 0.5 ? 'profit--positive' : 'profit--negative';
+        };
+      } else if (c.signed) {
+        cellClass = (p: CellClassParams<StrategyDto>) => {
+          if (p.node?.rowPinned) return '';
+          const value = p.value as number | null | undefined;
+          if (value === null || value === undefined) return '';
+          return value > 0 ? 'profit--positive' : 'profit--negative';
+        };
+      }
+
       const colDef: ColDef<StrategyDto> = {
         field: c.field,
         headerName: c.headerName,
         width: 150,
         hide: !visible.includes(c.field),
         ...(formatter ? { valueFormatter: formatter } : {}),
+        ...(cellClass ? { cellClass } : {}),
       };
       return colDef;
     };
@@ -386,7 +425,9 @@ export class AccountDetailComponent implements OnInit {
       },
     };
 
-    return [nameDef, symbolDef, timeframeDef, sqxGroup, mt4Group, deleteDef];
+    // Default group order: MT4 (Live) first, then SQX (Backtest) — live performance leads.
+    // Saved presets keep their own column order (see applyPreset), so this only affects the default.
+    return [nameDef, symbolDef, timeframeDef, mt4Group, sqxGroup, deleteDef];
   });
 
   ngOnInit(): void {
@@ -430,6 +471,15 @@ export class AccountDetailComponent implements OnInit {
 
   toggleColumnPicker(): void {
     this.showColumnPicker.update((v) => !v);
+  }
+
+  toggleMonthlyView(): void {
+    this.viewMode.update((mode) => (mode === 'grid' ? 'monthly' : 'grid'));
+    // Grid-only side panels make no sense in the monthly view — close them.
+    if (this.viewMode() === 'monthly') {
+      this.showColumnPicker.set(false);
+      this.closeTradesPanel();
+    }
   }
 
   requestDelete(id: string): void {

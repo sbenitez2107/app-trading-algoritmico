@@ -101,6 +101,27 @@ describe('StrategyTradesGridComponent', () => {
     expect(headerNames.length).toBe(16);
   });
 
+  // When a strategy has more trades than the first server page, the component
+  // refetches the FULL set so ag-grid can paginate over all of them.
+  it('loadsAllTrades_WhenTotalCountExceedsFirstPage', () => {
+    const firstPage = Array.from({ length: 50 }, (_, i) => makeTrade({ id: `t${i}` }));
+    const fullSet = Array.from({ length: 148 }, (_, i) => makeTrade({ id: `t${i}` }));
+
+    const mock = strategyServiceMock.getTradesByStrategy as ReturnType<typeof vi.fn>;
+    mock.mockReturnValueOnce(of({ items: firstPage, totalCount: 148, page: 1, pageSize: 50 }));
+    mock.mockReturnValueOnce(of({ items: fullSet, totalCount: 148, page: 1, pageSize: 148 }));
+
+    const fixture = TestBed.createComponent(StrategyTradesGridComponent);
+    fixture.componentRef.setInput('strategyId', 'strat-big');
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(mock).toHaveBeenNthCalledWith(1, 'strat-big', 'all', 1, 50);
+    expect(mock).toHaveBeenNthCalledWith(2, 'strat-big', 'all', 1, 148);
+    expect(comp.trades().length).toBe(148);
+    expect(comp.isLoading()).toBe(false);
+  });
+
   // Test 2: getRowStyle tints rows by open/profit/loss.
   it('getRowStyle_TintsByTradeState', () => {
     const fixture = create();

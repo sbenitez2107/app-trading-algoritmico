@@ -194,6 +194,23 @@ export interface MonthlyReturnDto {
   /** Compounding return — `profit / equityStart` (decimal, e.g. 0.05 = 5%). */
   returnPercent: number;
   tradeCount: number;
+  /** Worst drawdown produced INSIDE the month — the peak resets on the 1st. 0 for an up-only month. */
+  maxDrawdownPercent: number;
+  /** Deepest distance below the ALL-TIME equity peak during the month (peak carried across months). */
+  underwaterPercent: number;
+  winCount: number;
+  lossCount: number;
+}
+
+/** Monthly compounding returns of one strategy — account-level monthly view rows. */
+export interface StrategyMonthlyReturnsDto {
+  strategyId: string;
+  name: string;
+  symbol: string | null;
+  /** Null for strategies that never came from a parsed SQX report. */
+  timeframe: string | null;
+  /** Empty when the strategy has no imported live trades. */
+  returns: MonthlyReturnDto[];
 }
 
 export interface StrategyTradeSummaryDto {
@@ -210,6 +227,14 @@ export interface StrategyTradeSummaryDto {
   totalTaxes: number;
   /** totalProfit + totalCommission + totalSwap + totalTaxes — true cash impact. */
   netProfit: number;
+}
+
+/** One point on a strategy's equity curve (running equity + drawdown from peak per closed trade). */
+export interface StrategyEquityPointDto {
+  date: string;
+  equity: number;
+  drawdown: number;
+  drawdownPercent: number;
 }
 
 export interface StrategyTradeDto {
@@ -333,6 +358,18 @@ export class StrategyService {
   getMonthlyReturnsByStrategy(strategyId: string): Observable<MonthlyReturnDto[]> {
     return this.http.get<MonthlyReturnDto[]>(
       `${this.apiUrl}/api/strategies/${strategyId}/monthly-returns`,
+    );
+  }
+
+  getMonthlyReturnsByAccount(accountId: string): Observable<StrategyMonthlyReturnsDto[]> {
+    return this.http.get<StrategyMonthlyReturnsDto[]>(
+      `${this.apiUrl}/api/trading-accounts/${accountId}/strategies/monthly-returns`,
+    );
+  }
+
+  getEquityCurveByStrategy(strategyId: string): Observable<StrategyEquityPointDto[]> {
+    return this.http.get<StrategyEquityPointDto[]>(
+      `${this.apiUrl}/api/strategies/${strategyId}/equity-curve`,
     );
   }
 

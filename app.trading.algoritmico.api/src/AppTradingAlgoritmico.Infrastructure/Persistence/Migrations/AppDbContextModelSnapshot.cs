@@ -433,6 +433,9 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.Property<int>("FundingService")
                         .HasColumnType("int");
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<decimal?>("MaxLossLimitPct")
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
@@ -441,11 +444,19 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
 
+                    b.Property<decimal?>("TargetVarPct")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("VarFloorPct")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
 
                     b.Property<bool>("Verified")
                         .HasColumnType("bit");

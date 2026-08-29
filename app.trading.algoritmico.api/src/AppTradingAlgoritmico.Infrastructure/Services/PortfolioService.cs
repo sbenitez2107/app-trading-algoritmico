@@ -236,8 +236,109 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
     }
 
     // -------------------------------------------------------------------------
+    // Trades (combined member trades)
+    // -------------------------------------------------------------------------
+
+    public async Task<PagedResult<PortfolioTradeDto>> GetTradesAsync(
+        Guid portfolioId, TradeStatusFilter status, int page, int pageSize, CancellationToken ct = default)
+    {
+        var portfolio = await db.Portfolios
+            .AsNoTracking()
+            .Include(p => p.Members)
+            .FirstOrDefaultAsync(p => p.Id == portfolioId, ct)
+            ?? throw new KeyNotFoundException($"Portfolio {portfolioId} not found.");
+
+        var memberIds = portfolio.Members.Select(m => m.StrategyId).ToList();
+        if (memberIds.Count == 0)
+            return new PagedResult<PortfolioTradeDto>([], 0, page, pageSize);
+
+        var nameById = (await db.Strategies.AsNoTracking()
+                .Where(s => memberIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.Name })
+                .ToListAsync(ct))
+            .ToDictionary(s => s.Id, s => s.Name);
+
+        var query = db.StrategyTrades.AsNoTracking().Where(t => memberIds.Contains(t.StrategyId));
+        query = status switch
+        {
+            TradeStatusFilter.Open => query.Where(t => t.IsOpen),
+            TradeStatusFilter.Closed => query.Where(t => !t.IsOpen),
+            _ => query,
+        };
+
+        var total = await query.CountAsync(ct);
+
+        var rows = await query
+            .OrderByDescending(t => t.IsOpen)
+            .ThenByDescending(t => t.CloseTime)
+            .ThenByDescending(t => t.OpenTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        var items = rows.Select(t => new PortfolioTradeDto(
+            t.Id, t.StrategyId, nameById.GetValueOrDefault(t.StrategyId, "(unknown)"),
+            t.Ticket, t.OpenTime, t.CloseTime, t.Type, t.Size, t.Item, t.OpenPrice, t.ClosePrice,
+            t.StopLoss, t.TakeProfit, t.Commission, t.Taxes, t.Swap, t.Profit, t.CloseReason, t.IsOpen)).ToList();
+
+        return new PagedResult<PortfolioTradeDto>(items, total, page, pageSize);
+    }
+
+    // -------------------------------------------------------------------------
     // Analytics (computed on demand)
     // -------------------------------------------------------------------------
+
+    public async Task<IReadOnlyList<PortfolioSummaryDto>> GetSummariesAsync(string? broker = null, CancellationToken ct = default)
+    {
+        var loaded = await LoadPortfoliosWithMemberInputsAsync(broker, ct);
+
+        var results = new List<PortfolioSummaryDto>(loaded.Count);
+        foreach (var (p, inputs) in loaded)
+        {
+            var kpis = PortfolioAnalyticsCalculator.Compute(p.InitialCapital, inputs);
+
+            results.Add(new PortfolioSummaryDto(
+                Id: p.Id,
+                Name: p.Name,
+                Broker: p.Broker,
+                AccountType: p.AccountType,
+                InitialCapital: p.InitialCapital,
+                BaseCurrency: p.BaseCurrency,
+                MemberCount: p.Members.Count,
+                CreatedAt: p.CreatedAt,
+                FinalEquity: kpis.FinalEquity,
+                NetProfit: kpis.NetProfit,
+                TotalReturn: kpis.TotalReturn,
+                ReturnDrawdownRatio: kpis.ReturnDrawdownRatio,
+                ProfitFactor: kpis.ProfitFactor,
+                SharpeRatio: kpis.SharpeRatio,
+                Cagr: kpis.Cagr,
+                MaxDrawdownPercent: kpis.MaxDrawdownPercent,
+                Sqn: kpis.Sqn,
+                Exposure: kpis.Exposure,
+                TradeCount: kpis.TradeCount,
+                WinCount: kpis.WinCount,
+                LossCount: kpis.LossCount,
+                WinRate: kpis.WinRate,
+                MonthlyAvgProfit: kpis.MonthlyAvgProfit,
+                DailyAvgProfit: kpis.DailyAvgProfit));
+        }
+
+        return results;
+    }
+
+    public async Task<IReadOnlyList<PortfolioMonthlyReturnsDto>> GetMonthlyReturnsByBrokerAsync(string? broker = null, CancellationToken ct = default)
+    {
+        var loaded = await LoadPortfoliosWithMemberInputsAsync(broker, ct);
+
+        return loaded
+            .Select(x => new PortfolioMonthlyReturnsDto(
+                PortfolioId: x.Portfolio.Id,
+                Name: x.Portfolio.Name,
+                MemberCount: x.Portfolio.Members.Count,
+                Returns: PortfolioAnalyticsCalculator.ComputeMonthlyReturns(x.Portfolio.InitialCapital, x.Members)))
+            .ToList();
+    }
 
     public async Task<PortfolioAnalyticsDto> GetAnalyticsAsync(Guid portfolioId, CancellationToken ct = default)
     {
@@ -257,6 +358,14 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         return PortfolioAnalyticsCalculator.ComputeEquityCurve(initialCapital, members);
     }
 
+    public async Task<IReadOnlyList<PortfolioMemberEquityCurveDto>> GetMemberEquityCurvesAsync(Guid portfolioId, CancellationToken ct = default)
+    {
+        // Same bulk load the combined curve already does — the per-member split is free from here,
+        // so the chart never fans out into one request per strategy.
+        var (_, members) = await LoadMemberInputsAsync(portfolioId, ct);
+        return PortfolioAnalyticsCalculator.ComputeMemberEquityCurves(members);
+    }
+
     public async Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default)
     {
         var (initialCapital, riskMembers) = await LoadMemberInputsAsync(portfolioId, ct);
@@ -273,10 +382,51 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         var guardrails = risk.ByService.Select(s =>
         {
             limitsByBroker.TryGetValue(s.Service, out var lim);
+            var kind = lim?.Kind ?? GuardrailKind.LossLimits;
+
+            // VarTarget: no breach/headroom semantics (funding-guardrails spec) — the readout is a
+            // band position + implied multiplier instead, gated by the estimator's history check.
+            if (kind == GuardrailKind.VarTarget)
+            {
+                var targetVarPct = lim?.TargetVarPct;
+                var impliedMultiplier = targetVarPct is decimal tv && s.MonthlyVar95Percent is decimal mv && mv > 0
+                    ? tv / mv
+                    : (decimal?)null;
+
+                var varTarget = new VarTargetReadoutDto(
+                    TargetVarPct: targetVarPct,
+                    VarFloorPct: lim?.VarFloorPct,
+                    HorizonDays: AnalyticsSeries.MonthlyVarHorizonDays,
+                    InsufficientHistory: s.MonthlyVarInsufficientHistory,
+                    ObservationDays: s.MonthlyVarObservationDays,
+                    OverlappingWindows: s.MonthlyVarOverlappingWindows,
+                    IndependentWindows: s.MonthlyVarIndependentWindows,
+                    MonthlyVar95: s.MonthlyVar95,
+                    MonthlyVar95Percent: s.MonthlyVar95Percent,
+                    ImpliedMultiplier: impliedMultiplier);
+
+                return new ServiceGuardrailDto(
+                    Service: s.Service,
+                    FundingService: lim?.FundingService ?? FundingService.Other,
+                    Kind: kind,
+                    Configured: lim is not null,
+                    Verified: lim?.Verified ?? false,
+                    DailyLossLimitPct: null,
+                    MaxLossLimitPct: null,
+                    ProfitTargetPct: null,
+                    DrawdownModel: null,
+                    ServiceVar95Percent: s.Var95Percent,
+                    DailyHeadroomPct: null,
+                    DailyBreached: false,
+                    VarTarget: varTarget);
+            }
+
+            // LossLimits — byte-identical to the pre-existing behaviour.
             var dailyLimit = lim?.DailyLossLimitPct;
             return new ServiceGuardrailDto(
                 Service: s.Service,
                 FundingService: lim?.FundingService ?? FundingService.Other,
+                Kind: kind,
                 Configured: lim is not null,
                 Verified: lim?.Verified ?? false,
                 DailyLossLimitPct: dailyLimit,
@@ -285,7 +435,8 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
                 DrawdownModel: lim?.DrawdownModel,
                 ServiceVar95Percent: s.Var95Percent,
                 DailyHeadroomPct: dailyLimit.HasValue ? dailyLimit.Value - s.Var95Percent : null,
-                DailyBreached: dailyLimit.HasValue && s.Var95Percent > dailyLimit.Value);
+                DailyBreached: dailyLimit.HasValue && s.Var95Percent > dailyLimit.Value,
+                VarTarget: null);
         }).ToList();
 
         return risk with { Guardrails = guardrails };
@@ -300,6 +451,68 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
     // -------------------------------------------------------------------------
     // Loading helpers
     // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Loads every portfolio (optionally broker-filtered, ordered <c>CreatedAt DESC</c> like the grid)
+    /// together with its calculator inputs. Strategy metadata and trades are each bulk-loaded in ONE
+    /// query across ALL portfolios, so the query count stays constant regardless of how many exist.
+    /// Shared by the summaries grid and the monthly-returns matrix.
+    /// </summary>
+    private async Task<List<(Portfolio Portfolio, List<PortfolioMemberInput> Members)>> LoadPortfoliosWithMemberInputsAsync(
+        string? broker, CancellationToken ct)
+    {
+        var query = db.Portfolios.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(broker))
+            query = query.Where(p => p.Broker == broker);
+
+        var portfolios = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Include(p => p.Members)
+            .ToListAsync(ct);
+
+        if (portfolios.Count == 0)
+            return [];
+
+        var allStrategyIds = portfolios
+            .SelectMany(p => p.Members.Select(m => m.StrategyId))
+            .Distinct()
+            .ToList();
+
+        // Strategy name + source broker (for per-service decomposition), via the account.
+        var stratInfo = await (
+            from s in db.Strategies.AsNoTracking()
+            where allStrategyIds.Contains(s.Id)
+            join a in db.TradingAccounts.AsNoTracking() on s.TradingAccountId equals a.Id into accs
+            from a in accs.DefaultIfEmpty()
+            select new { s.Id, s.Name, Broker = a != null ? a.Broker : null })
+            .ToListAsync(ct);
+
+        var infoMap = stratInfo.ToDictionary(s => s.Id);
+
+        var tradesByStrategy = (await db.StrategyTrades
+                .AsNoTracking()
+                .Where(t => allStrategyIds.Contains(t.StrategyId))
+                .ToListAsync(ct))
+            .GroupBy(t => t.StrategyId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<StrategyTrade>)g.ToList());
+
+        return portfolios
+            .Select(p => (
+                Portfolio: p,
+                Members: p.Members
+                    .Select(m =>
+                    {
+                        infoMap.TryGetValue(m.StrategyId, out var info);
+                        return new PortfolioMemberInput(
+                            m.StrategyId,
+                            info?.Name ?? "(unknown)",
+                            m.Weight,
+                            tradesByStrategy.TryGetValue(m.StrategyId, out var trades) ? trades : Array.Empty<StrategyTrade>(),
+                            info?.Broker);
+                    })
+                    .ToList()))
+            .ToList();
+    }
 
     /// <summary>Loads a portfolio's baseline + member inputs, bulk-loading all member trades in ONE query.</summary>
     private async Task<(decimal InitialCapital, List<PortfolioMemberInput> Members)> LoadMemberInputsAsync(

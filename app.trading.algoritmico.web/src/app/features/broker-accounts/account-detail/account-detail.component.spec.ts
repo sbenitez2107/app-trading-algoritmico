@@ -132,6 +132,8 @@ describe('AccountDetailComponent', () => {
       delete: vi.fn(),
       getComments: vi.fn().mockReturnValue(of([])),
       addComment: vi.fn(),
+      getTradesSummaryByStrategy: vi.fn().mockReturnValue(of(null)),
+      getEquityCurveByStrategy: vi.fn().mockReturnValue(of([])),
     };
 
     tradingAccountServiceMock = {
@@ -217,6 +219,26 @@ describe('AccountDetailComponent', () => {
     for (const col of DEFAULT_VISIBLE_COLS) {
       expect(fields).toContain(col);
     }
+  });
+
+  it('columnDefs_DefaultGroupOrder_ShowsMt4BeforeSqx', () => {
+    // Arrange
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([])),
+    );
+
+    // Act
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // The two grouped sections, in render order.
+    const groupHeaders = (comp.columnDefs() as { headerName?: string; children?: unknown }[])
+      .filter((d) => d.children)
+      .map((d) => d.headerName);
+
+    // Assert — MT4 (Live) leads, SQX (Backtest) follows.
+    expect(groupHeaders).toEqual(['MT4 (Live)', 'SQX (Backtest)']);
   });
 
   // --- Phase 8 spec R3: toggleColumn ---
@@ -766,5 +788,61 @@ describe('AccountDetailComponent', () => {
     // Assert
     expect(comp.showCommentsModal()).toBe(false);
     expect(comp.selectedStrategyForComments()).toBeNull();
+  });
+
+  // --- Equity curve: loaded when a strategy is selected, cleared when the panel closes ---
+
+  // The active-strategy effect is exercised by setting activeStrategyId directly (without
+  // selectStrategy), so the trades panel — and its heavy child components — never render.
+  it('activeStrategyChange_FetchesAndExposesEquityCurve', () => {
+    // Arrange
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const curve = [
+      { date: '2026-01-01T00:00:00Z', equity: 100_500, drawdown: 0, drawdownPercent: 0 },
+      { date: '2026-01-02T00:00:00Z', equity: 100_200, drawdown: 300, drawdownPercent: 0.003 },
+    ];
+    (strategyServiceMock.getEquityCurveByStrategy as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(curve),
+    );
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // Act — making a strategy active triggers the equity-curve fetch effect.
+    comp.activeStrategyId.set('s1');
+    fixture.detectChanges();
+
+    // Assert
+    expect(strategyServiceMock.getEquityCurveByStrategy).toHaveBeenCalledWith('s1');
+    expect(comp.equityCurve()).toEqual(curve);
+  });
+
+  it('clearingActiveStrategy_ClearsEquityCurve', () => {
+    // Arrange
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    (strategyServiceMock.getEquityCurveByStrategy as ReturnType<typeof vi.fn>).mockReturnValue(
+      of([{ date: '2026-01-01T00:00:00Z', equity: 100_500, drawdown: 0, drawdownPercent: 0 }]),
+    );
+
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.activeStrategyId.set('s1');
+    fixture.detectChanges();
+    expect(comp.equityCurve().length).toBe(1);
+
+    // Act — deselecting clears the curve (the effect re-runs with a null id).
+    comp.activeStrategyId.set(null);
+    fixture.detectChanges();
+
+    // Assert
+    expect(comp.equityCurve()).toEqual([]);
   });
 });

@@ -15,15 +15,41 @@ public interface IPortfolioService
     Task<PortfolioDto> UpdateAsync(Guid id, UpdatePortfolioDto dto, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
+    // Trades
+    /// <summary>Returns a paginated list of the combined trades of all member strategies, filtered by status and ordered IsOpen DESC / CloseTime DESC / OpenTime DESC.</summary>
+    /// <exception cref="KeyNotFoundException">Portfolio does not exist.</exception>
+    Task<PagedResult<PortfolioTradeDto>> GetTradesAsync(Guid portfolioId, TradeStatusFilter status, int page, int pageSize, CancellationToken ct = default);
+
     // Membership
     Task<PortfolioDto> AddMemberAsync(Guid portfolioId, AddPortfolioMemberDto dto, CancellationToken ct = default);
     Task<PortfolioDto> UpdateMemberWeightAsync(Guid portfolioId, Guid strategyId, decimal weight, CancellationToken ct = default);
     Task<PortfolioDto> RemoveMemberAsync(Guid portfolioId, Guid strategyId, CancellationToken ct = default);
 
+    // Summaries (header + analytics in one shot)
+    /// <summary>
+    /// Returns every portfolio (optionally filtered by <paramref name="broker"/>) ordered by
+    /// <c>CreatedAt DESC</c>, each enriched with its combined analytics KPIs — trades are bulk-loaded
+    /// in a single query to avoid N+1. Designed for grid display without a per-portfolio roundtrip.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioSummaryDto>> GetSummariesAsync(string? broker = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the monthly compounding returns of every portfolio (optionally filtered by
+    /// <paramref name="broker"/>) ordered by <c>CreatedAt DESC</c>. Trades are bulk-loaded in a single
+    /// query to avoid N+1, so the whole matrix costs one roundtrip instead of one per portfolio.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioMonthlyReturnsDto>> GetMonthlyReturnsByBrokerAsync(string? broker = null, CancellationToken ct = default);
+
     // Analytics (computed on demand)
     Task<PortfolioAnalyticsDto> GetAnalyticsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsAsync(Guid portfolioId, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioEquityPointDto>> GetEquityCurveAsync(Guid portfolioId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Per-member contribution curves for the portfolio's equity chart. Weighted, so they
+    /// reconcile with the combined curve — NOT each strategy's standalone equity.
+    /// </summary>
+    Task<IReadOnlyList<PortfolioMemberEquityCurveDto>> GetMemberEquityCurvesAsync(Guid portfolioId, CancellationToken ct = default);
     Task<PortfolioRiskDto> GetRiskAsync(Guid portfolioId, CancellationToken ct = default);
     Task<PortfolioCorrelationDto> GetCorrelationAsync(Guid portfolioId, CancellationToken ct = default);
 }

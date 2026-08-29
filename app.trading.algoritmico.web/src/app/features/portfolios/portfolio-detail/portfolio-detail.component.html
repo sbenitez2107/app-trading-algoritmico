@@ -40,6 +40,13 @@
       </button>
       <button
         class="tabs__tab"
+        [class.tabs__tab--active]="activeTab() === 'trades'"
+        (click)="setTab('trades')"
+      >
+        Lista de trades
+      </button>
+      <button
+        class="tabs__tab"
         [class.tabs__tab--active]="activeTab() === 'composition'"
         (click)="setTab('composition')"
       >
@@ -73,6 +80,18 @@
               <span class="kpi-card__value">{{ k.value }}</span>
             </div>
           }
+
+          <div class="kpi-card kpi-card--trades">
+            <span class="kpi-card__label">Trades</span>
+            <div class="kpi-card__trades-grid">
+              @for (t of tradeStats(); track t.label) {
+                <div class="kpi-card__trade-stat">
+                  <span class="kpi-card__trade-label">{{ t.label }}</span>
+                  <span class="kpi-card__trade-value">{{ t.value }}</span>
+                </div>
+              }
+            </div>
+          </div>
         </div>
 
         <h3 class="section-title">Estadísticas combinadas</h3>
@@ -99,7 +118,26 @@
         @if (equityCurve().length > 0) {
           <h3 class="section-title">Curva de equity combinada</h3>
           <div class="panel">
-            <app-equity-chart [points]="equityCurve()" />
+            <app-equity-chart
+              [points]="equityCurve()"
+              [overlays]="equityOverlays()"
+              [showMain]="showCombinedCurve()"
+            />
+
+            @if (legendRows().length > 0) {
+              <app-contribution-legend
+                [rows]="legendRows()"
+                [maxOverlays]="maxOverlays"
+                [limitReached]="overlayLimitReached()"
+                [selectedCount]="selectedMemberCurves().size"
+                [ghostsOn]="showGhostCurves()"
+                [combinedOn]="showCombinedCurve()"
+                (toggled)="toggleMemberCurve($event)"
+                (cleared)="clearMemberCurves()"
+                (ghostsToggled)="toggleGhostCurves()"
+                (combinedToggled)="toggleCombinedCurve()"
+              />
+            }
           </div>
         }
 
@@ -111,6 +149,18 @@
         }
       } @else {
         <div class="pdetail__empty">Calculando KPIs...</div>
+      }
+    }
+
+    <!-- TRADES -->
+    @if (activeTab() === 'trades') {
+      @if (p.memberCount === 0) {
+        <div class="pdetail__empty">
+          Agregá estrategias en la pestaña <strong>Composición</strong> para ver los trades
+          combinados del portfolio.
+        </div>
+      } @else {
+        <app-portfolio-trades-grid [portfolioId]="p.id" />
       }
     }
 
@@ -126,7 +176,8 @@
           <div class="pdetail__empty">Todavía no hay estrategias. Agregá la primera.</div>
         } @else {
           <p class="comp-hint">
-            El <strong>Peso</strong> es editable (doble-click). Ordená por cualquier columna.
+            El <strong>Peso</strong> es editable (doble-click). Click en una estrategia para ver su
+            detalle. Ordená por cualquier columna.
           </p>
           <ag-grid-angular
             class="comp-grid"
@@ -139,6 +190,7 @@
             [animateRows]="true"
             [domLayout]="'autoHeight'"
             (cellValueChanged)="onCompositionCellChanged($event)"
+            (cellClicked)="onCompositionCellClicked($event)"
           >
           </ag-grid-angular>
           <p class="comp-hint">
@@ -202,7 +254,7 @@
           @for (g of r.guardrails; track g.service) {
             <div
               class="guard"
-              [class.guard--breach]="g.dailyBreached"
+              [class.guard--breach]="g.kind === GuardrailKind.LossLimits && g.dailyBreached"
               [class.guard--unconfigured]="!g.configured"
             >
               <div class="guard__head">
@@ -224,57 +276,114 @@
                 </button>
               </div>
 
-              @if (g.configured && g.dailyLossLimitPct != null) {
-                <div class="guard__row">
-                  <span>VaR 95% diario</span>
-                  <strong>{{ pct(g.serviceVar95Percent) }}</strong>
-                </div>
-                <div class="guard__row">
-                  <span>Límite pérdida diaria</span>
-                  <strong>{{ pct(g.dailyLossLimitPct) }}</strong>
-                </div>
-                <div class="guard__bar">
-                  <div
-                    class="guard__bar-fill"
-                    [class.guard__bar-fill--breach]="g.dailyBreached"
-                    [style.width.%]="
-                      g.dailyLossLimitPct ? (g.serviceVar95Percent / g.dailyLossLimitPct) * 100 : 0
-                    "
-                  ></div>
-                </div>
-                <div
-                  class="guard__verdict"
-                  [class.pos]="!g.dailyBreached"
-                  [class.neg]="g.dailyBreached"
-                >
-                  @if (g.dailyBreached) {
-                    ⚠️ El VaR diario supera el límite — riesgo de breach
+              @switch (g.kind) {
+                @case (GuardrailKind.LossLimits) {
+                  @if (g.configured && g.dailyLossLimitPct != null) {
+                    <div class="guard__row">
+                      <span>VaR 95% diario</span>
+                      <strong>{{ pct(g.serviceVar95Percent) }}</strong>
+                    </div>
+                    <div class="guard__row">
+                      <span>Límite pérdida diaria</span>
+                      <strong>{{ pct(g.dailyLossLimitPct) }}</strong>
+                    </div>
+                    <div class="guard__bar">
+                      <div
+                        class="guard__bar-fill"
+                        [class.guard__bar-fill--breach]="g.dailyBreached"
+                        [style.width.%]="
+                          g.dailyLossLimitPct
+                            ? (g.serviceVar95Percent / g.dailyLossLimitPct) * 100
+                            : 0
+                        "
+                      ></div>
+                    </div>
+                    <div
+                      class="guard__verdict"
+                      [class.pos]="!g.dailyBreached"
+                      [class.neg]="g.dailyBreached"
+                    >
+                      @if (g.dailyBreached) {
+                        ⚠️ El VaR diario supera el límite — riesgo de breach
+                      } @else {
+                        ✓ Headroom: {{ pct(g.dailyHeadroomPct) }} bajo el límite
+                      }
+                    </div>
+                    <div class="guard__limits-row">
+                      @if (g.maxLossLimitPct != null) {
+                        <span
+                          >Máx. pérdida: <strong>{{ pct(g.maxLossLimitPct) }}</strong> ({{
+                            g.drawdownModel === DrawdownModel.Trailing ? 'trailing' : 'static'
+                          }})</span
+                        >
+                      }
+                      @if (g.profitTargetPct != null) {
+                        <span
+                          >Profit target: <strong>{{ pct(g.profitTargetPct) }}</strong></span
+                        >
+                      }
+                      <span
+                        >Max DD actual: <strong>{{ pct(r.maxDrawdownPercent) }}</strong></span
+                      >
+                    </div>
                   } @else {
-                    ✓ Headroom: {{ pct(g.dailyHeadroomPct) }} bajo el límite
+                    <p class="guard__hint">
+                      Configurá los límites de este servicio para ver el headroom vs el VaR. Los
+                      números los cargás vos (no vienen precargados).
+                    </p>
                   }
-                </div>
-                <div class="guard__limits-row">
-                  @if (g.maxLossLimitPct != null) {
-                    <span
-                      >Máx. pérdida: <strong>{{ pct(g.maxLossLimitPct) }}</strong> ({{
-                        g.drawdownModel === DrawdownModel.Trailing ? 'trailing' : 'static'
-                      }})</span
-                    >
+                }
+                @case (GuardrailKind.VarTarget) {
+                  @if (g.configured) {
+                    @if (g.varTarget.insufficientHistory) {
+                      <p class="guard__hint">
+                        Historial insuficiente ({{ g.varTarget.observationDays }}/90 días mínimos)
+                        para estimar el VaR mensual — no se muestra número, banda ni multiplicador.
+                      </p>
+                    } @else {
+                      <div class="guard__row">
+                        <span>VaR mensual estimado (30d)</span>
+                        <strong>{{ pct(g.varTarget.monthlyVar95Percent) }}</strong>
+                      </div>
+                      <div class="guard__row">
+                        <span>Sobre capital inicial del portfolio</span>
+                        <strong>{{ money(p.initialCapital) }}</strong>
+                      </div>
+                      <div class="guard__row">
+                        <span>Banda objetivo (floor–target)</span>
+                        <strong
+                          >{{ pct(g.varTarget.varFloorPct) }} –
+                          {{ pct(g.varTarget.targetVarPct) }}</strong
+                        >
+                      </div>
+                      <div class="guard__verdict">{{ varBandLabel(g.varTarget) }}</div>
+                      <div class="guard__row">
+                        <span>Multiplicador implícito (Risk Engine)</span>
+                        <strong>{{
+                          g.varTarget.impliedMultiplier != null
+                            ? num(g.varTarget.impliedMultiplier) + 'x'
+                            : '—'
+                        }}</strong>
+                      </div>
+                      <p class="guard__hint">
+                        D-Leverage máx. según duración de posición: &lt;30min 16.25x · 30–60min 13x
+                        · &gt;60min 9.75x. La app no puede resolver cuál aplica (no registra
+                        duración de posición).
+                      </p>
+                      <p class="caveat caveat--muted">
+                        Estimación (proxy realizado cierre-a-cierre) — NO es el VaR forward-looking
+                        de posiciones abiertas de Darwinex. Ventana
+                        {{ g.varTarget.horizonDays }} días,
+                        {{ g.varTarget.overlappingWindows }} ventanas solapadas /
+                        {{ g.varTarget.independentWindows }} independientes.
+                      </p>
+                    }
+                  } @else {
+                    <p class="guard__hint">
+                      Configurá el target/floor de VaR mensual para este servicio (Darwinex Zero).
+                    </p>
                   }
-                  @if (g.profitTargetPct != null) {
-                    <span
-                      >Profit target: <strong>{{ pct(g.profitTargetPct) }}</strong></span
-                    >
-                  }
-                  <span
-                    >Max DD actual: <strong>{{ pct(r.maxDrawdownPercent) }}</strong></span
-                  >
-                </div>
-              } @else {
-                <p class="guard__hint">
-                  Configurá los límites de este servicio para ver el headroom vs el VaR. Los números
-                  los cargás vos (no vienen precargados).
-                </p>
+                }
               }
             </div>
           }
@@ -316,13 +425,22 @@
             <h3 class="risk-section-title">Correlación entre estrategias</h3>
             <p class="corr-summary">
               Correlación promedio:
-              <strong [class.pos]="corr.averageCorrelation <= 0.3" [class.neg]="corr.averageCorrelation >= 0.7">
+              <strong
+                [class.pos]="corr.averageCorrelation <= 0.3"
+                [class.neg]="corr.averageCorrelation >= 0.7"
+              >
                 {{ corr.averageCorrelation.toFixed(2) }}
               </strong>
               <span class="corr-summary__hint">
                 ({{ corr.observationDays }} días) — menor = más diversificado.
-                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--red"></span> alta (redundante)</span>
-                <span class="corr-legend"><span class="corr-legend__sw corr-legend__sw--green"></span> negativa (hedge)</span>
+                <span class="corr-legend"
+                  ><span class="corr-legend__sw corr-legend__sw--red"></span> alta
+                  (redundante)</span
+                >
+                <span class="corr-legend"
+                  ><span class="corr-legend__sw corr-legend__sw--green"></span> negativa
+                  (hedge)</span
+                >
               </span>
             </p>
             <div class="panel">
@@ -376,83 +494,20 @@
   </div>
 }
 
-<!-- RISK LIMITS MODAL -->
-@if (showLimitsModal()) {
-  <div class="modal" (click)="showLimitsModal.set(false)">
-    <div class="modal__box" (click)="$event.stopPropagation()">
-      <h2 class="modal__title">Límites de riesgo — {{ limitsForm.broker }}</h2>
-      <p class="modal__hint">
-        Cargá los números de la rulebook real del servicio. Marcá "verificado" cuando los hayas
-        confirmado contra los términos vigentes — no vienen precargados a propósito.
-      </p>
+<!-- RISK LIMITS MODAL (extracted — typed reactive form, field set switches by GuardrailKind) -->
+@if (selectedGuardrailForLimits(); as g) {
+  <app-risk-limits-modal
+    [guardrail]="g"
+    (saved)="onLimitsSaved()"
+    (cancelled)="closeLimitsEditor()"
+  />
+}
 
-      <label class="field">
-        <span class="field__label">Servicio de fondeo</span>
-        <select class="field__input" [(ngModel)]="limitsForm.fundingService">
-          <option [ngValue]="FundingService.Ftmo">FTMO</option>
-          <option [ngValue]="FundingService.Axi">Axi</option>
-          <option [ngValue]="FundingService.DarwinexZero">Darwinex Zero</option>
-          <option [ngValue]="FundingService.Other">Otro</option>
-        </select>
-      </label>
-
-      <div class="field-row">
-        <label class="field">
-          <span class="field__label">Pérdida diaria máx. (%)</span>
-          <input
-            class="field__input"
-            type="number"
-            min="0"
-            step="0.1"
-            [(ngModel)]="limitsForm.dailyLossPct"
-            placeholder="ej: 5"
-          />
-        </label>
-        <label class="field">
-          <span class="field__label">Pérdida total máx. (%)</span>
-          <input
-            class="field__input"
-            type="number"
-            min="0"
-            step="0.1"
-            [(ngModel)]="limitsForm.maxLossPct"
-            placeholder="ej: 10"
-          />
-        </label>
-      </div>
-
-      <div class="field-row">
-        <label class="field">
-          <span class="field__label">Profit target (%)</span>
-          <input
-            class="field__input"
-            type="number"
-            min="0"
-            step="0.1"
-            [(ngModel)]="limitsForm.profitTargetPct"
-            placeholder="ej: 10"
-          />
-        </label>
-        <label class="field">
-          <span class="field__label">Modelo de drawdown</span>
-          <select class="field__input" [(ngModel)]="limitsForm.drawdownModel">
-            <option [ngValue]="DrawdownModel.Static">Static</option>
-            <option [ngValue]="DrawdownModel.Trailing">Trailing</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="field field--check">
-        <input type="checkbox" [(ngModel)]="limitsForm.verified" />
-        <span>Verificado contra los términos vigentes del servicio</span>
-      </label>
-
-      <div class="modal__actions">
-        <button class="btn btn--ghost" (click)="showLimitsModal.set(false)">Cancelar</button>
-        <button class="btn btn--primary" [disabled]="savingLimits()" (click)="saveLimits()">
-          {{ savingLimits() ? 'Guardando...' : 'Guardar' }}
-        </button>
-      </div>
-    </div>
-  </div>
+<!-- STRATEGY ANALYTICS MODAL (reused from demo accounts) -->
+@if (analyticsTargetStrategy(); as target) {
+  <app-strategy-analytics-modal
+    [strategyId]="target.id"
+    [strategyName]="target.name"
+    (closed)="closeAnalytics()"
+  />
 }

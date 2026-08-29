@@ -1,0 +1,202 @@
+.monthly-returns {
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border, #313244);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  &__title {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__metrics {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--color-border, #313244);
+    border-radius: var(--radius-md, 8px);
+  }
+
+  &__metric-btn {
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: var(--color-text-secondary, #a6adc8);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    padding: 6px 10px;
+    white-space: nowrap;
+
+    &:hover:not(.is-active) {
+      color: var(--color-text-primary, #cdd6f4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.is-active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    }
+  }
+
+  &__year-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__year-btn {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--color-text-secondary, #a6adc8);
+    cursor: pointer;
+    font-size: 1.125rem;
+    line-height: 1;
+    padding: 0.25rem 0.5rem;
+
+    &:hover:not(:disabled) {
+      color: var(--color-text-primary, #cdd6f4);
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &__year {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-main);
+    min-width: 48px;
+    text-align: center;
+  }
+
+  &__loading,
+  &__empty {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 16px 0;
+  }
+
+  &__error {
+    color: #ff3b30;
+    font-size: 0.85rem;
+    padding: 16px 0;
+  }
+
+  &__table-wrapper {
+    overflow-x: auto;
+  }
+
+  &__table {
+    border-collapse: separate;
+    border-spacing: 2px;
+    font-size: 0.78rem;
+    width: 100%;
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    td {
+      text-align: center;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm, 4px);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    // Column overrides live inside the table scope so they beat the base
+    // `.monthly-returns__table td` selector in specificity.
+    .monthly-returns__name-h,
+    .monthly-returns__name {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-main);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .monthly-returns__members {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+    }
+
+    .monthly-returns__cell {
+      min-width: 52px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .monthly-returns__total {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+
+      &.pos {
+        color: #22c55e;
+      }
+      &.neg {
+        color: #ff3b30;
+      }
+    }
+  }
+
+  &__name-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-align: left;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__sort-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    padding: 0;
+    width: 100%;
+    text-align: inherit;
+    white-space: nowrap;
+
+    &:hover {
+      color: var(--text-main);
+    }
+  }
+}

@@ -1,0 +1,64 @@
+<div class="contrib">
+  <div class="contrib__head">
+    <span class="contrib__title">Contribución por estrategia</span>
+    <span class="contrib__hint">
+      P/L ponderado acumulado, sobre el eje izquierdo. Suma a la curva combinada — no es la curva
+      individual de cada estrategia.
+    </span>
+    <button
+      class="contrib__ghosts"
+      type="button"
+      [class.is-on]="ghostsOn()"
+      [attr.aria-pressed]="ghostsOn()"
+      title="Dibuja el resto de las estrategias en gris tenue. Pasá el mouse por una línea para saber cuál es."
+      (click)="ghostsToggled.emit()"
+    >
+      {{ ghostsOn() ? 'Ocultar el resto' : 'Ver todas' }}
+    </button>
+    <button
+      class="contrib__ghosts"
+      type="button"
+      [class.is-on]="combinedOn()"
+      [attr.aria-pressed]="combinedOn()"
+      title="Muestra u oculta la curva combinada. Ocultarla deja todo el canvas para las contribuciones, que son dos órdenes de magnitud más chicas."
+      (click)="combinedToggled.emit()"
+    >
+      <span class="contrib__swatch contrib__swatch--combined"></span>
+      Combinada
+    </button>
+    @if (selectedCount() > 0) {
+      <button class="contrib__clear" type="button" (click)="cleared.emit()">
+        Limpiar ({{ selectedCount() }})
+      </button>
+    }
+  </div>
+
+  <div class="contrib__list">
+    @for (row of rows(); track row.strategyId) {
+      <button
+        class="contrib__chip"
+        type="button"
+        [class.is-on]="row.selected"
+        [disabled]="!row.selected && limitReached()"
+        [attr.aria-pressed]="row.selected"
+        [title]="row.strategyName"
+        (click)="toggled.emit(row.strategyId)"
+      >
+        <span class="contrib__swatch" [style.background]="row.color ?? 'transparent'"></span>
+        <span class="contrib__name">{{ row.strategyName }}</span>
+        <span
+          class="contrib__value"
+          [class.pos]="row.finalContribution > 0"
+          [class.neg]="row.finalContribution < 0"
+          >{{ money(row.finalContribution) }}</span
+        >
+      </button>
+    }
+  </div>
+
+  @if (limitReached()) {
+    <p class="contrib__cap">
+      Máximo {{ maxOverlays() }} líneas — deseleccioná una para agregar otra.
+    </p>
+  }
+</div>

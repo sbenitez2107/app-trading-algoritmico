@@ -147,12 +147,30 @@ public static class StrategyAnalyticsCalculator
     }
 
     /// <summary>
-    /// Builds the monthly compounding return series.
-    /// Each bucket's `ReturnPercent` is computed against the equity at the start of that
-    /// month — so the values naturally compound (if Feb starts at $105k after a +5% Jan,
-    /// Feb's % is over $105k, not over the original $100k).
+    /// Builds the monthly performance series. The bucketing, compounding and per-month
+    /// drawdown/win-loss math live in <see cref="AnalyticsSeries.BuildMonthlyReturns"/>, shared
+    /// with <see cref="PortfolioAnalyticsCalculator"/> so neither copy can drift.
     /// </summary>
     public static IReadOnlyList<MonthlyReturnDto> ComputeMonthlyReturns(
+        decimal initialBalance,
+        IEnumerable<StrategyTrade> trades)
+    {
+        var dated = trades
+            .Where(t => !t.IsOpen)
+            .OrderBy(t => t.CloseTime ?? t.OpenTime)
+            .Select(t => (When: t.CloseTime ?? t.OpenTime, Net: NetOf(t)))
+            .ToList();
+
+        return AnalyticsSeries.BuildMonthlyReturns(initialBalance, dated);
+    }
+
+    /// <summary>
+    /// Builds the strategy equity curve: one point per CLOSED trade in chronological order,
+    /// walking running equity from <paramref name="initialBalance"/> with drawdown measured
+    /// against the running peak. Mirrors <see cref="PortfolioAnalyticsCalculator"/>.ComputeEquityCurve
+    /// so a single strategy and a portfolio are charted with the exact same logic.
+    /// </summary>
+    public static IReadOnlyList<StrategyEquityPointDto> ComputeEquityCurve(
         decimal initialBalance,
         IEnumerable<StrategyTrade> trades)
     {
@@ -160,41 +178,21 @@ public static class StrategyAnalyticsCalculator
             .OrderBy(t => t.CloseTime ?? t.OpenTime)
             .ToList();
 
-        if (closed.Count == 0) return Array.Empty<MonthlyReturnDto>();
+        if (closed.Count == 0) return Array.Empty<StrategyEquityPointDto>();
 
-        var groups = closed
-            .GroupBy(t =>
-            {
-                var ts = t.CloseTime ?? t.OpenTime;
-                return new { ts.Year, ts.Month };
-            })
-            .OrderBy(g => g.Key.Year)
-            .ThenBy(g => g.Key.Month)
-            .ToList();
-
+        var points = new List<StrategyEquityPointDto>(closed.Count);
         var equity = initialBalance;
-        var result = new List<MonthlyReturnDto>(groups.Count);
-
-        foreach (var g in groups)
+        var peak = initialBalance;
+        foreach (var t in closed)
         {
-            var profit = g.Sum(NetOf);
-            var equityStart = equity;
-            var equityEnd = equityStart + profit;
-            var pct = equityStart != 0 ? profit / equityStart : 0m;
-
-            result.Add(new MonthlyReturnDto(
-                Year: g.Key.Year,
-                Month: g.Key.Month,
-                EquityStart: equityStart,
-                EquityEnd: equityEnd,
-                Profit: profit,
-                ReturnPercent: pct,
-                TradeCount: g.Count()));
-
-            equity = equityEnd;
+            equity += NetOf(t);
+            if (equity > peak) peak = equity;
+            var dd = peak - equity;
+            var ddPct = peak > 0 ? dd / peak : 0m;
+            points.Add(new StrategyEquityPointDto(t.CloseTime ?? t.OpenTime, equity, dd, ddPct));
         }
 
-        return result;
+        return points;
     }
 
     // -------------------------------------------------------------------------

@@ -126,6 +126,50 @@ public sealed class StrategyService(
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<StrategyMonthlyReturnsDto>> GetMonthlyReturnsByAccountAsync(
+        Guid accountId, CancellationToken ct = default)
+    {
+        var account = await db.TradingAccounts
+            .AsNoTracking()
+            .Where(a => a.Id == accountId)
+            .Select(a => new { a.Id, a.InitialBalance })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException($"TradingAccount {accountId} not found.");
+
+        var initialBalance = account.InitialBalance is decimal ib && ib > 0 ? ib : 100_000m;
+
+        var strategies = await db.Strategies
+            .AsNoTracking()
+            .Where(x => x.TradingAccountId == accountId)
+            .OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, x.Symbol, x.Timeframe })
+            .ToListAsync(ct);
+
+        if (strategies.Count == 0)
+            return [];
+
+        // All trades of the account's strategies in ONE query — the per-strategy
+        // monthly computation then runs in memory (same no-N+1 approach as GetByAccountAsync).
+        var strategyIds = strategies.Select(s => s.Id).ToList();
+        var tradesByStrategy = (await db.StrategyTrades
+                .AsNoTracking()
+                .Where(t => strategyIds.Contains(t.StrategyId))
+                .ToListAsync(ct))
+            .GroupBy(t => t.StrategyId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return strategies
+            .Select(s => new StrategyMonthlyReturnsDto(
+                s.Id,
+                s.Name,
+                s.Symbol,
+                s.Timeframe,
+                tradesByStrategy.TryGetValue(s.Id, out var trades)
+                    ? StrategyAnalyticsCalculator.ComputeMonthlyReturns(initialBalance, trades)
+                    : []))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<StrategyCandidateDto>> GetCandidatesAsync(
         string broker, AccountType accountType, CancellationToken ct = default)
     {

@@ -14,6 +14,7 @@ import {
   ColDef,
   ColGroupDef,
   CellValueChangedEvent,
+  CellClickedEvent,
   ICellRendererParams,
   ValueFormatterParams,
   themeQuartz,
@@ -27,16 +28,30 @@ import {
   PortfolioRiskDto,
   PortfolioCorrelationDto,
   PortfolioEquityPointDto,
+  PortfolioMemberEquityCurveDto,
   MonthlyReturnDto,
   StrategyCandidateDto,
   ServiceGuardrailDto,
+  VarTargetReadoutDto,
   FundingService,
   DrawdownModel,
+  GuardrailKind,
 } from '../../../core/services/portfolio.service';
-import { EquityChartComponent } from '../equity-chart/equity-chart.component';
+import {
+  EQUITY_OVERLAY_PALETTE,
+  EquityChartComponent,
+  EquityOverlay,
+} from '../equity-chart/equity-chart.component';
+import {
+  ContributionLegendComponent,
+  ContributionLegendRow,
+} from '../contribution-legend/contribution-legend.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
+import { PortfolioTradesGridComponent } from '../portfolio-trades-grid/portfolio-trades-grid.component';
+import { StrategyAnalyticsModalComponent } from '../../broker-accounts/strategy-analytics-modal/strategy-analytics-modal.component';
+import { RiskLimitsModalComponent } from '../risk-limits-modal/risk-limits-modal.component';
 
 interface KpiCard {
   label: string;
@@ -84,7 +99,7 @@ interface CompositionRow {
   liveSharpeRatio?: number;
 }
 
-type Tab = 'overview' | 'composition' | 'risk';
+type Tab = 'overview' | 'trades' | 'composition' | 'risk';
 
 @Component({
   selector: 'app-portfolio-detail',
@@ -94,9 +109,13 @@ type Tab = 'overview' | 'composition' | 'risk';
     FormsModule,
     AgGridAngular,
     EquityChartComponent,
+    ContributionLegendComponent,
     MonthlyHeatmapComponent,
     SymbolDonutComponent,
     CorrelationMatrixComponent,
+    PortfolioTradesGridComponent,
+    StrategyAnalyticsModalComponent,
+    RiskLimitsModalComponent,
   ],
   templateUrl: './portfolio-detail.component.html',
   styleUrl: './portfolio-detail.component.scss',
@@ -115,28 +134,29 @@ export class PortfolioDetailComponent implements OnInit {
   readonly risk = signal<PortfolioRiskDto | null>(null);
   readonly correlation = signal<PortfolioCorrelationDto | null>(null);
   readonly equityCurve = signal<PortfolioEquityPointDto[]>([]);
+  readonly memberCurves = signal<PortfolioMemberEquityCurveDto[]>([]);
+  /** Strategy ids whose contribution line is drawn over the combined curve. Empty by default. */
+  readonly selectedMemberCurves = signal<Set<string>>(new Set());
+  /** Draw every remaining member as a faint grey line, to read the shape of the fan. */
+  readonly showGhostCurves = signal(false);
+  /** The combined curve can be hidden so the contribution lines get the whole canvas. */
+  readonly showCombinedCurve = signal(true);
   readonly monthlyReturns = signal<MonthlyReturnDto[]>([]);
   readonly isLoading = signal(true);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<Tab>('overview');
 
   readonly showAddMember = signal(false);
-  readonly showLimitsModal = signal(false);
-  readonly savingLimits = signal(false);
+  /** The guardrail row currently being edited/configured in the extracted risk-limits modal. */
+  readonly selectedGuardrailForLimits = signal<ServiceGuardrailDto | null>(null);
   readonly FundingService = FundingService;
   readonly DrawdownModel = DrawdownModel;
-  limitsForm = {
-    broker: '',
-    fundingService: FundingService.Other,
-    dailyLossPct: null as number | null,
-    maxLossPct: null as number | null,
-    profitTargetPct: null as number | null,
-    drawdownModel: DrawdownModel.Static,
-    verified: false,
-  };
+  readonly GuardrailKind = GuardrailKind;
   readonly candidates = signal<StrategyCandidateDto[]>([]);
   /** Per-strategy SQX + live KPIs (keyed by strategyId) for the composition comparison grid. */
   readonly memberKpis = signal<Map<string, StrategyCandidateDto>>(new Map());
+  /** Strategy whose analytics modal is open (reuses the demo-accounts strategy detail). */
+  readonly analyticsTargetStrategy = signal<{ id: string; name: string } | null>(null);
   addStrategyId = '';
   addWeight = 1;
 
@@ -144,31 +164,40 @@ export class PortfolioDetailComponent implements OnInit {
     const a = this.analytics();
     if (!a) return [];
     return [
+      { label: 'Final Equity', value: this.money(a.finalEquity), tone: 'neutral' },
       { label: 'Net Profit', value: this.money(a.netProfit), tone: this.tone(a.netProfit) },
       { label: 'Total Return', value: this.pct(a.totalReturn), tone: this.tone(a.totalReturn) },
+      {
+        label: 'Return / DD',
+        value: this.num(a.returnDrawdownRatio),
+        tone: this.tone(a.returnDrawdownRatio),
+      },
+      {
+        label: 'Profit Factor',
+        value: this.num(a.profitFactor),
+        tone: a.profitFactor >= 1 ? 'good' : 'bad',
+      },
+      { label: 'Sharpe', value: this.num(a.sharpeRatio), tone: this.tone(a.sharpeRatio) },
       { label: 'CAGR', value: this.pct(a.cagr), tone: this.tone(a.cagr) },
       {
         label: 'Max Drawdown',
         value: this.pct(a.maxDrawdownPercent),
         tone: a.maxDrawdownPercent > 0 ? 'bad' : 'neutral',
       },
-      {
-        label: 'Return / DD',
-        value: this.num(a.returnDrawdownRatio),
-        tone: this.tone(a.returnDrawdownRatio),
-      },
-      { label: 'Sharpe', value: this.num(a.sharpeRatio), tone: this.tone(a.sharpeRatio) },
-      {
-        label: 'Profit Factor',
-        value: this.num(a.profitFactor),
-        tone: a.profitFactor >= 1 ? 'good' : 'bad',
-      },
       { label: 'SQN', value: this.num(a.sqn), tone: this.tone(a.sqn) },
-      { label: 'Win Rate', value: this.pct(a.winRate), tone: 'neutral' },
-      { label: 'Trades', value: String(a.tradeCount), tone: 'neutral' },
-      { label: 'Wins / Losses', value: `${a.winCount} / ${a.lossCount}`, tone: 'neutral' },
       { label: 'Exposure', value: this.pct(a.exposure), tone: 'neutral' },
-      { label: 'Final Equity', value: this.money(a.finalEquity), tone: 'neutral' },
+    ];
+  });
+
+  /** Trade-specific metrics, grouped into the final card of the KPI strip. */
+  readonly tradeStats = computed<StatItem[]>(() => {
+    const a = this.analytics();
+    if (!a) return [];
+    return [
+      { label: 'Trades (W/L)', value: `${a.tradeCount} (${a.winCount} / ${a.lossCount})` },
+      { label: 'Win Rate', value: this.pct(a.winRate) },
+      { label: 'Monthly avg', value: this.avgPerMonth(a.tradeCount, a.daysSpanned) },
+      { label: 'Daily avg', value: this.avgPerDay(a.tradeCount, a.daysSpanned) },
     ];
   });
 
@@ -413,8 +442,10 @@ export class PortfolioDetailComponent implements OnInit {
         {
           field: 'liveWinRate',
           headerName: 'Win %',
-          width: 90,
-          valueFormatter: (p) => this.pct(p.value),
+          width: 130,
+          headerTooltip: '(ganados / perdidos) win rate',
+          valueFormatter: (p: ValueFormatterParams<CompositionRow>) =>
+            this.liveWinRateLabel(p.data),
         },
         {
           field: 'liveProfitFactor',
@@ -439,6 +470,7 @@ export class PortfolioDetailComponent implements OnInit {
     },
     {
       headerName: '',
+      colId: 'actions',
       width: 60,
       sortable: false,
       filter: false,
@@ -460,6 +492,21 @@ export class PortfolioDetailComponent implements OnInit {
     if (e.colDef.field === 'weight' && e.data) {
       this.saveWeight(e.data.strategyId, e.newValue);
     }
+  }
+
+  /**
+   * Row click opens the strategy detail modal (the same one used in demo accounts).
+   * Skips the editable Peso cell, the actions cell, and the pinned TOTAL row.
+   */
+  onCompositionCellClicked(e: CellClickedEvent<CompositionRow>): void {
+    if (e.node.rowPinned || !e.data || e.data.isTotal) return;
+    const colId = e.column.getColId();
+    if (colId === 'weight' || colId === 'actions') return;
+    this.analyticsTargetStrategy.set({ id: e.data.strategyId, name: e.data.strategyName });
+  }
+
+  closeAnalytics(): void {
+    this.analyticsTargetStrategy.set(null);
   }
 
   ngOnInit(): void {
@@ -502,6 +549,98 @@ export class PortfolioDetailComponent implements OnInit {
       next: (m) => this.monthlyReturns.set(m),
       error: () => this.monthlyReturns.set([]),
     });
+    this.service.getMemberEquityCurves(this.portfolioId).subscribe({
+      next: (c) => this.memberCurves.set(c),
+      error: () => this.memberCurves.set([]),
+    });
+  }
+
+  // --- Contribution overlays -------------------------------------------------
+  //
+  // The lines drawn here are each member's cumulative WEIGHTED net P/L, not its standalone equity
+  // curve. A standalone curve runs on the account's full initial balance, so it would not
+  // reconcile with the combined curve sitting right next to it. Contributions do: they sum to the
+  // combined gain over initial capital.
+
+  /** Members ranked by absolute impact, so the biggest movers are the easiest to reach. */
+  readonly rankedMemberCurves = computed(() =>
+    [...this.memberCurves()].sort(
+      (a, b) => Math.abs(b.finalContribution) - Math.abs(a.finalContribution),
+    ),
+  );
+
+  /** Past this many lines the palette repeats and the chart stops being readable. */
+  readonly maxOverlays = EQUITY_OVERLAY_PALETTE.length;
+
+  readonly overlayLimitReached = computed(
+    () => this.selectedMemberCurves().size >= this.maxOverlays,
+  );
+
+  readonly equityOverlays = computed<EquityOverlay[]>(() => {
+    const selected = this.selectedMemberCurves();
+    const ranked = this.rankedMemberCurves();
+    const toPoints = (c: PortfolioMemberEquityCurveDto) =>
+      c.points.map((p) => ({ date: p.date, value: p.contribution }));
+
+    const colored = ranked
+      .filter((c) => selected.has(c.strategyId))
+      .map((c, i) => ({
+        id: c.strategyId,
+        label: c.strategyName,
+        color: EQUITY_OVERLAY_PALETTE[i % EQUITY_OVERLAY_PALETTE.length],
+        points: toPoints(c),
+      }));
+
+    if (!this.showGhostCurves()) return colored;
+
+    const ghosts = ranked
+      .filter((c) => !selected.has(c.strategyId) && c.points.length > 0)
+      .map((c) => ({
+        id: c.strategyId,
+        label: c.strategyName,
+        // Ghosts are painted by the chart, not from the palette — this value is never read.
+        color: '',
+        points: toPoints(c),
+        ghost: true,
+      }));
+
+    // Ghosts FIRST: the chart draws in creation order, so the coloured lines land on top of the fan.
+    return [...ghosts, ...colored];
+  });
+
+  toggleGhostCurves(): void {
+    this.showGhostCurves.update((on) => !on);
+  }
+
+  toggleCombinedCurve(): void {
+    this.showCombinedCurve.update((on) => !on);
+  }
+
+  /** Ranked members decorated with the colour and draw state the legend renders. */
+  readonly legendRows = computed<ContributionLegendRow[]>(() => {
+    const selected = this.selectedMemberCurves();
+    const colorById = new Map(this.equityOverlays().map((o) => [o.id, o.color]));
+    return this.rankedMemberCurves().map((c) => ({
+      strategyId: c.strategyId,
+      strategyName: c.strategyName,
+      finalContribution: c.finalContribution,
+      color: colorById.get(c.strategyId) ?? null,
+      selected: selected.has(c.strategyId),
+    }));
+  });
+
+  toggleMemberCurve(strategyId: string): void {
+    this.selectedMemberCurves.update((current) => {
+      const next = new Set(current);
+      if (next.has(strategyId)) next.delete(strategyId);
+      // Silently ignoring the click past the cap would look broken; the button is disabled instead.
+      else if (next.size < this.maxOverlays) next.add(strategyId);
+      return next;
+    });
+  }
+
+  clearMemberCurves(): void {
+    this.selectedMemberCurves.set(new Set());
   }
 
   loadRisk(): void {
@@ -525,43 +664,27 @@ export class PortfolioDetailComponent implements OnInit {
   // ---- prop-firm guardrail limits ----
 
   openLimitsEditor(g: ServiceGuardrailDto): void {
-    this.limitsForm = {
-      broker: g.service,
-      fundingService: g.fundingService,
-      dailyLossPct: g.dailyLossLimitPct != null ? g.dailyLossLimitPct * 100 : null,
-      maxLossPct: g.maxLossLimitPct != null ? g.maxLossLimitPct * 100 : null,
-      profitTargetPct: g.profitTargetPct != null ? g.profitTargetPct * 100 : null,
-      drawdownModel: g.drawdownModel ?? DrawdownModel.Static,
-      verified: g.verified,
-    };
-    this.showLimitsModal.set(true);
+    this.selectedGuardrailForLimits.set(g);
   }
 
-  saveLimits(): void {
-    const f = this.limitsForm;
-    const toFrac = (v: number | null) => (v == null || isNaN(v) ? undefined : v / 100);
-    this.savingLimits.set(true);
-    this.service
-      .upsertRiskLimits({
-        broker: f.broker,
-        fundingService: f.fundingService,
-        dailyLossLimitPct: toFrac(f.dailyLossPct),
-        maxLossLimitPct: toFrac(f.maxLossPct),
-        profitTargetPct: toFrac(f.profitTargetPct),
-        drawdownModel: f.drawdownModel,
-        verified: f.verified,
-      })
-      .subscribe({
-        next: () => {
-          this.savingLimits.set(false);
-          this.showLimitsModal.set(false);
-          this.loadRisk();
-        },
-        error: () => {
-          this.savingLimits.set(false);
-          this.error.set('No se pudieron guardar los límites');
-        },
-      });
+  closeLimitsEditor(): void {
+    this.selectedGuardrailForLimits.set(null);
+  }
+
+  onLimitsSaved(): void {
+    this.selectedGuardrailForLimits.set(null);
+    this.loadRisk();
+  }
+
+  /** Band position vs [floor, target] — no pass/fail colouring (funding-guardrails spec). */
+  varBandLabel(vt: VarTargetReadoutDto): string {
+    if (vt.monthlyVar95Percent == null || vt.varFloorPct == null || vt.targetVarPct == null)
+      return '—';
+    if (vt.monthlyVar95Percent < vt.varFloorPct) {
+      return 'Por debajo del floor — el motor puede escalar la exposición al alza (no es más seguro)';
+    }
+    if (vt.monthlyVar95Percent > vt.targetVarPct) return 'Por encima del target';
+    return 'Dentro de la banda';
   }
 
   fundingLabel(fs: FundingService): string {
@@ -668,10 +791,31 @@ export class PortfolioDetailComponent implements OnInit {
     return v === null || v === undefined ? '—' : `${v.toFixed(2)}%`;
   }
 
+  /**
+   * Live Win% with reconstructed counts: "(wins/losses) 40.00%".
+   * The per-strategy candidate feed has no explicit W/L counts, but wins are
+   * recoverable as round(winRate × trades) since the rate is derived from them.
+   */
+  liveWinRateLabel(row: CompositionRow | undefined): string {
+    if (!row) return '—';
+    const rate = row.liveWinRate;
+    const trades = row.liveTradeCount;
+    if (rate == null || trades == null || trades <= 0) return this.pct(rate);
+    const wins = Math.round(rate * trades);
+    const losses = trades - wins;
+    return `(${wins}/${losses}) ${this.pct(rate)}`;
+  }
+
   /** Average count per ~month from a total and the day span (30.4375 days/month). */
   private avgPerMonth(count: number, daysSpanned: number): string {
     if (daysSpanned <= 0) return count.toFixed(1);
     return (count / (daysSpanned / 30.4375)).toFixed(1);
+  }
+
+  /** Average count per day from a total and the day span. */
+  private avgPerDay(count: number, daysSpanned: number): string {
+    if (daysSpanned <= 0) return count.toFixed(2);
+    return (count / daysSpanned).toFixed(2);
   }
 
   signColor(v: number | null | undefined): { color: string } | null {

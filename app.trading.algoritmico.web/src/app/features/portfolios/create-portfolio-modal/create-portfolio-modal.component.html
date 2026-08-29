@@ -1,0 +1,60 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal-dialog" role="dialog" aria-labelledby="cp-title">
+    <h3 class="modal-dialog__title" id="cp-title">New portfolio</h3>
+    <p class="modal-dialog__desc">
+      {{ strategyIds().length }} filtered
+      {{ strategyIds().length === 1 ? 'strategy' : 'strategies' }}, all entering at the same weight.
+      Adjust the weights afterwards in the portfolio detail.
+    </p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="modal-field">
+        <label class="modal-field__label" for="cp-name">Name</label>
+        <input
+          id="cp-name"
+          class="modal-field__input"
+          type="text"
+          autocomplete="off"
+          placeholder="e.g. NQ H4 - low drawdown"
+          formControlName="name"
+        />
+      </div>
+
+      <div class="modal-field">
+        <label class="modal-field__label" for="cp-capital">Starting capital (USD)</label>
+        <input
+          id="cp-capital"
+          class="modal-field__input"
+          type="number"
+          min="0"
+          step="1000"
+          formControlName="initialCapital"
+        />
+      </div>
+
+      <div class="modal-field">
+        <label class="modal-field__label" for="cp-description">Description (optional)</label>
+        <input
+          id="cp-description"
+          class="modal-field__input"
+          type="text"
+          autocomplete="off"
+          formControlName="description"
+        />
+      </div>
+
+      @if (errorMessage()) {
+        <div class="modal-error" role="alert">{{ errorMessage() }}</div>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="modal-btn modal-btn--cancel" (click)="cancelled.emit()">
+          Cancel
+        </button>
+        <button type="submit" class="modal-btn modal-btn--submit" [disabled]="saving()">
+          {{ saving() ? 'Creating...' : 'Create portfolio' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

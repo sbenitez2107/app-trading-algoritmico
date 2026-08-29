@@ -1,3 +1,4 @@
+using AppTradingAlgoritmico.Application.DTOs.Trades;
 using AppTradingAlgoritmico.Domain.Entities;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
@@ -18,6 +19,22 @@ internal readonly record struct DailyNetPoint(DateTime Day, decimal Net, decimal
 internal static class AnalyticsSeries
 {
     private const int TradingDaysPerYear = 252;
+
+    /// <summary>
+    /// Darwinex Zero's stated monthly VaR horizon (KB §2 — "el % de VaR mensual") — 30 calendar
+    /// days. A vendor constant, NOT a user input, so it is never persisted: two `VarTarget` rows
+    /// with different horizons would produce VaR percentages that are no longer comparable against
+    /// the shared 3.25-6.5% band. Changing it is a code change, matching how the KB records vendor
+    /// drift, not a data migration (see design's reconciliation note).
+    /// </summary>
+    public const int MonthlyVarHorizonDays = 30;
+
+    /// <summary>
+    /// Minimum calendar days of dense daily-net history required before a monthly VaR estimate is
+    /// produced — user decision #2, roughly 3 independent <see cref="MonthlyVarHorizonDays"/>
+    /// windows. Below this, the estimator reports insufficient history instead of a number.
+    /// </summary>
+    public const int MinHistoryDays = 90;
 
     /// <summary>Per-trade net P/L: gross profit plus all costs (commission, swap, taxes are signed).</summary>
     internal static decimal NetOf(StrategyTrade t) => t.Profit + t.Commission + t.Swap + t.Taxes;
@@ -60,6 +77,32 @@ internal static class AnalyticsSeries
         }
 
         return series;
+    }
+
+    /// <summary>
+    /// Rolling <paramref name="windowLength"/>-element sums over a dense series (e.g. calendar-day
+    /// nets): <c>sums[i] = Σ series[i .. i+windowLength-1]</c> for every valid start index, producing
+    /// <c>series.Count - windowLength + 1</c> OVERLAPPING windows. A day with no activity (a
+    /// zero-filled gap in the source series) contributes exactly 0 to every window sum that spans
+    /// it — the running-sum accumulator never treats a gap specially. Empty when the series is
+    /// shorter than the window.
+    /// </summary>
+    public static IReadOnlyList<decimal> RollingWindowSums(IReadOnlyList<decimal> series, int windowLength)
+    {
+        if (windowLength <= 0 || series.Count < windowLength) return Array.Empty<decimal>();
+
+        var sums = new List<decimal>(series.Count - windowLength + 1);
+        var running = 0m;
+        for (var i = 0; i < windowLength; i++) running += series[i];
+        sums.Add(running);
+
+        for (var i = windowLength; i < series.Count; i++)
+        {
+            running += series[i] - series[i - windowLength];
+            sums.Add(running);
+        }
+
+        return sums;
     }
 
     /// <summary>Convenience overload bucketing closed trades by <c>CloseTime ?? OpenTime</c> date.</summary>
@@ -298,5 +341,100 @@ internal static class AnalyticsSeries
         mergedSeconds += (currentEnd - currentStart).TotalSeconds;
 
         return (decimal)(mergedSeconds / totalSpan);
+    }
+
+    // -------------------------------------------------------------------------
+    // Monthly buckets
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Builds the monthly performance series from a CHRONOLOGICAL (When, Net) stream — the single
+    /// home for the monthly math, so a weighted portfolio stream is bucketed exactly like a single
+    /// strategy's trades.
+    ///
+    /// Each bucket's <c>ReturnPercent</c> is measured against the equity at the START of that month,
+    /// so the values compound (if Feb opens at $105k after a +5% Jan, Feb's % is over $105k).
+    ///
+    /// The two drawdown fields deliberately answer DIFFERENT questions and are both reported:
+    ///   • <c>MaxDrawdownPercent</c> resets its peak to the month's opening equity — "how much did
+    ///     THIS month hurt". A month that only rises reports 0.
+    ///   • <c>UnderwaterPercent</c> carries the all-time peak across the whole series (the same
+    ///     convention as the headline Max DD) and is seeded with the month's opening state, so a
+    ///     month that merely claws back still reports the depth it inherited.
+    /// </summary>
+    public static IReadOnlyList<MonthlyReturnDto> BuildMonthlyReturns(
+        decimal initialBalance,
+        IReadOnlyList<(DateTime When, decimal Net)> chronological)
+    {
+        if (chronological.Count == 0) return Array.Empty<MonthlyReturnDto>();
+
+        var groups = chronological
+            .GroupBy(e => new { e.When.Year, e.When.Month })
+            .OrderBy(g => g.Key.Year)
+            .ThenBy(g => g.Key.Month)
+            .ToList();
+
+        var equity = initialBalance;
+        var runningPeak = initialBalance;
+        var result = new List<MonthlyReturnDto>(groups.Count);
+
+        foreach (var g in groups)
+        {
+            var equityStart = equity;
+
+            // (A) Intra-month: the peak starts over at the month's opening equity.
+            var monthPeak = equityStart;
+            var maxDdPercent = 0m;
+
+            // (B) Underwater: seeded with how far below the all-time peak the month OPENED,
+            // otherwise a recovery-only month would understate its worst moment.
+            var underwaterPercent = runningPeak > 0
+                ? Math.Max(0m, (runningPeak - equityStart) / runningPeak)
+                : 0m;
+
+            var profit = 0m;
+            var tradeCount = 0;
+            var winCount = 0;
+            var lossCount = 0;
+
+            foreach (var (_, net) in g)
+            {
+                profit += net;
+                equity += net;
+                tradeCount++;
+
+                if (net > 0) winCount++;
+                else if (net < 0) lossCount++;
+
+                if (equity > monthPeak) monthPeak = equity;
+                else if (monthPeak > 0)
+                {
+                    var dd = (monthPeak - equity) / monthPeak;
+                    if (dd > maxDdPercent) maxDdPercent = dd;
+                }
+
+                if (equity > runningPeak) runningPeak = equity;
+                else if (runningPeak > 0)
+                {
+                    var uw = (runningPeak - equity) / runningPeak;
+                    if (uw > underwaterPercent) underwaterPercent = uw;
+                }
+            }
+
+            result.Add(new MonthlyReturnDto(
+                Year: g.Key.Year,
+                Month: g.Key.Month,
+                EquityStart: equityStart,
+                EquityEnd: equity,
+                Profit: profit,
+                ReturnPercent: equityStart != 0 ? profit / equityStart : 0m,
+                TradeCount: tradeCount,
+                MaxDrawdownPercent: maxDdPercent,
+                UnderwaterPercent: underwaterPercent,
+                WinCount: winCount,
+                LossCount: lossCount));
+        }
+
+        return result;
     }
 }

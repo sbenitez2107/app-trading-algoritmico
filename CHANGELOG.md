@@ -7,6 +7,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.0] - 2026-08-29
+
+### Added
+- **Filter bar on the account monthly matrix** — strategy name search, symbol picker, timeframe picker, a positive/negative toggle on the year total, and numeric thresholds, all composing with AND. The row count shows how much the filter narrowed the account, and filters are deliberately transient: a narrowed matrix surviving a reload reads as missing data.
+- **Per-month threshold gates** — `Max DD <`, `Return >`, `W/L >` and a monthly trade count. EVERY month that reports the quantity has to clear the bar, so a single bad month disqualifies a strategy however good its year total looks. The gates read the raw months rather than the selected metric, so they keep biting while the matrix shows something else, and a strategy with no months in the year is excluded — an absent month is not a passing month.
+- **Trade count filters** — one on the year total, one as the per-month gate above, for screening out strategies whose numbers rest on too few trades.
+- **Timeframe (TF) column** — sortable, plus its own picker in the filter bar. Empty for strategies that never came from a parsed SQX report.
+- **Total row above the grid** — every month column and the year column aggregated across the currently filtered strategies, recomputed as you filter so the effect on the book is visible while choosing rather than after scrolling. Coloured by sign, following the same rule as the rest of the screen: the win rate splits at 50%, and a drawdown is never green.
+- **Create a portfolio from the filtered strategies** — a dialog asking only for name and starting capital; broker, account type and equal weights come from the account the matrix belongs to. Weights are adjusted afterwards in the portfolio detail.
+
+### Changed
+- **Win rate cells lead with their trade counts** — `3/1 (75%)` instead of `75.00%`, in both the per-strategy and the portfolios matrices, and in the year column. The counts carry the confidence the percentage hides: 3/1 and 30/10 are both 75%, and only one of them means anything. They also make the decimals redundant, so the percentage rounds.
+- **`GET /api/trading-accounts/{id}/strategies/monthly-returns` now returns `timeframe`** — read from the strategy, no extra query and no migration.
+
+---
+
+## [0.20.0] - 2026-08-23
+
+### Added
+- **Toggle the combined curve on the portfolio equity chart** — a **Combinada** button next to the ghost-mode toggle hides or shows the combined line. Hiding it hands the whole canvas to the contribution curves, which otherwise sit compressed against their own axis while being compared to a line two orders of magnitude larger. The Max DD marker and the stagnation band belong to the combined curve and follow its visibility, so the hand-drawn band no longer paints over an empty chart.
+
+---
+
+## [0.19.0] - 2026-08-23
+
+### Added
+- **Per-strategy contribution curves on the portfolio equity chart** — the combined curve can now be overlaid with each member's cumulative **weighted** P/L, so you can see who built the equity and who dragged it down. These are contribution curves, NOT each strategy's standalone equity: a standalone curve runs on the account's full initial balance and would not reconcile with the combined line next to it. Weighting by portfolio weight makes the decomposition exact — the final contributions sum to the combined curve's gain over initial capital.
+- **`GET /api/portfolios/{id}/member-equity-curves`** — every member's contribution series in one request, computed from the same bulk trade load the combined curve already performs, so the chart never fans out into one request per strategy. New `PortfolioMemberEquityCurveDto`.
+- **"Ver todas" ghost mode** — draws every remaining member as a faint grey line so the shape of the fan is readable at any member count. Ghosts carry no palette, so they are not subject to the eight-line colour cap.
+- **Hover identifies any line** — pointing at a curve names the strategy and shows its contribution at that date. This is what makes the ghost fan usable, since those lines have no colour identity.
+- **The monthly matrix remembers the selected metric** — return, max drawdown, underwater or win rate now survives navigation, stored per screen so the portfolios matrix and the per-strategy matrix can sit on different metrics.
+
+### Changed
+- **Contribution legend extracted into its own component** — `ContributionLegendComponent` is presentational; the parent keeps ownership of selection state and colour assignment.
+- **Production build budgets aligned with the `docker` configuration** (initial 1MB warning / 2MB error, component styles 12kB error). The `production` entry still carried the stock Angular CLI defaults, which contradicted the calibrated values the `docker` configuration has used for a long time. `ng build` completes again.
+
+### Security
+- **AngleSharp 1.1.2 → 1.7.1** — patches GHSA-pgww-w46g-26qg (moderate). AngleSharp backs the SQX HTML report and MT statement parsers; the parser and import test suites (50 tests, including one over a real HTML fixture) pass unchanged.
+- **Microsoft.EntityFrameworkCore.Sqlite 10.0.0 → 10.0.11** — pulls a patched `SQLitePCLRaw.lib.e_sqlite3`, closing GHSA-2m69-gcr7-jv3q (high, test-only). `dotnet list package --vulnerable --include-transitive` now reports all five projects clean.
+
+### Removed
+- **Redundant `Microsoft.Extensions.Configuration.Abstractions` package reference** from the Infrastructure project (NU1510) — it already arrives transitively. Removing it is what surfaced both advisories above, which it had been masking under `-warnaserror`.
+
+---
+
+## [0.18.0] - 2026-08-21
+
+### Added
+- **Selectable metric in the monthly matrices** — both the portfolios × months view and the per-strategy view in the account detail gain a metric switch: compounding **Return** (default), **Max DD within month**, **Underwater**, and **W/L** (win rate). The two drawdown metrics are offered side by side because they answer different questions: *Max DD within month* resets its peak on the 1st, so a cell reports how much that month hurt and reads 0 for an up-only month; *Underwater* carries the all-time peak (the same convention as the headline Max DD column), so one bad month keeps surfacing until a new high is made. Win-rate cells expose the raw win/loss counts on hover.
+- **Per-month drawdown and win/loss data** — `MonthlyReturnDto` now carries `MaxDrawdownPercent`, `UnderwaterPercent`, `WinCount` and `LossCount`, computed in the same pass over the month's trades, so no extra query or roundtrip is involved.
+- **Typed funding guardrails (`GuardrailKind`)** — guardrails are discriminated into `LossLimits` (Other/FTMO/Axi) and `VarTarget` (Darwinex Zero), so a service whose rulebook defines no daily-loss limit is no longer forced to invent one. The risk-limits modal switches its field set with the selected funding service, and `RiskLimitsService.UpsertAsync` validates per kind. Additive migration; existing rows become `LossLimits`.
+- **Monthly VaR estimator** — rolling 30-calendar-day sums of the existing daily net series with the 5th percentile taken directly (no √t scaling). Reported portfolio-wide and per broker, alongside band position against `[floor, target]` and the implied Risk Engine multiplier. Labelled as an honest approximation wherever it appears.
+
+### Changed
+- **Monthly bucketing math now lives in one place.** `PortfolioAnalyticsCalculator` and `StrategyAnalyticsCalculator` each carried their own copy of the month grouping and compounding loop. Both now delegate to `AnalyticsSeries.BuildMonthlyReturns`, so a weighted portfolio stream and a single strategy's trades are measured by the exact same code and cannot drift.
+- **Year column adapts to the selected metric.** Returns compound, drawdowns report the worst month (header becomes *Peor* / *Worst*), and the win rate is recomputed from the summed counts rather than averaged across months — averaging would weigh a 2-trade month like a 200-trade one. Sorting also flips to ascending for the drawdown metrics, where the smallest value is the best row.
+
+---
+
+## [0.17.0] - 2026-08-01
+
+### Added
+- **Delete portfolios** — the portfolios list now has an **Acciones** column with a delete button and a confirmation dialog. The removed row leaves the grid without a refetch; member strategies and their trades are untouched.
+- **Monthly return tooltip per portfolio** — a new **Mensual** column shows each portfolio's monthly-returns heatmap on hover, so the figure is readable without opening the detail page. Reuses the same heatmap component rendered in the portfolio detail.
+- **Portfolios monthly returns matrix** — a **Retorno mensual** button next to *+ Nuevo Portfolio* swaps the KPI grid for a portfolios × months view with year navigation and per-column sorting, mirroring the per-strategy Monthly Returns view in the account detail.
+- **`GET /api/portfolios/monthly-returns?broker=`** — returns the monthly compounding returns of every portfolio of a broker in one request. Trades are bulk-loaded in a single query (no N+1); feeds both the matrix view and the row tooltips. New `PortfolioMonthlyReturnsDto`.
+- **Per-strategy monthly returns** — the account detail (Cuentas Demo/Live) gains a **Monthly Returns** toggle showing a strategies × months matrix, backed by `GET /api/trading-accounts/{accountId}/strategies/monthly-returns` and a new `StrategyMonthlyReturnsDto`.
+- **Portfolios list summary endpoint** — `GET /api/portfolios/summary?broker=` fuses each portfolio's header fields with its combined analytics KPIs so the grid loads in one roundtrip. New `PortfolioSummaryDto`.
+
+### Fixed
+- **AG Grid cell styling never applied (29 rules across 5 screens).** Styles written in component-scoped `.scss` compile to `.foo[_ngcontent-<hash>]`, but AG Grid builds its cell, header and `cellRenderer` DOM imperatively, so those nodes never carry the attribute and the rules could not match. A second variant used `:global(...)`, a CSS-Modules construct Angular neither understands nor strips, which emitted an invalid selector the browser discarded outright. All affected rules moved to `:host ::ng-deep`, anchored under each component's own grid class. Visible effects:
+  - *Trades grids (portfolio + strategy)*: net profit now renders green/red, close-reason chips green/red/amber/grey, and open vs closed status are distinguishable.
+  - *Expenses list*: the whole table now uses the app's theme tokens instead of AG Grid's stock palette; headers are uppercased, cells vertically centred, and the row action buttons lose their default browser chrome.
+  - *SQX asset overview*: timeframe, stage and status render as coloured pills, and the three status states are visually distinct.
+  - *Portfolios list*: profit/return/CAGR are colour-coded by sign and the account type is tinted Live/Demo.
+  - *Account detail*: strategy-grid action buttons render as borderless icons with hover states, and rows show a pointer cursor.
+- **Dangling CSS variable in the expenses grid** — `--ag-border-color` referenced `--color-border`, which is not defined anywhere (the token is `--border-color`). Harmless while the rule was dead; corrected as part of reviving it.
+
+### Changed
+- **Shared trades-grid cell styles are now a Sass mixin.** `shared/trades-grid/_trades-grid-cells.scss` exposes `@mixin trades-grid-cells` instead of bare rules, because `@use` is only legal at file root and therefore cannot be nested inside `:host ::ng-deep`. Consumers include it from within their own `::ng-deep` block.
+- **Portfolios list row navigation** moved from `rowClicked` to `cellClicked` so clicking the Mensual or Acciones columns no longer opens the portfolio detail.
+- **`PortfolioService` bulk loading refactored** — `GetSummariesAsync` and `GetMonthlyReturnsByBrokerAsync` now share one `LoadPortfoliosWithMemberInputsAsync` helper, keeping the query count constant regardless of how many portfolios exist.
+
+---
+
+## [0.16.1] - 2026-06-21
+
+### Security
+- **AutoMapper 13.0.1 → 16.1.1** to patch **CVE-2026-32933** (high-severity DoS — uncontrolled recursion on deeply-nested object graphs triggering an uncatchable `StackOverflowException`). Bumped `Microsoft.IdentityModel.Tokens` and `System.IdentityModel.Tokens.Jwt` 8.9.0 → 8.14.0 to satisfy AutoMapper 16's transitive requirement, and migrated the DI registration to the v16 API (`AddAutoMapper(cfg => cfg.AddMaps(...))`). Runs under the free AutoMapper Community license (no key required; emits a startup log notice only).
+
+---
+
+## [0.16.0] - 2026-06-21
+
+### Added
+- **Strategy equity curve** — the EA detail (Cuentas Demo/Live) now shows an equity curve above the trades grid, covering the period the strategy's trades span. New `GET /api/strategies/{id}/equity-curve` endpoint (one point per closed trade, running equity from the account's initial balance with drawdown from the running peak) reusing the shared `AnalyticsSeries`; new `StrategyEquityPointDto`.
+- **Equity chart annotations** — both the strategy and portfolio equity charts now mark the **max drawdown** (a marker at the trough labelled with its % and $) and shade the **longest stagnation window** as a translucent vertical band.
+- **Strategy detail from a portfolio** — clicking a strategy row in the portfolio **Composición** grid opens the same strategy analytics modal used in the demo/live account detail.
+
+### Changed
+- **Portfolio Composición — Win % (MT4 Live)** now prepends the won/lost trade counts, e.g. `(2/3) 40.00%`.
+- **Account strategies grid** now shows the **MT4 (Live)** column group before **SQX (Backtest)** by default (saved column presets keep their own order).
+
+---
+
+## [0.15.0] - 2026-06-18
+
+### Added
+- **Portfolio combined trades list** — new **Lista de trades** tab in the portfolio detail (between Resumen and Composición) showing every trade of all member strategies combined, with a leading **Estrategia** column identifying each trade's source strategy and a pinned TOTAL row. Powered by a new `GET /api/portfolios/{id}/trades` endpoint (paged, status-filterable) that reuses the existing member-trades query; new `PortfolioTradeDto`.
+
+### Changed
+- **Portfolio Resumen KPI cards reordered**, with the trade metrics grouped into a single **Trades** card (Trades W/L · Win Rate · monthly & daily trade averages) at the end of the KPI strip.
+- **Extracted a shared `shared/trades-grid` module** (column defs, helpers, row styling) now consumed by both the strategy and portfolio trades grids.
+
+### Fixed
+- **Trades grids capped at 50 rows**: the portfolio and strategy trades grids paginate client-side but only fetched the first 50 trades from the server, so a portfolio/strategy with more trades silently showed only 50. Both now load the full set, using the server's reported total count.
+
+---
+
 ## [0.14.0] - 2026-06-13
 
 ### Added

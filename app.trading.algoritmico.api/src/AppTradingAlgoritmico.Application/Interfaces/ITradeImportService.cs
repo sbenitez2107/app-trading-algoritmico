@@ -50,4 +50,11 @@ public interface ITradeImportService
     /// </summary>
     /// <exception cref="KeyNotFoundException">Strategy does not exist.</exception>
     Task<IReadOnlyList<MonthlyReturnDto>> GetMonthlyReturnsByStrategyAsync(Guid strategyId, CancellationToken ct);
+
+    /// <summary>
+    /// Returns the strategy's equity curve — one point per closed trade, ordered chronologically,
+    /// walking running equity from the account's initial balance. Covers ALL trades (not paged).
+    /// </summary>
+    /// <exception cref="KeyNotFoundException">Strategy does not exist.</exception>
+    Task<IReadOnlyList<StrategyEquityPointDto>> GetEquityCurveByStrategyAsync(Guid strategyId, CancellationToken ct);
 }

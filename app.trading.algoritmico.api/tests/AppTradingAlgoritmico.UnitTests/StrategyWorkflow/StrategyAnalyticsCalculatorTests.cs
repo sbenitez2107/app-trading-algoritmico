@@ -245,4 +245,96 @@ public class StrategyAnalyticsCalculatorTests
 
         dto.Exposure.Should().BeApproximately(1m, 0.001m, "overlapping intervals merge — both windows count once");
     }
+
+    [Fact]
+    public void ComputeEquityCurve_WalksRunningEquityAndDrawdownFromPeak()
+    {
+        // +500 (eq 100500, peak 100500, dd 0) → -300 (eq 100200, dd 300) → +100 (eq 100300, dd 200)
+        var d = new DateTime(2026, 1, 1);
+        var trades = new[]
+        {
+            Trade(d, d.AddHours(1), profit: 500m),
+            Trade(d.AddDays(1), d.AddDays(1).AddHours(1), profit: -300m),
+            Trade(d.AddDays(2), d.AddDays(2).AddHours(1), profit: 100m),
+        };
+
+        var curve = StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, trades);
+
+        curve.Should().HaveCount(3, "one point per closed trade");
+        curve[0].Equity.Should().Be(100_500m);
+        curve[0].Drawdown.Should().Be(0m);
+        curve[1].Equity.Should().Be(100_200m);
+        curve[1].Drawdown.Should().Be(300m, "100,500 peak − 100,200");
+        curve[2].Equity.Should().Be(100_300m);
+        curve[2].Drawdown.Should().Be(200m, "peak still 100,500");
+        curve[2].DrawdownPercent.Should().BeApproximately(200m / 100_500m, 0.0001m);
+    }
+
+    [Fact]
+    public void ComputeEquityCurve_ExcludesOpenTrades_AndSortsChronologically()
+    {
+        var d = new DateTime(2026, 1, 1);
+        var trades = new[]
+        {
+            Trade(d.AddDays(2), d.AddDays(2).AddHours(1), profit: 100m), // out of order
+            Trade(d, d.AddHours(1), profit: 50m),
+            Trade(d.AddDays(3), close: null, profit: 0m, isOpen: true),  // open → excluded
+        };
+
+        var curve = StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, trades);
+
+        curve.Should().HaveCount(2, "open trades are not on the realized equity curve");
+        curve[0].Equity.Should().Be(100_050m, "earliest close first");
+        curve[1].Equity.Should().Be(100_150m);
+    }
+
+    [Fact]
+    public void ComputeEquityCurve_NoTrades_ReturnsEmpty()
+    {
+        StrategyAnalyticsCalculator.ComputeEquityCurve(100_000m, []).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ComputeMonthlyReturns_IntraMonthDrawdownResets_WhileUnderwaterCarriesThePriorPeak()
+    {
+        // Same contract as the portfolio calculator — the math lives in AnalyticsSeries once.
+        //   Mar: 100,000 → 92,000 | Apr: → 92,460 | May: → 93,400
+        var trades = new[]
+        {
+            Trade(new DateTime(2026, 3, 10), new DateTime(2026, 3, 10, 12, 0, 0), profit: -8_000m),
+            Trade(new DateTime(2026, 4, 10), new DateTime(2026, 4, 10, 12, 0, 0), profit: 460m),
+            Trade(new DateTime(2026, 5, 10), new DateTime(2026, 5, 10, 12, 0, 0), profit: 940m),
+        };
+
+        var months = StrategyAnalyticsCalculator.ComputeMonthlyReturns(100_000m, trades);
+
+        months.Should().HaveCount(3);
+        months[0].MaxDrawdownPercent.Should().BeApproximately(0.08m, 0.0001m);
+        months[0].UnderwaterPercent.Should().BeApproximately(0.08m, 0.0001m);
+        months[1].MaxDrawdownPercent.Should().Be(0m, "April only went up from its own opening equity");
+        months[1].UnderwaterPercent.Should().BeApproximately(0.08m, 0.0001m, "still 8% below the all-time peak");
+        months[2].UnderwaterPercent.Should().BeApproximately(0.0754m, 0.0001m);
+    }
+
+    [Fact]
+    public void ComputeMonthlyReturns_CountsWinsAndLosses_ExcludingBreakevenAndOpenTrades()
+    {
+        // Jan: +100, -50, 0 (breakeven), +200 closed, plus one OPEN trade that must not count.
+        var trades = new[]
+        {
+            Trade(new DateTime(2026, 1, 5), new DateTime(2026, 1, 5, 12, 0, 0), profit: 100m),
+            Trade(new DateTime(2026, 1, 6), new DateTime(2026, 1, 6, 12, 0, 0), profit: -50m),
+            Trade(new DateTime(2026, 1, 7), new DateTime(2026, 1, 7, 12, 0, 0), profit: 0m),
+            Trade(new DateTime(2026, 1, 8), new DateTime(2026, 1, 8, 12, 0, 0), profit: 200m),
+            Trade(new DateTime(2026, 1, 9), close: null, profit: 5_000m, isOpen: true),
+        };
+
+        var jan = StrategyAnalyticsCalculator.ComputeMonthlyReturns(100_000m, trades)
+            .Should().ContainSingle().Subject;
+
+        jan.TradeCount.Should().Be(4, "the open trade is excluded");
+        jan.WinCount.Should().Be(2);
+        jan.LossCount.Should().Be(1, "the flat trade counts as neither a win nor a loss");
+        jan.Profit.Should().Be(250m);
+    }
 }

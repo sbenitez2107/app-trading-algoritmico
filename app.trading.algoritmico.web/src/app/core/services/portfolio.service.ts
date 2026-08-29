@@ -20,6 +20,16 @@ export enum DrawdownModel {
   Trailing = 1,
 }
 
+/**
+ * Discriminates how a broker's risk limits are modeled. `LossLimits` (FTMO/Axi/Other) keeps
+ * today's breach-style fields; `VarTarget` (Darwinex Zero) models a monthly VaR-target rulebook
+ * with NO breach semantics — missing the target rescales leverage, it does not breach the account.
+ */
+export enum GuardrailKind {
+  LossLimits = 0,
+  VarTarget = 1,
+}
+
 export interface PortfolioMemberDto {
   strategyId: string;
   strategyName: string;
@@ -140,6 +150,12 @@ export interface MonthlyReturnDto {
   profit: number;
   returnPercent: number;
   tradeCount: number;
+  /** Worst drawdown produced INSIDE the month — the peak resets on the 1st. 0 for an up-only month. */
+  maxDrawdownPercent: number;
+  /** Deepest distance below the ALL-TIME equity peak during the month (peak carried across months). */
+  underwaterPercent: number;
+  winCount: number;
+  lossCount: number;
 }
 
 export interface PortfolioEquityPointDto {
@@ -149,17 +165,65 @@ export interface PortfolioEquityPointDto {
   drawdownPercent: number;
 }
 
+/** One point on a member's contribution curve — cumulative WEIGHTED net P/L, not standalone equity. */
+export interface PortfolioContributionPointDto {
+  date: string;
+  contribution: number;
+}
+
+/**
+ * One member's contribution curve. Every net is scaled by the member's normalized portfolio
+ * weight, so the contributions of all members sum to the combined curve's gain over initial
+ * capital. This is NOT the strategy's standalone equity curve.
+ */
+export interface PortfolioMemberEquityCurveDto {
+  strategyId: string;
+  strategyName: string;
+  /** RAW SQX-style size multiplier actually applied (1 = full size, 2 = double), not a share. */
+  rawWeight: number;
+  finalContribution: number;
+  points: PortfolioContributionPointDto[];
+}
+
 export interface ServiceRiskDto {
   service: string;
   strategyCount: number;
   netProfit: number;
   var95: number;
   var95Percent: number;
+  /** 30-calendar-day rolling-window VaR95 estimate — guardrail-agnostic, computed for every service. */
+  monthlyVarInsufficientHistory: boolean;
+  monthlyVarObservationDays: number;
+  monthlyVarOverlappingWindows: number;
+  monthlyVarIndependentWindows: number;
+  monthlyVar95?: number;
+  monthlyVar95Percent?: number;
 }
 
-export interface ServiceGuardrailDto {
+/**
+ * Monthly VaR-target readout for a `VarTarget` guardrail. Every field is either the user-sourced
+ * band (targetVarPct/varFloorPct) or DERIVED analytics output — never guardrail configuration.
+ * No breach/headroom fields (`funding-guardrails` spec).
+ */
+export interface VarTargetReadoutDto {
+  targetVarPct?: number;
+  varFloorPct?: number;
+  /** DERIVED, not stored — echoes the calculator's 30-day horizon constant. */
+  horizonDays: number;
+  insufficientHistory: boolean;
+  observationDays: number;
+  overlappingWindows: number;
+  independentWindows: number;
+  monthlyVar95?: number;
+  monthlyVar95Percent?: number;
+  /** TargetVar / StrategyVar (KB §3). Undefined when the estimate is absent, insufficient, or zero. */
+  impliedMultiplier?: number;
+}
+
+export interface LossLimitsGuardrailDto {
   service: string;
   fundingService: FundingService;
+  kind: GuardrailKind.LossLimits;
   configured: boolean;
   verified: boolean;
   dailyLossLimitPct?: number;
@@ -169,7 +233,27 @@ export interface ServiceGuardrailDto {
   serviceVar95Percent: number;
   dailyHeadroomPct?: number;
   dailyBreached: boolean;
+  varTarget: null;
 }
+
+export interface VarTargetGuardrailDto {
+  service: string;
+  fundingService: FundingService;
+  kind: GuardrailKind.VarTarget;
+  configured: boolean;
+  verified: boolean;
+  dailyLossLimitPct: null;
+  maxLossLimitPct: null;
+  profitTargetPct: null;
+  drawdownModel: null;
+  serviceVar95Percent: number;
+  dailyHeadroomPct: null;
+  dailyBreached: boolean;
+  varTarget: VarTargetReadoutDto;
+}
+
+/** Discriminated union on `kind` — the field set is only valid for its own kind (backend-enforced). */
+export type ServiceGuardrailDto = LossLimitsGuardrailDto | VarTargetGuardrailDto;
 
 export interface PortfolioRiskDto {
   initialCapital: number;
@@ -198,20 +282,26 @@ export interface BrokerRiskLimitsDto {
   id: string;
   broker: string;
   fundingService: FundingService;
+  kind: GuardrailKind;
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
   drawdownModel: DrawdownModel;
+  targetVarPct?: number;
+  varFloorPct?: number;
   verified: boolean;
 }
 
 export interface UpsertBrokerRiskLimitsDto {
   broker: string;
   fundingService: FundingService;
+  kind: GuardrailKind;
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
   drawdownModel: DrawdownModel;
+  targetVarPct?: number;
+  varFloorPct?: number;
   verified: boolean;
 }
 
@@ -248,6 +338,78 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+/**
+ * A single trade combined across all member strategies of a portfolio.
+ * Mirrors StrategyTradeDto plus the owning strategy's id + name so the grid
+ * can show which strategy each trade belongs to.
+ */
+export interface PortfolioTradeDto {
+  id: string;
+  strategyId: string;
+  strategyName: string;
+  ticket: number;
+  openTime: string;
+  closeTime: string | null;
+  type: string;
+  size: number;
+  item: string;
+  openPrice: number;
+  closePrice: number | null;
+  stopLoss: number;
+  takeProfit: number;
+  commission: number;
+  taxes: number;
+  swap: number;
+  profit: number;
+  closeReason: string | null;
+  isOpen: boolean;
+}
+
+/**
+ * Flat summary row for the portfolios list grid.
+ * Returned by GET /api/portfolios/summary?broker=<broker> as a plain array.
+ * Fraction fields (totalReturn, winRate, cagr, maxDrawdownPercent, exposure)
+ * are in [0..1] — multiply by 100 before displaying as percentages.
+ */
+export interface PortfolioSummaryDto {
+  id: string;
+  name: string;
+  broker: string;
+  accountType: AccountType;
+  initialCapital: number;
+  baseCurrency: string;
+  memberCount: number;
+  createdAt: string;
+  finalEquity: number;
+  netProfit: number;
+  totalReturn: number; // fraction, e.g. 0.0677 = 6.77%
+  returnDrawdownRatio: number;
+  profitFactor: number;
+  sharpeRatio: number;
+  cagr: number; // fraction
+  maxDrawdownPercent: number; // fraction
+  sqn: number;
+  exposure: number; // fraction
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number; // fraction
+  monthlyAvgProfit: number;
+  dailyAvgProfit: number;
+}
+
+/**
+ * Monthly returns of one portfolio, as returned by
+ * GET /api/portfolios/monthly-returns?broker=<broker> for every portfolio at once.
+ * `returnPercent` inside each entry is a fraction (0.0107 = 1.07%).
+ */
+export interface PortfolioMonthlyReturnsDto {
+  portfolioId: string;
+  name: string;
+  memberCount: number;
+  returns: MonthlyReturnDto[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class PortfolioService {
   private readonly http = inject(HttpClient);
@@ -260,6 +422,21 @@ export class PortfolioService {
       .set('page', page.toString())
       .set('pageSize', pageSize.toString());
     return this.http.get<PagedResult<PortfolioDto>>(this.base, { params });
+  }
+
+  /** Summary rows for the portfolios list grid — fuses header + analytics KPIs. */
+  getSummaries(broker: string): Observable<PortfolioSummaryDto[]> {
+    const params = new HttpParams().set('broker', broker);
+    return this.http.get<PortfolioSummaryDto[]>(`${this.base}/summary`, { params });
+  }
+
+  /**
+   * Monthly returns for every portfolio of the broker in one roundtrip.
+   * Feeds both the monthly-returns matrix view and the per-row tooltip in the list.
+   */
+  getMonthlyReturnsByBroker(broker: string): Observable<PortfolioMonthlyReturnsDto[]> {
+    const params = new HttpParams().set('broker', broker);
+    return this.http.get<PortfolioMonthlyReturnsDto[]>(`${this.base}/monthly-returns`, { params });
   }
 
   getById(id: string): Observable<PortfolioDto> {
@@ -300,12 +477,34 @@ export class PortfolioService {
     return this.http.get<PortfolioAnalyticsDto>(`${this.base}/${portfolioId}/analytics`);
   }
 
+  /** All trades combined across the portfolio's member strategies, paged + filterable by status. */
+  getTradesByPortfolio(
+    portfolioId: string,
+    status: 'open' | 'closed' | 'all' = 'all',
+    page = 1,
+    pageSize = 50,
+  ): Observable<PagedResult<PortfolioTradeDto>> {
+    const params = new HttpParams()
+      .set('status', status)
+      .set('page', page.toString())
+      .set('pageSize', pageSize.toString());
+    return this.http.get<PagedResult<PortfolioTradeDto>>(`${this.base}/${portfolioId}/trades`, {
+      params,
+    });
+  }
+
   getMonthlyReturns(portfolioId: string): Observable<MonthlyReturnDto[]> {
     return this.http.get<MonthlyReturnDto[]>(`${this.base}/${portfolioId}/monthly-returns`);
   }
 
   getEquityCurve(portfolioId: string): Observable<PortfolioEquityPointDto[]> {
     return this.http.get<PortfolioEquityPointDto[]>(`${this.base}/${portfolioId}/equity-curve`);
+  }
+
+  getMemberEquityCurves(portfolioId: string): Observable<PortfolioMemberEquityCurveDto[]> {
+    return this.http.get<PortfolioMemberEquityCurveDto[]>(
+      `${this.base}/${portfolioId}/member-equity-curves`,
+    );
   }
 
   getRisk(portfolioId: string): Observable<PortfolioRiskDto> {

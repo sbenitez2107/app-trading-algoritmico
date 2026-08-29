@@ -50,9 +50,9 @@ export class MonthlyHeatmapComponent {
       }));
   });
 
-  /** Missing months show 0.0%. */
+  /** Missing months show 0.00%. */
   fmt(v: number | null): string {
-    return `${((v ?? 0) * 100).toFixed(1)}%`;
+    return `${((v ?? 0) * 100).toFixed(2)}%`;
   }
 
   /** Green for gains, red for losses; neutral for zero/missing. Opacity scales with magnitude (capped at 10%). */

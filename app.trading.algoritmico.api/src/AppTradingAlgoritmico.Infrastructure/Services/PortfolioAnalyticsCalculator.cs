@@ -17,7 +17,8 @@ public sealed record PortfolioMemberInput(
 /// by its NORMALIZED weight and all members are merged into ONE chronological stream; the combined
 /// KPIs, equity curve and monthly returns are then computed on that merged stream using the shared
 /// <see cref="AnalyticsSeries"/> primitives — the exact same math a single strategy uses. Weights
-/// are normalized at read time (w_i / Σw); all-zero weights fall back to equal-weight.
+/// are RAW position-size multipliers, NOT shares of a total (see <c>EffectiveWeights</c>): N
+/// strategies at weight 1 sum their full P/L, exactly like an SQX portfolio.
 /// </summary>
 public static class PortfolioAnalyticsCalculator
 {
@@ -168,38 +169,60 @@ public static class PortfolioAnalyticsCalculator
         return sep > 0 ? s[..sep] : s;
     }
 
-    /// <summary>Monthly compounding return series on the merged weighted stream.</summary>
+    /// <summary>
+    /// Monthly performance series on the merged weighted stream. The bucketing, compounding and
+    /// per-month drawdown/win-loss math live in <see cref="AnalyticsSeries.BuildMonthlyReturns"/>,
+    /// so a portfolio is measured exactly like a single strategy.
+    /// </summary>
     public static IReadOnlyList<MonthlyReturnDto> ComputeMonthlyReturns(
         decimal initialCapital, IReadOnlyList<PortfolioMemberInput> members)
     {
         var events = BuildWeightedEvents(EffectiveWeights(members), members);
-        if (events.Count == 0) return Array.Empty<MonthlyReturnDto>();
+        return AnalyticsSeries.BuildMonthlyReturns(
+            initialCapital, events.Select(e => (e.When, e.Net)).ToList());
+    }
 
-        var groups = events
-            .GroupBy(e => new { e.When.Year, e.When.Month })
-            .OrderBy(g => g.Key.Year)
-            .ThenBy(g => g.Key.Month)
-            .ToList();
+    /// <summary>
+    /// Per-member CONTRIBUTION curves: for each member, the cumulative weighted net P/L it has
+    /// added to the portfolio, one point per closed trade in chronological order.
+    ///
+    /// Deliberately NOT each strategy's standalone equity curve. A standalone curve runs on the
+    /// account's own initial balance and therefore assumes the strategy traded the whole capital
+    /// alone; drawn against the combined curve those numbers would not reconcile. Weighting every
+    /// net by the member's normalized weight makes the decomposition exact: the final
+    /// contributions sum to the combined curve's gain over initial capital.
+    ///
+    /// Members with no closed trades keep a row with an empty series, so the UI can still list
+    /// them instead of silently dropping them.
+    /// </summary>
+    public static IReadOnlyList<PortfolioMemberEquityCurveDto> ComputeMemberEquityCurves(
+        IReadOnlyList<PortfolioMemberInput> members)
+    {
+        var norm = EffectiveWeights(members);
+        var result = new List<PortfolioMemberEquityCurveDto>(members.Count);
 
-        var equity = initialCapital;
-        var result = new List<MonthlyReturnDto>(groups.Count);
-        foreach (var g in groups)
+        for (var i = 0; i < members.Count; i++)
         {
-            var profit = g.Sum(e => e.Net);
-            var equityStart = equity;
-            var equityEnd = equityStart + profit;
-            var pct = equityStart != 0 ? profit / equityStart : 0m;
+            var weight = norm[i];
+            var closed = members[i].Trades
+                .Where(t => !t.IsOpen)
+                .OrderBy(t => t.CloseTime ?? t.OpenTime)
+                .ToList();
 
-            result.Add(new MonthlyReturnDto(
-                Year: g.Key.Year,
-                Month: g.Key.Month,
-                EquityStart: equityStart,
-                EquityEnd: equityEnd,
-                Profit: profit,
-                ReturnPercent: pct,
-                TradeCount: g.Count()));
+            var cumulative = 0m;
+            var points = new List<PortfolioContributionPointDto>(closed.Count);
+            foreach (var t in closed)
+            {
+                cumulative += weight * AnalyticsSeries.NetOf(t);
+                points.Add(new PortfolioContributionPointDto(t.CloseTime ?? t.OpenTime, cumulative));
+            }
 
-            equity = equityEnd;
+            result.Add(new PortfolioMemberEquityCurveDto(
+                StrategyId: members[i].StrategyId,
+                StrategyName: members[i].StrategyName,
+                RawWeight: weight,
+                FinalContribution: cumulative,
+                Points: points));
         }
 
         return result;
@@ -255,12 +278,19 @@ public static class PortfolioAnalyticsCalculator
                 var groupNets = WindowedDailyNets(initialCapital, grp, windowDays);
                 var (gv95, _, _, _) = VarFromDaily(groupNets);
                 var net = grp.Sum(x => x.w * x.m.Trades.Where(t => !t.IsOpen).Sum(AnalyticsSeries.NetOf));
+                var monthly = ComputeMonthlyVar(groupNets, initialCapital);
                 return new ServiceRiskDto(
                     Service: g.Key,
                     StrategyCount: grp.Count,
                     NetProfit: net,
                     Var95: gv95,
-                    Var95Percent: initialCapital > 0 ? gv95 / initialCapital : 0m);
+                    Var95Percent: initialCapital > 0 ? gv95 / initialCapital : 0m,
+                    MonthlyVarInsufficientHistory: monthly.insufficientHistory,
+                    MonthlyVarObservationDays: groupNets.Count,
+                    MonthlyVarOverlappingWindows: monthly.overlappingWindows,
+                    MonthlyVarIndependentWindows: monthly.independentWindows,
+                    MonthlyVar95: monthly.monthlyVar95,
+                    MonthlyVar95Percent: monthly.monthlyVar95Percent);
             })
             .OrderByDescending(s => s.Var95)
             .ToList();
@@ -418,6 +448,32 @@ public static class PortfolioAnalyticsCalculator
         return (var95, var99, worst, best);
     }
 
+    /// <summary>
+    /// Monthly VaR95 estimate from a dense daily NET series (`portfolio-monthly-var` spec):
+    /// rolling <see cref="AnalyticsSeries.MonthlyVarHorizonDays"/>-calendar-day window sums, 5th
+    /// percentile taken directly with NO √t scaling (KB §5 trap 1 — the series is already
+    /// calendar-day dense, so a 30-element window already spans Darwinex's stated monthly horizon).
+    /// Requires <see cref="AnalyticsSeries.MinHistoryDays"/> of history; below that, no numeric
+    /// estimate is produced. Guardrail-agnostic — computed unconditionally for every service so any
+    /// broker can back a future `VarTarget` readout.
+    /// </summary>
+    private static (bool insufficientHistory, int overlappingWindows, int independentWindows,
+        decimal? monthlyVar95, decimal? monthlyVar95Percent) ComputeMonthlyVar(
+        List<decimal> dailyNets, decimal initialCapital)
+    {
+        const int horizon = AnalyticsSeries.MonthlyVarHorizonDays;
+        var n = dailyNets.Count;
+        if (n < AnalyticsSeries.MinHistoryDays)
+            return (true, 0, 0, null, null);
+
+        var sums = AnalyticsSeries.RollingWindowSums(dailyNets, horizon).OrderBy(x => x).ToList();
+        var monthlyVar95 = -Percentile(sums, 0.05);
+        var monthlyVar95Percent = initialCapital > 0 ? monthlyVar95 / initialCapital : 0m;
+        var overlappingWindows = n - horizon + 1;
+        var independentWindows = n / horizon;
+        return (false, overlappingWindows, independentWindows, monthlyVar95, monthlyVar95Percent);
+    }
+
     /// <summary>Linear-interpolated percentile of an ascending-sorted list. p in [0,1].</summary>
     private static decimal Percentile(IReadOnlyList<decimal> sorted, double p)
     {
@@ -446,7 +502,7 @@ public static class PortfolioAnalyticsCalculator
         return result;
     }
 
-    /// <summary>Merges every member's CLOSED trades, scaling each net by the member's normalized weight.</summary>
+    /// <summary>Merges every member's CLOSED trades, scaling each net by the member's raw weight.</summary>
     private static List<WeightedEvent> BuildWeightedEvents(decimal[] norm, IReadOnlyList<PortfolioMemberInput> members)
     {
         var events = new List<WeightedEvent>();

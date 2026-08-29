@@ -58,43 +58,14 @@
     height: 500px;
     width: 100%;
 
-    :global {
-      .ag-root {
-        --ag-background-color: var(--bg-surface);
-        --ag-border-color: var(--color-border);
-        --ag-text-color: var(--text-main);
-        --ag-header-background-color: var(--bg-surface-2);
-        --ag-header-cell-padding: 12px;
-        --ag-row-hover-color: var(--bg-surface-2);
-        --ag-font-size: 14px;
-        --ag-header-font-size: 12px;
-      }
-
-      .ag-header-cell {
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 600;
-      }
-
-      .ag-cell {
-        display: flex;
-        align-items: center;
-      }
-    }
+    // NOTE: the ag-grid theming that used to live here (`.ag-root` custom properties,
+    // `.ag-header-cell`, `.ag-cell`) moved to the `:host ::ng-deep` block at the bottom
+    // of this file. It was written as `:global { ... }`, which Angular does not
+    // understand — see the comment there.
   }
 
-  &__btn-action {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: var(--spacing-xs);
-    transition: transform var(--transition-base);
-
-    &:hover {
-      transform: scale(1.2);
-    }
-  }
+  // NOTE: `&__btn-action` also moved to that block; the buttons are built with
+  // `document.createElement` in the Acciones cellRenderer.
 
   &__footer {
     padding: var(--spacing-md) var(--spacing-lg);
@@ -116,5 +87,60 @@
     font-weight: 700;
     color: var(--color-primary);
     font-size: 1.25rem;
+  }
+}
+
+// ag-grid builds its own DOM (`.ag-root`, headers, cells) and the Acciones column's
+// cellRenderer builds its buttons with `document.createElement`. None of those nodes
+// carry this component's `_ngcontent` attribute, so a scoped selector compiles to
+// `.foo[_ngcontent-x]` and never matches.
+//
+// These rules previously used `:global { ... }`, which is a CSS-Modules construct that
+// Angular neither understands nor strips: it emitted `.expenses-list__grid :global
+// .ag-root`, an invalid selector the browser discards outright — so the whole grid
+// rendered in ag-grid's stock palette instead of our tokens. `::ng-deep` compiles to
+// `[_nghost-x] .foo`, which is the only form that reaches this DOM.
+//
+// Kept anchored under `.expenses-list__grid` because `::ng-deep` is unbounded downward
+// and would otherwise restyle any other grid rendered inside this component.
+:host ::ng-deep {
+  .expenses-list__grid {
+    .ag-root {
+      --ag-background-color: var(--bg-surface);
+      // `--color-border` is not defined anywhere; the token is `--border-color`
+      // (styles/_variables.scss). Harmless while this rule was dead, but it would
+      // have shipped a dangling reference the moment it went live.
+      --ag-border-color: var(--border-color);
+      --ag-text-color: var(--text-main);
+      --ag-header-background-color: var(--bg-surface-2);
+      --ag-header-cell-padding: 12px;
+      --ag-row-hover-color: var(--bg-surface-2);
+      --ag-font-size: 14px;
+      --ag-header-font-size: 12px;
+    }
+
+    .ag-header-cell {
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .ag-cell {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .expenses-list__btn-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: var(--spacing-xs);
+    transition: transform var(--transition-base);
+
+    &:hover {
+      transform: scale(1.2);
+    }
   }
 }

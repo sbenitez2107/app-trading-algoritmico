@@ -37,6 +37,28 @@ public class TradingAccountStrategiesController(IStrategyService service) : Cont
     }
 
     /// <summary>
+    /// Monthly compounding returns per strategy of the account, computed from imported
+    /// live trades. One row per strategy; strategies without trades have an empty list.
+    /// </summary>
+    [HttpGet("monthly-returns")]
+    [ProducesResponseType(typeof(IReadOnlyList<StrategyMonthlyReturnsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<StrategyMonthlyReturnsDto>>> GetMonthlyReturns(
+        [FromRoute] Guid accountId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var result = await service.GetMonthlyReturnsByAccountAsync(accountId, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
+
+    /// <summary>
     /// Uploads a new strategy to the given trading account.
     /// Requires: name (string), sqxFile (.sqx), htmlFile (.html). Optional: magicNumber (int).
     /// Returns the created StrategyDto with 201 Created.

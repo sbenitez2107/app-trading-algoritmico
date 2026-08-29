@@ -105,6 +105,37 @@ public sealed record PortfolioMemberContributionDto(
     decimal WeightedNetProfit,
     decimal ContributionPercent);
 
+/// <summary>
+/// One point on a member's CONTRIBUTION curve: the cumulative weighted net P/L that this strategy
+/// has added to (or taken from) the portfolio up to and including that trade. Starts at the
+/// member's first closed trade, not at the portfolio's inception.
+/// </summary>
+public sealed record PortfolioContributionPointDto(
+    DateTime Date,
+    decimal Contribution);
+
+/// <summary>
+/// One member's contribution curve — the time-series form of
+/// <see cref="PortfolioMemberContributionDto.WeightedNetProfit"/>.
+///
+/// IMPORTANT: this is NOT the strategy's standalone equity curve (see
+/// `GET /api/strategies/{id}/equity-curve` for that one, which runs on the ACCOUNT's initial
+/// balance). Here every net is scaled by the member's normalized portfolio weight, so the
+/// contributions of all members sum exactly to the combined curve's gain over initial capital.
+/// Plotting a standalone curve against the combined one would not reconcile.
+/// </summary>
+/// <param name="RawWeight">
+/// The SQX-style position-size multiplier actually applied to this member's nets (1.0 = full size,
+/// 2.0 = double, 0.5 = half). Deliberately the RAW weight, not a share of the total — that is what
+/// the combination uses, so it is what makes these curves reconcile.
+/// </param>
+public sealed record PortfolioMemberEquityCurveDto(
+    Guid StrategyId,
+    string StrategyName,
+    decimal RawWeight,
+    decimal FinalContribution,
+    IReadOnlyList<PortfolioContributionPointDto> Points);
+
 /// <summary>One point on a portfolio equity curve (running combined equity + drawdown from peak).</summary>
 public sealed record PortfolioEquityPointDto(
     DateTime Date,
@@ -133,21 +164,41 @@ public sealed record PortfolioRiskDto(
     IReadOnlyList<ServiceRiskDto> ByService,
     IReadOnlyList<ServiceGuardrailDto> Guardrails);
 
-/// <summary>Standalone VaR contribution of one funding service (broker) within the portfolio.</summary>
+/// <summary>
+/// Standalone VaR contribution of one funding service (broker) within the portfolio. The
+/// <c>MonthlyVar*</c> fields are the 30-calendar-day rolling-window VaR95 estimate
+/// (`portfolio-monthly-var` spec) — computed UNCONDITIONALLY for every service (guardrail-agnostic),
+/// so any broker can back a future `VarTarget` readout. Null/zero-window fields mean
+/// <see cref="MonthlyVarInsufficientHistory"/> is true.
+/// </summary>
 public sealed record ServiceRiskDto(
     string Service,
     int StrategyCount,
     decimal NetProfit,
     decimal Var95,
-    decimal Var95Percent);
+    decimal Var95Percent,
+    bool MonthlyVarInsufficientHistory,
+    int MonthlyVarObservationDays,
+    int MonthlyVarOverlappingWindows,
+    int MonthlyVarIndependentWindows,
+    decimal? MonthlyVar95,
+    decimal? MonthlyVar95Percent);
 
 /// <summary>
 /// A prop-firm guardrail check for one funding service: the user-configured limits vs the portfolio's
 /// risk for that service. <see cref="Configured"/> is false when no limits have been set yet.
+/// <see cref="Kind"/> discriminates the field set: for <see cref="Domain.Enums.GuardrailKind.LossLimits"/>
+/// the breach-style fields (<see cref="DailyLossLimitPct"/>, <see cref="MaxLossLimitPct"/>,
+/// <see cref="ProfitTargetPct"/>, <see cref="DrawdownModel"/>, <see cref="DailyHeadroomPct"/>,
+/// <see cref="DailyBreached"/>) are populated and <see cref="VarTarget"/> is null; for
+/// <see cref="Domain.Enums.GuardrailKind.VarTarget"/> the breach-style fields are null/false and
+/// <see cref="VarTarget"/> carries the monthly-VaR-target readout instead (`funding-guardrails`
+/// spec — "No Breach or Headroom Semantics for VarTarget").
 /// </summary>
 public sealed record ServiceGuardrailDto(
     string Service,
     Domain.Enums.FundingService FundingService,
+    Domain.Enums.GuardrailKind Kind,
     bool Configured,
     bool Verified,
     decimal? DailyLossLimitPct,
@@ -156,4 +207,29 @@ public sealed record ServiceGuardrailDto(
     Domain.Enums.DrawdownModel? DrawdownModel,
     decimal ServiceVar95Percent,
     decimal? DailyHeadroomPct,
-    bool DailyBreached);
+    bool DailyBreached,
+    VarTargetReadoutDto? VarTarget);
+
+/// <summary>
+/// Monthly VaR-target readout for a <see cref="Domain.Enums.GuardrailKind.VarTarget"/> guardrail
+/// (`portfolio-monthly-var` spec). Every field is either the user-sourced band
+/// (<see cref="TargetVarPct"/>/<see cref="VarFloorPct"/>) or DERIVED analytics output — never
+/// guardrail configuration. No breach/headroom fields — see funding-guardrails spec.
+/// </summary>
+/// <param name="HorizonDays">DERIVED, not stored — echoes the calculator's
+/// <c>MonthlyVarHorizonDays</c> constant so the card can label the readout without hardcoding 30 in
+/// the template.</param>
+/// <param name="ImpliedMultiplier">TargetVar / StrategyVar (KB §3). Null when the estimate is
+/// absent, insufficient, or zero. Indicative only: `f`, cadence and methodology are undocumented
+/// (KB §4).</param>
+public sealed record VarTargetReadoutDto(
+    decimal? TargetVarPct,
+    decimal? VarFloorPct,
+    int HorizonDays,
+    bool InsufficientHistory,
+    int ObservationDays,
+    int OverlappingWindows,
+    int IndependentWindows,
+    decimal? MonthlyVar95,
+    decimal? MonthlyVar95Percent,
+    decimal? ImpliedMultiplier);
