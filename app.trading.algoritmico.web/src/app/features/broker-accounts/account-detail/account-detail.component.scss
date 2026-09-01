@@ -540,3 +540,20 @@
 // NOTE: `.grid-actions`, `.grid-action-btn` and `.grid-delete-btn` intentionally
 // live in the `:host ::ng-deep` block near the top of this file — they style DOM
 // built by a cellRenderer, which scoped selectors cannot reach.
+
+/* Backtest readiness marker. The colour IS the message: white = nothing imported, amber = usable
+   for sizing but not evaluable, green = an out-of-sample claim the evidence actually supports.
+   Applied through ag-Grid's cellClass, so it is evaluated only for the cells on screen. */
+:host ::ng-deep .readiness-cell--none {
+  color: var(--text-muted);
+}
+
+:host ::ng-deep .readiness-cell--sizing {
+  color: var(--color-warning, #d99a2b);
+  font-weight: 600;
+}
+
+:host ::ng-deep .readiness-cell--evaluable {
+  color: var(--color-profit);
+  font-weight: 600;
+}

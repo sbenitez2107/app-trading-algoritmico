@@ -60,7 +60,8 @@
       "EDIT": "Edit",
       "CREATE": "Create",
       "SEARCH": "Search",
-      "VIEW_DETAILS": "View details"
+      "VIEW_DETAILS": "View details",
+      "CLOSE": "Close"
     },
     "STATUS": {
       "LOADING": "Loading...",
@@ -117,7 +118,8 @@
     "SIDEBAR": {
       "STRATEGY_WORKFLOW": "Strategy Workflow",
       "BUILDING_BLOCKS": "Building Blocks",
-      "STRATEGY_ANALYZER": "Strategy Rules Analyzer"
+      "STRATEGY_ANALYZER": "Strategy Rules Analyzer",
+      "BACKTESTS": "Backtests"
     },
     "BUILDING_BLOCKS": {
       "TITLE": "Building Blocks",
@@ -213,6 +215,53 @@
       "AVAILABLE_ASSETS": "Available Assets",
       "SELECT_TF": "Select timeframe to start:",
       "ADD_TIMEFRAME": "Add timeframe:"
+    },
+    "BACKTESTS": {
+      "TITLE": "Backtests",
+      "IMPORT_BUTTON": "Import Backtests",
+      "IMPORTING": "Importing…",
+      "IMPORT_ERROR": "Something went wrong while importing the backtests.",
+      "COL_FILE": "File",
+      "COL_TRADES": "Trades",
+      "COL_SYMBOL": "Symbol",
+      "COL_POINT_VALUE": "Point Value",
+      "COL_SAMPLE_COUNT": "Samples",
+      "COL_MIN": "Min",
+      "COL_MAX": "Max",
+      "COL_CALIBRATION_STATUS": "Calibration Status",
+      "OUTCOME_IMPORTED": "Imported",
+      "OUTCOME_UNCHANGED": "Unchanged",
+      "OUTCOME_REPLACED": "Replaced",
+      "OUTCOME_REJECTED": "Rejected",
+      "CALIBRATION_STATUS_CALIBRATED": "Calibrated",
+      "CALIBRATION_STATUS_INSUFFICIENT_SAMPLES": "Insufficient Samples",
+      "CALIBRATION_STATUS_INCONSISTENT": "Inconsistent",
+      "RUNS_TITLE": "Imported Runs",
+      "EMPTY_RUNS": "No backtest runs imported yet.",
+      "CALIBRATIONS_TITLE": "Symbol Calibrations",
+      "EMPTY_CALIBRATIONS": "No calibrations yet.",
+      "PAGE_PREV": "Previous",
+      "PAGE_NEXT": "Next",
+      "PAGE_INFO": "Page {{page}} of {{totalPages}}",
+      "CLOSE": "Close",
+      "IMPORT_HINT": "Backtests are imported from a strategy's row on its account page.",
+      "COL_STRATEGY": "Strategy",
+      "COL_KIND": "Kind",
+      "KIND_DEPLOY": "Deploy",
+      "KIND_EVALUATION": "Evaluation",
+      "IMPORT_TITLE": "Import Backtests",
+      "IMPORT_INTRO": "Each slot is optional and can be re-imported on its own. The slot you choose is what tells the system which artifact the file is — nothing in the file itself says so.",
+      "SLOT_DEPLOY": "Deploy run (trade list)",
+      "SLOT_DEPLOY_HINT": "AlgoWizard export using the parameters currently running. Used for sizing, correlation and risk — never for an out-of-sample claim.",
+      "SLOT_EVALUATION": "Evaluation run (trade list)",
+      "SLOT_EVALUATION_HINT": "AlgoWizard export using the PREVIOUS walk-forward window's parameters. Its trades after the boundary date are genuinely out of sample.",
+      "SLOT_WALK_FORWARD": "Walk-forward export",
+      "SLOT_WALK_FORWARD_HINT": "SQX Optimizer → Walk-Forward Results → Export. Supplies the out-of-sample boundary date and the per-window KPIs.",
+      "TRADES_SUFFIX": "trades",
+      "WF_SUMMARY": "{{windows}} windows — out of sample from",
+      "READINESS_NONE": "None",
+      "READINESS_SIZING_ONLY": "Sizing only",
+      "READINESS_EVALUABLE": "Evaluable"
     }
   }
 }

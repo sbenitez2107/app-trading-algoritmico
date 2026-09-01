@@ -1,4 +1,4 @@
-using AppTradingAlgoritmico.Application.Interfaces;
+﻿using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Entities;
 using AppTradingAlgoritmico.Infrastructure.Persistence;
 using AppTradingAlgoritmico.Infrastructure.Services;
@@ -25,6 +25,16 @@ public static class DependencyInjection
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(15),
                         errorNumbersToAdd: null)));
+
+        // Same scoped AppDbContext instance, exposed through the narrow backtest-import surface.
+        // Used for reads and for obtaining the execution strategy — never for a retried write.
+        services.AddScoped<IBacktestDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+
+        // A retried unit of work needs a context per ATTEMPT, not the request-scoped one: an
+        // execution strategy re-invokes its delegate with the previous attempt's change tracker
+        // still loaded. See IBacktestDbContextFactory.
+        services.AddScoped<IBacktestDbContextFactory>(sp =>
+            new BacktestDbContextFactory(sp.GetRequiredService<DbContextOptions<AppDbContext>>()));
 
         // Identity
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
@@ -80,6 +90,15 @@ public static class DependencyInjection
         // Portfolios
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<IRiskLimitsService, RiskLimitsService>();
+
+        // SQX Backtest Import. Two parsers, never one: the trade list and the walk-forward export
+        // use inverted decimal and date conventions, so a shared policy would corrupt one of them
+        // (design.md D9).
+        services.AddScoped<ISqxTradeListParser, SqxTradeListParserService>();
+        services.AddScoped<IWalkForwardExportParser, WalkForwardExportParserService>();
+        services.AddScoped<IBacktestImportService, BacktestImportService>();
+        services.AddScoped<IWalkForwardImportService, WalkForwardImportService>();
+        services.AddScoped<IBacktestReadService, BacktestReadService>();
 
         return services;
     }

@@ -1,0 +1,94 @@
+<div class="backtests-list">
+  <header class="backtests-list__header">
+    <h1 class="backtests-list__title">{{ 'SQX.BACKTESTS.TITLE' | translate }}</h1>
+    <p class="backtests-list__hint">{{ 'SQX.BACKTESTS.IMPORT_HINT' | translate }}</p>
+  </header>
+
+  <section class="backtests-list__panel">
+    <h2 class="backtests-list__panel-title">{{ 'SQX.BACKTESTS.RUNS_TITLE' | translate }}</h2>
+
+    @if (runs().length === 0 && !isLoading()) {
+      <p class="backtests-list__empty">{{ 'SQX.BACKTESTS.EMPTY_RUNS' | translate }}</p>
+    } @else {
+      <table class="backtests-list__table">
+        <thead>
+          <tr>
+            <th>{{ 'SQX.BACKTESTS.COL_FILE' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_SYMBOL' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_STRATEGY' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_KIND' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_TRADES' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (run of runs(); track run.id) {
+            <tr>
+              <td>{{ run.sourceFileName }}</td>
+              <td>{{ run.symbol ?? '—' }}</td>
+              <td>{{ run.strategyName }}</td>
+              <td>{{ kindLabels[run.kind] | translate }}</td>
+              <td>{{ run.tradeCount }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <div class="backtests-list__pagination">
+        <button
+          class="btn btn--secondary"
+          type="button"
+          [disabled]="page() <= 1"
+          (click)="goToPage(page() - 1)"
+        >
+          {{ 'SQX.BACKTESTS.PAGE_PREV' | translate }}
+        </button>
+        <span>{{
+          'SQX.BACKTESTS.PAGE_INFO' | translate: { page: page(), totalPages: totalPages() }
+        }}</span>
+        <button
+          class="btn btn--secondary"
+          type="button"
+          [disabled]="page() >= totalPages()"
+          (click)="goToPage(page() + 1)"
+        >
+          {{ 'SQX.BACKTESTS.PAGE_NEXT' | translate }}
+        </button>
+      </div>
+    }
+  </section>
+
+  <section class="backtests-list__panel">
+    <h2 class="backtests-list__panel-title">
+      {{ 'SQX.BACKTESTS.CALIBRATIONS_TITLE' | translate }}
+    </h2>
+
+    @if (calibrations().length === 0) {
+      <p class="backtests-list__empty">{{ 'SQX.BACKTESTS.EMPTY_CALIBRATIONS' | translate }}</p>
+    } @else {
+      <table class="backtests-list__table">
+        <thead>
+          <tr>
+            <th>{{ 'SQX.BACKTESTS.COL_SYMBOL' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_POINT_VALUE' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_SAMPLE_COUNT' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_MIN' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_MAX' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.COL_CALIBRATION_STATUS' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (calibration of calibrations(); track calibration.symbol) {
+            <tr>
+              <td>{{ calibration.symbol }}</td>
+              <td>{{ calibration.pointValue ?? '—' }}</td>
+              <td>{{ calibration.sampleCount }}</td>
+              <td>{{ calibration.minObserved ?? '—' }}</td>
+              <td>{{ calibration.maxObserved ?? '—' }}</td>
+              <td>{{ calibrationLabels[calibration.status] | translate }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+</div>

@@ -37,11 +37,13 @@ import { AddStrategyModalComponent } from '../add-strategy-modal/add-strategy-mo
 import { SavePresetModalComponent } from '../save-preset-modal/save-preset-modal.component';
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
 import { ImportTradesModalComponent } from '../import-trades-modal/import-trades-modal.component';
+import { ImportStrategyBacktestsModalComponent } from './import-strategy-backtests-modal/import-strategy-backtests-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
 import { StrategyMonthlyReturnsComponent } from '../strategy-monthly-returns/strategy-monthly-returns.component';
 import { EquityChartComponent } from '../../portfolios/equity-chart/equity-chart.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
+import { BacktestReadiness } from '../../../core/services/backtest.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 import { formatCurrency } from '../../../shared/utils/format';
 
@@ -161,6 +163,7 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     SavePresetModalComponent,
     StrategyCommentsModalComponent,
     ImportTradesModalComponent,
+    ImportStrategyBacktestsModalComponent,
     StrategyTradesGridComponent,
     StrategyAnalyticsModalComponent,
     StrategyMonthlyReturnsComponent,
@@ -195,6 +198,54 @@ export class AccountDetailComponent implements OnInit {
   readonly showSavePresetModal = signal(false);
   readonly showCommentsModal = signal(false);
   readonly selectedStrategyForComments = signal<StrategyDto | null>(null);
+
+  /** The strategy whose three import slots are open, or null when the modal is closed. */
+  readonly selectedStrategyForBacktests = signal<StrategyDto | null>(null);
+
+  /**
+   * White / amber / green, as a class name. A total function over the three states: the marker
+   * answers "which of these can I actually use?", so a strategy that fell through to no class at
+   * all would read as "no backtest" and quietly understate what is there.
+   *
+   * This runs in a `cellClass`, i.e. only for the ~20 virtualised cells actually on screen, and the
+   * value it switches on was computed server-side for the whole page in one query — there is no
+   * second HTTP call and no client-side join.
+   */
+  readinessCellClass(readiness: BacktestReadiness): string {
+    switch (readiness) {
+      case BacktestReadiness.Evaluable:
+        return 'readiness-cell--evaluable';
+      case BacktestReadiness.SizingOnly:
+        return 'readiness-cell--sizing';
+      default:
+        return 'readiness-cell--none';
+    }
+  }
+
+  readinessLabel(readiness: BacktestReadiness): string {
+    switch (readiness) {
+      case BacktestReadiness.Evaluable:
+        return 'SQX.BACKTESTS.READINESS_EVALUABLE';
+      case BacktestReadiness.SizingOnly:
+        return 'SQX.BACKTESTS.READINESS_SIZING_ONLY';
+      default:
+        return 'SQX.BACKTESTS.READINESS_NONE';
+    }
+  }
+
+  openBacktestsImport(strategy: StrategyDto): void {
+    this.selectedStrategyForBacktests.set(strategy);
+  }
+
+  /**
+   * Refetches ONLY when something actually landed. The readiness marker is derived server-side, so
+   * a re-read is the only way to see it change — but a cancelled modal changed nothing, and
+   * reloading 500 rows to discover that would be pure waste.
+   */
+  closeBacktestsImport(imported: boolean): void {
+    this.selectedStrategyForBacktests.set(null);
+    if (imported) this.loadStrategies();
+  }
   readonly showImportModal = signal(false);
   /** 'grid' = KPI grid (default); 'monthly' = per-strategy monthly returns view. */
   readonly viewMode = signal<'grid' | 'monthly'>('grid');
@@ -308,6 +359,19 @@ export class AccountDetailComponent implements OnInit {
       width: 110,
     };
 
+    // Backtest readiness: white = nothing imported, amber = sizing only, green = evaluable.
+    // Derived on the server for the whole page in one query (see StrategyService), so this column
+    // costs a switch per visible cell and nothing else.
+    const readinessDef: ColDef<StrategyDto> = {
+      field: 'backtestReadiness',
+      headerName: 'Backtest',
+      width: 110,
+      valueFormatter: (p: ValueFormatterParams<StrategyDto>) =>
+        p.node?.rowPinned ? '' : this.readinessLabel(p.value as BacktestReadiness),
+      cellClass: (p: CellClassParams<StrategyDto>) =>
+        p.node?.rowPinned ? '' : this.readinessCellClass(p.value as BacktestReadiness),
+    };
+
     // Build a column from a KpiColDef using one of three formatters: text (skip),
     // currency, percent, or default toFixed(2).
     const buildCol = (c: KpiColDef): ColDef<StrategyDto> => {
@@ -382,7 +446,7 @@ export class AccountDetailComponent implements OnInit {
     const deleteDef: ColDef<StrategyDto> = {
       headerName: 'Actions',
       field: 'id',
-      width: 150,
+      width: 190,
       sortable: false,
       filter: false,
       resizable: false,
@@ -409,6 +473,15 @@ export class AccountDetailComponent implements OnInit {
           this.openComments(params.data);
         });
 
+        const importBacktestsBtn = document.createElement('button');
+        importBacktestsBtn.className = 'grid-action-btn';
+        importBacktestsBtn.title = 'Import backtests';
+        importBacktestsBtn.innerHTML = '&#x1F4C1;';
+        importBacktestsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openBacktestsImport(params.data);
+        });
+
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'grid-delete-btn';
         deleteBtn.title = 'Delete strategy';
@@ -420,6 +493,7 @@ export class AccountDetailComponent implements OnInit {
 
         container.appendChild(performanceBtn);
         container.appendChild(commentsBtn);
+        container.appendChild(importBacktestsBtn);
         container.appendChild(deleteBtn);
         return container;
       },
@@ -427,7 +501,7 @@ export class AccountDetailComponent implements OnInit {
 
     // Default group order: MT4 (Live) first, then SQX (Backtest) — live performance leads.
     // Saved presets keep their own column order (see applyPreset), so this only affects the default.
-    return [nameDef, symbolDef, timeframeDef, mt4Group, sqxGroup, deleteDef];
+    return [nameDef, symbolDef, timeframeDef, readinessDef, mt4Group, sqxGroup, deleteDef];
   });
 
   ngOnInit(): void {

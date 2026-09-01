@@ -60,7 +60,8 @@
       "EDIT": "Editar",
       "CREATE": "Crear",
       "SEARCH": "Buscar",
-      "VIEW_DETAILS": "Ver detalles"
+      "VIEW_DETAILS": "Ver detalles",
+      "CLOSE": "Cerrar"
     },
     "STATUS": {
       "LOADING": "Cargando...",
@@ -117,7 +118,8 @@
     "SIDEBAR": {
       "STRATEGY_WORKFLOW": "Strategy Workflow",
       "BUILDING_BLOCKS": "Building Blocks",
-      "STRATEGY_ANALYZER": "Strategy Rules Analyzer"
+      "STRATEGY_ANALYZER": "Strategy Rules Analyzer",
+      "BACKTESTS": "Backtests"
     },
     "BUILDING_BLOCKS": {
       "TITLE": "Building Blocks",
@@ -213,6 +215,53 @@
       "AVAILABLE_ASSETS": "Activos Disponibles",
       "SELECT_TF": "Seleccioná un timeframe para comenzar:",
       "ADD_TIMEFRAME": "Agregar timeframe:"
+    },
+    "BACKTESTS": {
+      "TITLE": "Backtests",
+      "IMPORT_BUTTON": "Importar Backtests",
+      "IMPORTING": "Importando…",
+      "IMPORT_ERROR": "Ocurrió un error al importar los backtests.",
+      "COL_FILE": "Archivo",
+      "COL_TRADES": "Operaciones",
+      "COL_SYMBOL": "Símbolo",
+      "COL_POINT_VALUE": "Valor del Punto",
+      "COL_SAMPLE_COUNT": "Muestras",
+      "COL_MIN": "Mín",
+      "COL_MAX": "Máx",
+      "COL_CALIBRATION_STATUS": "Estado de Calibración",
+      "OUTCOME_IMPORTED": "Importado",
+      "OUTCOME_UNCHANGED": "Sin Cambios",
+      "OUTCOME_REPLACED": "Reemplazado",
+      "OUTCOME_REJECTED": "Rechazado",
+      "CALIBRATION_STATUS_CALIBRATED": "Calibrado",
+      "CALIBRATION_STATUS_INSUFFICIENT_SAMPLES": "Muestras Insuficientes",
+      "CALIBRATION_STATUS_INCONSISTENT": "Inconsistente",
+      "RUNS_TITLE": "Corridas Importadas",
+      "EMPTY_RUNS": "Aún no se importaron backtests.",
+      "CALIBRATIONS_TITLE": "Calibraciones por Símbolo",
+      "EMPTY_CALIBRATIONS": "Aún no hay calibraciones.",
+      "PAGE_PREV": "Anterior",
+      "PAGE_NEXT": "Siguiente",
+      "PAGE_INFO": "Página {{page}} de {{totalPages}}",
+      "CLOSE": "Cerrar",
+      "IMPORT_HINT": "Los backtests se importan desde la fila de la estrategia en la página de su cuenta.",
+      "COL_STRATEGY": "Estrategia",
+      "COL_KIND": "Tipo",
+      "KIND_DEPLOY": "Despliegue",
+      "KIND_EVALUATION": "Evaluación",
+      "IMPORT_TITLE": "Importar Backtests",
+      "IMPORT_INTRO": "Cada casilla es opcional y puede reimportarse por separado. La casilla elegida es lo que indica al sistema qué artefacto es el archivo — el archivo en sí no lo declara.",
+      "SLOT_DEPLOY": "Corrida de despliegue (lista de operaciones)",
+      "SLOT_DEPLOY_HINT": "Exportación de AlgoWizard con los parámetros actualmente en ejecución. Sirve para dimensionamiento, correlación y riesgo — nunca para afirmar resultados fuera de muestra.",
+      "SLOT_EVALUATION": "Corrida de evaluación (lista de operaciones)",
+      "SLOT_EVALUATION_HINT": "Exportación de AlgoWizard con los parámetros de la ventana walk-forward ANTERIOR. Sus operaciones posteriores a la fecha límite sí son fuera de muestra.",
+      "SLOT_WALK_FORWARD": "Exportación walk-forward",
+      "SLOT_WALK_FORWARD_HINT": "SQX Optimizer → Walk-Forward Results → Export. Aporta la fecha límite de fuera de muestra y los KPI por ventana.",
+      "TRADES_SUFFIX": "operaciones",
+      "WF_SUMMARY": "{{windows}} ventanas — fuera de muestra desde",
+      "READINESS_NONE": "Sin datos",
+      "READINESS_SIZING_ONLY": "Solo dimensionamiento",
+      "READINESS_EVALUABLE": "Evaluable"
     }
   }
 }

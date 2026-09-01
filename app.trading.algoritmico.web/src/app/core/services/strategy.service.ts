@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
+import { BacktestReadiness } from './backtest.service';
 
 export interface StrategyCommentDto {
   id: string;
@@ -98,6 +99,11 @@ export interface StrategyDto {
   liveReturnDrawdownRatio: number | null;
   liveSharpeRatio: number | null;
   liveTotalReturn: number | null;
+  /**
+   * Derived server-side from the strategy's imported backtest evidence. Read-only by construction:
+   * there is no column behind it and no way for the client to set it.
+   */
+  backtestReadiness: BacktestReadiness;
 }
 
 export type UpdateStrategyKpisDto = Partial<

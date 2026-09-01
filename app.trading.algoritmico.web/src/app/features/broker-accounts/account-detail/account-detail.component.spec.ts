@@ -14,6 +14,8 @@ import {
 import { GridPresetService, GridPresetDto } from '../../../core/services/grid-preset.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
+import { BacktestReadiness } from '../../../core/services/backtest.service';
+import { ColDef } from 'ag-grid-community';
 
 function makeStrategy(id = '1'): StrategyDto {
   return {
@@ -86,6 +88,7 @@ function makeStrategy(id = '1'): StrategyDto {
     liveReturnDrawdownRatio: null,
     liveSharpeRatio: null,
     liveTotalReturn: null,
+    backtestReadiness: BacktestReadiness.None,
   };
 }
 
@@ -844,5 +847,140 @@ describe('AccountDetailComponent', () => {
 
     // Assert
     expect(comp.equityCurve()).toEqual([]);
+  });
+
+  // --- Backtest readiness marker + the per-row import action (AS-1, AS-2) ---
+
+  it('columnDefs_IncludeABacktestReadinessColumn', () => {
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([makeStrategy('s1')])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+
+    const flat = fixture.componentInstance
+      .columnDefs()
+      .flatMap((c) => ('children' in c ? (c.children as ColDef<StrategyDto>[]) : [c]));
+
+    const marker = flat.find((c) => (c as ColDef<StrategyDto>).field === 'backtestReadiness');
+    expect(marker).toBeDefined();
+  });
+
+  it('readinessCellClass_MapsEachReadinessToItsOwnClass', () => {
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([makeStrategy('s1')])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    // A total function over the three states — the marker answers "which can I use?", so every
+    // strategy must land in exactly one bucket and none may fall through to undefined.
+    expect(comp.readinessCellClass(BacktestReadiness.None)).toBe('readiness-cell--none');
+    expect(comp.readinessCellClass(BacktestReadiness.SizingOnly)).toBe('readiness-cell--sizing');
+    expect(comp.readinessCellClass(BacktestReadiness.Evaluable)).toBe('readiness-cell--evaluable');
+  });
+
+  it('readinessLabel_UsesTranslationKeysNotHardcodedText', () => {
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([makeStrategy('s1')])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(comp.readinessLabel(BacktestReadiness.None)).toBe('SQX.BACKTESTS.READINESS_NONE');
+    expect(comp.readinessLabel(BacktestReadiness.SizingOnly)).toBe(
+      'SQX.BACKTESTS.READINESS_SIZING_ONLY',
+    );
+    expect(comp.readinessLabel(BacktestReadiness.Evaluable)).toBe(
+      'SQX.BACKTESTS.READINESS_EVALUABLE',
+    );
+  });
+
+  it('openBacktestsImport_SetsTheSelectedStrategyAndOpensTheModal', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    expect(comp.selectedStrategyForBacktests()).toBeNull();
+
+    comp.openBacktestsImport(strategy);
+
+    expect(comp.selectedStrategyForBacktests()).toEqual(strategy);
+  });
+
+  it('closeBacktestsImport_WithoutAnImport_DoesNotRefetchTheGrid', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.openBacktestsImport(strategy);
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockClear();
+
+    comp.closeBacktestsImport(false);
+
+    expect(comp.selectedStrategyForBacktests()).toBeNull();
+    expect(strategyServiceMock.getByAccount).not.toHaveBeenCalled();
+  });
+
+  it('closeBacktestsImport_AfterAnImport_RefetchesSoTheMarkerReflectsIt', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+    comp.openBacktestsImport(strategy);
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockClear();
+
+    comp.closeBacktestsImport(true);
+
+    expect(comp.selectedStrategyForBacktests()).toBeNull();
+    expect(strategyServiceMock.getByAccount).toHaveBeenCalled();
+  });
+
+  it('actionsCellRenderer_RendersFourButtonsIncludingTheImportAction', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    const actionsCol = comp
+      .columnDefs()
+      .flatMap((c) => ('children' in c ? (c.children as ColDef<StrategyDto>[]) : [c]))
+      .find((c) => (c as ColDef<StrategyDto>).headerName === 'Actions') as ColDef<StrategyDto>;
+
+    const renderer = actionsCol.cellRenderer as (p: {
+      value: string;
+      data: StrategyDto;
+    }) => HTMLElement;
+    const cell = renderer({ value: strategy.id, data: strategy });
+    const buttons = Array.from(cell.querySelectorAll('button')) as HTMLButtonElement[];
+
+    expect(buttons).toHaveLength(4);
+
+    const importBtn = buttons.find((b) => b.title === 'Import backtests');
+    expect(importBtn).toBeDefined();
+
+    // The row is clickable, so every action button must stop propagation or opening the modal
+    // would also select the row underneath it.
+    let rowClickBubbled = false;
+    cell.addEventListener('click', () => (rowClickBubbled = true));
+    importBtn!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(comp.selectedStrategyForBacktests()).toEqual(strategy);
+    expect(rowClickBubbled).toBe(false);
   });
 });

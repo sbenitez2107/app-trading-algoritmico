@@ -1,0 +1,90 @@
+<div class="modal-backdrop" (click)="onClose()">
+  <div class="import-backtests-modal" (click)="$event.stopPropagation()">
+    <header class="import-backtests-modal__header">
+      <h2 class="import-backtests-modal__title">
+        {{ 'SQX.BACKTESTS.IMPORT_TITLE' | translate }}
+      </h2>
+      <span class="import-backtests-modal__strategy">{{ strategyName() }}</span>
+      <button
+        class="import-backtests-modal__close"
+        type="button"
+        (click)="onClose()"
+        [attr.aria-label]="'SQX.BACKTESTS.CLOSE' | translate"
+      >
+        &times;
+      </button>
+    </header>
+
+    <div class="import-backtests-modal__body">
+      <p class="import-backtests-modal__intro">
+        {{ 'SQX.BACKTESTS.IMPORT_INTRO' | translate }}
+      </p>
+
+      @for (slot of slots; track slot.key) {
+        <section class="import-backtests-modal__slot">
+          <label class="import-backtests-modal__slot-label" [attr.for]="slot.inputId">
+            {{ slot.labelKey | translate }}
+          </label>
+          <p class="import-backtests-modal__slot-hint">{{ slot.hintKey | translate }}</p>
+
+          <input
+            class="import-backtests-modal__slot-input"
+            type="file"
+            accept=".csv"
+            [id]="slot.inputId"
+            [disabled]="pending() > 0"
+            (change)="onFileInput(slot.key, $event)"
+          />
+
+          @if (slotError(slot.key)) {
+            <p class="import-backtests-modal__slot-error" role="alert">
+              {{ slotError(slot.key)! | translate }}
+            </p>
+          }
+
+          @if (slotResult(slot.key); as result) {
+            @if (result.outcome === Outcome.Rejected) {
+              <p class="import-backtests-modal__slot-error" role="alert">
+                {{ result.reason }}
+              </p>
+            } @else {
+              <p class="import-backtests-modal__slot-result">
+                {{ outcomeLabels[result.outcome] | translate }}
+                @if (result.tradeCount !== null) {
+                  &mdash; {{ result.tradeCount }} {{ 'SQX.BACKTESTS.TRADES_SUFFIX' | translate }}
+                }
+              </p>
+            }
+          }
+
+          @if (slot.key === 'walkForward' && walkForwardResult(); as wf) {
+            @if (wf.oosFromDate) {
+              <p class="import-backtests-modal__slot-result">
+                {{ 'SQX.BACKTESTS.WF_SUMMARY' | translate: { windows: wf.windowCount } }}
+                {{ wf.oosFromDate | date: 'yyyy-MM-dd' }}
+              </p>
+            }
+          }
+        </section>
+      }
+    </div>
+
+    <footer class="import-backtests-modal__footer">
+      <button class="btn btn--secondary" type="button" (click)="onClose()">
+        {{ 'SQX.BACKTESTS.CLOSE' | translate }}
+      </button>
+      <button
+        class="btn btn--primary"
+        type="button"
+        [disabled]="!hasAnyFile() || pending() > 0"
+        (click)="submit()"
+      >
+        @if (pending() > 0) {
+          {{ 'SQX.BACKTESTS.IMPORTING' | translate }}
+        } @else {
+          {{ 'SQX.BACKTESTS.IMPORT_BUTTON' | translate }}
+        }
+      </button>
+    </footer>
+  </div>
+</div>

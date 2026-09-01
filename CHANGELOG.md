@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.0] - 2026-09-01
+
+### Added
+- **Import SQX backtest trade lists per strategy** — a new action on each row of an account's strategy grid opens a dialog that accepts the strategy's AlgoWizard exports. The strategy is known from the row, so a run is attributed by an explicit foreign key; nothing is inferred from a filename.
+- **Two run kinds, each answering only what it can support.** A *Deploy* run carries the last walk-forward window's parameters and backs sizing, risk normalisation, correlation and breach work — it can never yield an out-of-sample claim. An *Evaluation* run carries the previous window's parameters, so trades after the boundary are genuinely unseen. Measured on the reference strategy: with deployed parameters only 3 of 329 trades fall past the boundary, against 23 over 429 days with the previous window's.
+- **Walk-forward export import** — the SQX Optimizer's Walk-Forward Results table becomes its own artefact, owning the out-of-sample boundary date and the per-window IS/OOS KPIs. A run imported before its export stays amber and turns green when the export arrives, with no re-import.
+- **Per-symbol point value calibration**, derived from MAE on stop-loss exits only. MAE equals the stop distance solely when the stop is what closed the trade, so no other exit is used; profit is never used, because it carries spread and commission. A symbol whose samples disagree by more than 0.5% is reported as inconsistent rather than calibrated.
+- **Readiness marker on the strategy grid** — no backtest, deploy run only (sizing available but not honestly evaluable), or ready for evaluation. It answers which strategies can be used, not which have been touched.
+- **Backtests screen** listing imported runs and symbol calibrations with the evidence behind each.
+
+### Changed
+- Backtest trades live in their own tables and never touch `StrategyTrades`. SQX ticket numbers are not unique across runs — 27 collide between two exports of the same strategy as genuinely different trades — so reusing the live import's upsert key would corrupt data silently.
+- Backtest imports run each file in its own transaction through a per-attempt database context, so a retry cannot silently drop a column update or duplicate an entity graph. Field lengths are validated in the parser against a single shared source of truth, so an over-long value is a named row rejection instead of a database error that aborts the batch.
+- The CSV parsers pin their decimal convention per column: the trade list uses dots for prices and commas for money, while the walk-forward export uses commas throughout except inside its parameters field, where the roles invert. A mismatched token fails loudly rather than being reinterpreted.
+
+---
+
 ## [0.21.0] - 2026-08-29
 
 ### Added

@@ -1,3 +1,5 @@
+﻿using AppTradingAlgoritmico.Domain.Enums;
+
 namespace AppTradingAlgoritmico.Application.DTOs.Strategies;
 
 public record StrategyDto(
@@ -78,5 +80,8 @@ public record StrategyDto(
     decimal? LiveMaxDrawdownPercent,
     decimal? LiveReturnDrawdownRatio,
     decimal? LiveSharpeRatio,
-    decimal? LiveTotalReturn
+    decimal? LiveTotalReturn,
+    // Derived server-side from the strategy's imported backtest evidence. NEVER a stored column
+    // and never user-settable: a toggle here is how overfitting re-enters silently (design.md D14).
+    BacktestReadiness BacktestReadiness
 );

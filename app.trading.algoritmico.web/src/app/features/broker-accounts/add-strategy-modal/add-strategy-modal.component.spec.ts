@@ -3,6 +3,7 @@ import { of, throwError } from 'rxjs';
 import { AddStrategyModalComponent } from './add-strategy-modal.component';
 import { StrategyService, StrategyDto } from '../../../core/services/strategy.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { BacktestReadiness } from '../../../core/services/backtest.service';
 
 function makeStrategyDto(): StrategyDto {
   return {
@@ -75,6 +76,7 @@ function makeStrategyDto(): StrategyDto {
     liveReturnDrawdownRatio: null,
     liveSharpeRatio: null,
     liveTotalReturn: null,
+    backtestReadiness: BacktestReadiness.None,
   };
 }
 

@@ -1,10 +1,11 @@
+﻿using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Entities;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace AppTradingAlgoritmico.Infrastructure.Persistence;
 
-public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
+public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, IBacktestDbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -24,6 +25,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Portfolio> Portfolios => Set<Portfolio>();
     public DbSet<PortfolioStrategy> PortfolioStrategies => Set<PortfolioStrategy>();
     public DbSet<BrokerRiskLimits> BrokerRiskLimits => Set<BrokerRiskLimits>();
+    public DbSet<BacktestRun> BacktestRuns => Set<BacktestRun>();
+    public DbSet<BacktestTrade> BacktestTrades => Set<BacktestTrade>();
+    public DbSet<SymbolCalibration> SymbolCalibrations => Set<SymbolCalibration>();
+    public DbSet<StrategyWalkForwardExport> StrategyWalkForwardExports => Set<StrategyWalkForwardExport>();
+    public DbSet<WalkForwardWindow> WalkForwardWindows => Set<WalkForwardWindow>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

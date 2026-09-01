@@ -1,3 +1,4 @@
+﻿using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.WebAPI.Controllers;
@@ -31,7 +32,8 @@ public class TradingAccountStrategiesControllerTests
         DateTime.UtcNow,
         null, // MagicNumber
               // Live KPIs (no MT4 trades for the test fixture)
-        0, 0, 0, 0, null, null, null, null, null, null, null
+        0, 0, 0, 0, null, null, null, null, null, null, null,
+        BacktestReadiness.None
     );
 
     [Fact]

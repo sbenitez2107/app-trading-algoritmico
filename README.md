@@ -15,6 +15,9 @@ Full pipeline dashboard to manage the lifecycle of trading strategies created in
 - **ZIP upload**: Upload .sqx strategy files in bulk with automatic pseudocode extraction from settings.xml
 - **Inline KPI editing**: Sharpe Ratio, Ret DD/Ratio, WinRate, ProfitFactor, TotalTrades, NetProfit, MaxDrawdown
 - **Building Blocks CRUD**: Manage SQX BB configurations (.sqb file upload with XML parsing)
+- **Backtest trade-list import**: Import a strategy's AlgoWizard trade list from its row in the account grid, plus the Optimizer's Walk-Forward Results export. Two run kinds are kept apart on purpose — a *Deploy* run (last window's parameters) backs sizing and correlation but can never yield an out-of-sample claim; an *Evaluation* run (previous window's parameters) is what makes the trades after the walk-forward boundary genuinely unseen
+- **Per-symbol point value calibration**: derived from MAE on stop-loss exits only, since MAE equals the stop distance solely when the stop closed the trade. Samples disagreeing by more than 0.5% are reported as inconsistent rather than calibrated
+- **Readiness marker**: each strategy row shows whether it has no backtest, a deploy run only (sizing available but not honestly evaluable), or material ready for evaluation
 
 ### Trading Accounts
 - Connect and manage broker/platform accounts (MT4/MT5)

@@ -95,3 +95,6 @@ TEST*.xml
 
 # Generated skill-registry cache (rebuilt on demand, never source of truth)
 .atl/.skill-registry.cache.json
+
+# Database backups - never commit, they carry credentials and user hashes
+*.bak

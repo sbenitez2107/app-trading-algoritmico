@@ -311,6 +311,163 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.ToTable("Assets", (string)null);
                 });
 
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.BacktestRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<Guid>("StrategyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContentHash");
+
+                    b.HasIndex("StrategyId", "Kind")
+                        .IsUnique();
+
+                    b.ToTable("BacktestRuns", (string)null);
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.BacktestTrade", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BacktestRunId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ClosePrice")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("decimal(18,5)");
+
+                    b.Property<DateTime>("CloseTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CloseType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal>("OpenPrice")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("decimal(18,5)");
+
+                    b.Property<DateTime>("OpenTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Profit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("RealizedRisk")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RowIndex")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SampleTypeRaw")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Segment")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SegmentIndex")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Size")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("decimal(18,5)");
+
+                    b.Property<decimal?>("StopLoss")
+                        .HasPrecision(18, 5)
+                        .HasColumnType("decimal(18,5)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<long>("Ticket")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Ticket");
+
+                    b.HasIndex("BacktestRunId", "CloseTime");
+
+                    b.HasIndex("BacktestRunId", "RowIndex")
+                        .IsUnique();
+
+                    b.HasIndex("BacktestRunId", "Segment");
+
+                    b.ToTable("BacktestTrades", (string)null);
+                });
+
             modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.Batch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1106,6 +1263,114 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.ToTable("StrategyTrades", (string)null);
                 });
 
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.StrategyWalkForwardExport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("DeployParameters")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("EvaluationParameters")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("OosFromDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SourceFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<Guid>("StrategyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StrategyId")
+                        .IsUnique();
+
+                    b.ToTable("StrategyWalkForwardExports", (string)null);
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.SymbolCalibration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CalibratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal?>("MaxObserved")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("MinObserved")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal?>("PointValue")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("SampleCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Symbol")
+                        .IsUnique();
+
+                    b.ToTable("SymbolCalibrations", (string)null);
+                });
+
             modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.TradingAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1176,6 +1441,98 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.HasIndex("Broker", "AccountType");
 
                     b.ToTable("TradingAccounts", (string)null);
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.WalkForwardWindow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AvgTradesPerMonthIs")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("AvgTradesPerMonthOos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("DaysIs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DaysOos")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DrawdownIs")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("DrawdownOos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("ExportId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsFutureWindow")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("NetProfitIs")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("NetProfitOos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Parameters")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("PeriodIsEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodIsStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodOosEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("PeriodOosStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("RetDdRatioIs")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("RetDdRatioOos")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("RowIndex")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExportId", "RowIndex")
+                        .IsUnique();
+
+                    b.ToTable("WalkForwardWindows", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -1292,6 +1649,26 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.Navigation("TradingAccount");
                 });
 
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.BacktestRun", b =>
+                {
+                    b.HasOne("AppTradingAlgoritmico.Domain.Entities.Strategy", null)
+                        .WithMany()
+                        .HasForeignKey("StrategyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.BacktestTrade", b =>
+                {
+                    b.HasOne("AppTradingAlgoritmico.Domain.Entities.BacktestRun", "BacktestRun")
+                        .WithMany("Trades")
+                        .HasForeignKey("BacktestRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BacktestRun");
+                });
+
             modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.Batch", b =>
                 {
                     b.HasOne("AppTradingAlgoritmico.Domain.Entities.Asset", "Asset")
@@ -1402,6 +1779,26 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.Navigation("Strategy");
                 });
 
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.StrategyWalkForwardExport", b =>
+                {
+                    b.HasOne("AppTradingAlgoritmico.Domain.Entities.Strategy", null)
+                        .WithMany()
+                        .HasForeignKey("StrategyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.WalkForwardWindow", b =>
+                {
+                    b.HasOne("AppTradingAlgoritmico.Domain.Entities.StrategyWalkForwardExport", "Export")
+                        .WithMany("Windows")
+                        .HasForeignKey("ExportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Export");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("AppTradingAlgoritmico.Domain.Entities.ApplicationRole", null)
@@ -1458,6 +1855,11 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.Navigation("Batches");
                 });
 
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.BacktestRun", b =>
+                {
+                    b.Navigation("Trades");
+                });
+
             modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.Batch", b =>
                 {
                     b.Navigation("Stages");
@@ -1485,6 +1887,11 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
                     b.Navigation("MonthlyPerformance");
 
                     b.Navigation("Trades");
+                });
+
+            modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.StrategyWalkForwardExport", b =>
+                {
+                    b.Navigation("Windows");
                 });
 
             modelBuilder.Entity("AppTradingAlgoritmico.Domain.Entities.TradingAccount", b =>

@@ -201,6 +201,14 @@
     <app-import-trades-modal [accountId]="accountId" (closed)="closeImportModal($event)" />
   }
 
+  @if (selectedStrategyForBacktests(); as strategy) {
+    <app-import-strategy-backtests-modal
+      [strategyId]="strategy.id"
+      [strategyName]="strategy.name"
+      (closed)="closeBacktestsImport($event)"
+    />
+  }
+
   @if (showTradesGrid() && activeStrategy(); as strat) {
     <div class="account-detail__trades-panel">
       <div class="account-detail__trades-panel-header">

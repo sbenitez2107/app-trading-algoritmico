@@ -1,4 +1,5 @@
-using AppTradingAlgoritmico.Application.DTOs.Strategies;
+﻿using AppTradingAlgoritmico.Application.DTOs.Strategies;
+using AppTradingAlgoritmico.Domain.Backtests;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Entities;
 using AppTradingAlgoritmico.Domain.Enums;
@@ -43,7 +44,10 @@ public sealed class StrategyService(
                 x.MagicNumber,
                 // Stage view does not surface live KPIs — strategies in the SQX pipeline
                 // typically have no MT4 trades imported yet.
-                0, 0, 0, 0, null, null, null, null, null, null, null))
+                0, 0, 0, 0, null, null, null, null, null, null, null,
+                // Stage view is the SQX pipeline, before a strategy is attached to an account —
+                // there is no backtest evidence to report there.
+                BacktestReadiness.None))
             .ToListAsync(ct);
 
         return new PagedResult<StrategyDto>(items, totalCount, page, pageSize);
@@ -85,6 +89,17 @@ public sealed class StrategyService(
               .GroupBy(t => t.StrategyId)
               .ToDictionary(g => g.Key, g => g.ToList());
 
+        // ONE additional query for the whole page's backtest-readiness markers, keyed by the same
+        // pageIds as the trade query above. Derived on every read and never stored: a cascade
+        // delete runs in the database with no application code to recompute a column, and a column
+        // is also something a user could be given a switch for. See design.md D12/D14.
+        var readinessByStrategy = pageIds.Count == 0
+            ? new Dictionary<Guid, BacktestReadiness>()
+            : (await OosWindow.Resolver
+                    .ReadinessRows(db.Strategies, db.BacktestRuns, db.BacktestTrades, db.StrategyWalkForwardExports, pageIds)
+                    .ToListAsync(ct))
+                .ToDictionary(r => r.StrategyId, r => r.Readiness);
+
         var items = pageStrategies
             .Select(x =>
             {
@@ -119,7 +134,8 @@ public sealed class StrategyService(
                     LiveMaxDrawdownPercent: live?.MaxDrawdownPercent,
                     LiveReturnDrawdownRatio: live?.ReturnDrawdownRatio,
                     LiveSharpeRatio: live?.SharpeRatio,
-                    LiveTotalReturn: live?.TotalReturn);
+                    LiveTotalReturn: live?.TotalReturn,
+                    BacktestReadiness: readinessByStrategy.GetValueOrDefault(x.Id, BacktestReadiness.None));
             })
             .ToList();
 

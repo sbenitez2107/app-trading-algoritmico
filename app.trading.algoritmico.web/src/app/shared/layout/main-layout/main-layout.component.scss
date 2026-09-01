@@ -105,7 +105,9 @@
     font-weight: 500;
     border-radius: var(--radius-md);
     margin: 0 var(--spacing-sm);
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
     text-decoration: none;
     white-space: nowrap;
 
@@ -130,7 +132,10 @@
   }
 
   // Group (collapsible parent)
-  &__nav-group { display: flex; flex-direction: column; }
+  &__nav-group {
+    display: flex;
+    flex-direction: column;
+  }
 
   &__nav-item--group {
     width: 100%;
@@ -138,11 +143,15 @@
     justify-content: flex-start;
   }
 
-  &__nav-label { flex: 1; }
+  &__nav-label {
+    flex: 1;
+  }
 
   &__chevron {
     transition: transform var(--transition-fast);
-    &--open { transform: rotate(180deg); }
+    &--open {
+      transform: rotate(180deg);
+    }
   }
 
   // Submenu
@@ -166,7 +175,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
 
     &:hover {
       background: var(--bg-sidebar-hover);
@@ -186,11 +197,24 @@
     border-radius: 50%;
     flex-shrink: 0;
 
-    &--demo { background: #60a5fa; }
-    &--live { background: #34d399; }
-    &--workflow { background: #f59e0b; }
-    &--blocks { background: #a855f7; }
-    &--analyzer { background: #8b5cf6; }
+    &--demo {
+      background: #60a5fa;
+    }
+    &--live {
+      background: #34d399;
+    }
+    &--workflow {
+      background: #f59e0b;
+    }
+    &--blocks {
+      background: #a855f7;
+    }
+    &--analyzer {
+      background: #8b5cf6;
+    }
+    &--backtests {
+      background: #ec4899;
+    }
   }
 
   &__user {
@@ -317,7 +341,9 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
 
     &:hover {
       background: var(--border-color);

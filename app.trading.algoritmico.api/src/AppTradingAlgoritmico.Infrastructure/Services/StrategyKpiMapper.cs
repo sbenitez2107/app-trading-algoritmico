@@ -1,5 +1,6 @@
-using AppTradingAlgoritmico.Application.DTOs.Strategies;
+﻿using AppTradingAlgoritmico.Application.DTOs.Strategies;
 using AppTradingAlgoritmico.Domain.Entities;
+using AppTradingAlgoritmico.Domain.Enums;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
@@ -86,5 +87,8 @@ internal static class StrategyKpiMapper
         LiveMaxDrawdownPercent: null,
         LiveReturnDrawdownRatio: null,
         LiveSharpeRatio: null,
-        LiveTotalReturn: null);
+        LiveTotalReturn: null,
+        // Same reasoning: readiness is derived by the query that knows the whole page
+        // (StrategyService.GetByAccountAsync), never by a single-entity mapper.
+        BacktestReadiness: BacktestReadiness.None);
 }
