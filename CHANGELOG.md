@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.1] - 2026-09-01
+
+### Fixed
+- **The readiness column showed its translation key instead of a label.** Every row of the account grid read `SQX.BACKTESTS.READINESS_EVALUABLE` verbatim. The translations existed and nothing resolved them; they now update with the language without a reload.
+- **A CSV with only a header was accepted as a successful import.** It created a run holding no trades, the readiness marker then reported that strategy as sizeable on evidence that did not exist, and re-importing over an existing slot deleted the trades already there. Such a file is now a named rejection, and the marker requires actual trades before it claims anything.
+- **The walk-forward export skipped the length validation the trade list already had.** An over-long parameter list or file name reached the database as a truncation error no retry can recover from, instead of the named rejection the shared field-length contract promises.
+- **Importing both slots at once could report a failure for data that landed.** The two requests race to create the same symbol's calibration row; the loser hit the unique index after its own run and trades had already been committed. The calibration write now resolves the conflict, and a calibration that still fails is surfaced as a warning beside a successful import rather than as a failed one.
+- **The backtests screen showed "nothing imported yet" when the backend was unreachable.** A failed load now says so, instead of rendering identically to an empty database.
+- **Rolling the backtest schema migration back threw instead of rolling back.** It recreated unique indexes over columns it had just filled with a constant, so any account with more than one imported run could not revert. Note the trade-off now made explicit: the rollback discards imported backtest runs and trades, and says so at the point where it happens.
+- **An out-of-sample boundary could be taken from another strategy's walk-forward export.** The resolver never checked that the export belonged to the run's strategy, and the tests paired two different strategies and asserted that as correct.
+
+### Changed
+- The design document's out-of-sample section described the opposite of the implemented behaviour — an empty result where the code deliberately yields none at all — along with several type names that were renamed before release. Corrected, since three production comments cite it by name as the authority.
+
+---
+
 ## [0.22.0] - 2026-09-01
 
 ### Added

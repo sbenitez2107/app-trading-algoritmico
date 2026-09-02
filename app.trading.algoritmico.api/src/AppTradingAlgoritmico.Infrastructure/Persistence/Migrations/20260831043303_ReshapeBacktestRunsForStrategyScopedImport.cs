@@ -148,8 +148,40 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
         }
 
         /// <inheritdoc />
+        /// <summary>
+        /// Rolls back to the rev-1 shape. THIS ROLLBACK IS LOSSY BY CONSTRUCTION, and discards
+        /// every imported backtest run, every trade under it, and every walk-forward export.
+        /// <para>
+        /// It cannot be otherwise. Rev-1 identified a run by <c>(StrategyNameKey, RunLabel)</c>,
+        /// both parsed out of a file-name convention that no longer exists anywhere in the system,
+        /// and the rev-2 rows carry no value to derive them from — which is why the columns come
+        /// back with <c>defaultValue: ""</c>. Recreating the UNIQUE index over that pair with two
+        /// or more rows present would therefore compare <c>("", "")</c> against <c>("", "")</c> and
+        /// fail, and two rows is the ordinary steady state rather than an edge case: one Deploy
+        /// slot plus one Evaluation slot. The UNIQUE <c>ContentHash</c> index below has the same
+        /// problem from the other side — the forward design dropped it precisely because identical
+        /// bytes legitimately back runs under two different strategies.
+        /// </para>
+        /// <para>
+        /// So the rows are discarded here, deliberately and in the open. The alternative is not a
+        /// faithful rollback, it is a <c>Down</c> that throws — and a migration whose rollback
+        /// cannot execute is not a rollback at all. Re-import the trade lists and walk-forward
+        /// exports after rolling back; every one of them is reproducible from its source file,
+        /// which is the reason this is an acceptable loss and live trade data would not be.
+        /// </para>
+        /// <para>
+        /// <c>StrategyTrades</c>, <c>Strategies</c> and every other table are untouched.
+        /// </para>
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Ordered child-first: explicit rather than relying on the cascade, so the intent is
+            // visible at the point of loss instead of implied by a foreign-key setting elsewhere.
+            // This MUST precede the CreateIndex calls below — they are the constraints these rows
+            // cannot satisfy.
+            migrationBuilder.Sql("DELETE FROM [BacktestTrades];");
+            migrationBuilder.Sql("DELETE FROM [BacktestRuns];");
+
             migrationBuilder.DropForeignKey(
                 name: "FK_BacktestRuns_Strategies_StrategyId",
                 table: "BacktestRuns");

@@ -29,7 +29,7 @@ namespace AppTradingAlgoritmico.Domain.Backtests;
 /// SCOPE OF THE GUARANTEE, stated plainly. The compiler enforces CONSTRUCTION. It does not stop
 /// anyone from reading <see cref="StrategyWalkForwardExport.OosFromDate"/> and writing their own
 /// date comparison; that is prevented only by keeping every such comparison in this one file
-/// (<see cref="Includes"/> for materialised trades, <see cref="Resolver.StrategiesWithOosEvidence"/>
+/// (<see cref="Includes"/> for materialised trades, <see cref="Resolver.ReadinessRows"/>
 /// for the grid's single-query aggregate) so that a repository grep for <c>CloseTime &gt;=</c>
 /// finds nothing else. That half is a convention checked by grep, and it is described as such
 /// rather than dressed up as structural. See design.md D8.
@@ -62,16 +62,25 @@ public sealed class OosWindow
     {
         /// <summary>
         /// Obtains the out-of-sample boundary for <paramref name="run"/>, or returns false when
-        /// there is none: the run is not an <see cref="BacktestRunKind.Evaluation"/> run, or the
-        /// strategy has no walk-forward export yet. The second case is not an error — a run
-        /// imported before its export stays valid and simply becomes evaluable later, with no
-        /// re-import, because the boundary is owned by the export and never copied onto the run.
+        /// there is none: the run is not an <see cref="BacktestRunKind.Evaluation"/> run, the
+        /// strategy has no walk-forward export yet, or the export handed in belongs to a DIFFERENT
+        /// strategy. The second case is not an error — a run imported before its export stays valid
+        /// and simply becomes evaluable later, with no re-import, because the boundary is owned by
+        /// the export and never copied onto the run.
+        /// <para>
+        /// The ownership check is not defensive noise. An export belongs to exactly one strategy,
+        /// so a mismatched pair yields a date produced by a different parameter set than the one
+        /// that produced these trades — a boundary with no relationship to the run it would be
+        /// applied to, which is the fabricated out-of-sample claim this type exists to make
+        /// unreachable. <see cref="ReadinessRows"/> already correlates on <c>StrategyId</c>; the
+        /// single-run path states the same rule rather than trusting its callers to pair correctly.
+        /// </para>
         /// </summary>
         public static bool TryGetOosWindow(BacktestRun run, StrategyWalkForwardExport? export, out OosWindow? window)
         {
             window = null;
 
-            if (run.Kind != BacktestRunKind.Evaluation || export is null)
+            if (run.Kind != BacktestRunKind.Evaluation || export is null || export.StrategyId != run.StrategyId)
                 return false;
 
             window = new OosWindow(export.OosFromDate);
@@ -102,9 +111,12 @@ public sealed class OosWindow
             IReadOnlyCollection<Guid> strategyIds)
             => strategies
                 .Where(s => strategyIds.Contains(s.Id))
+                // A run ROW is not evidence — its trades are. An empty run reaches the database only
+                // through a defect or a manual edit, and reporting it as "can be sized" is exactly
+                // the unsupported claim this aggregate exists to prevent.
                 .Select(s => new BacktestReadinessRow(
                     s.Id,
-                    runs.Any(r => r.StrategyId == s.Id),
+                    runs.Any(r => r.StrategyId == s.Id && trades.Any(t => t.BacktestRunId == r.Id)),
                     exports.Any(e => e.StrategyId == s.Id
                         && runs.Any(r =>
                             r.StrategyId == s.Id

@@ -69,6 +69,32 @@ describe('ImportStrategyBacktestsModalComponent', () => {
     return fixture;
   }
 
+  it('submit_ImportedWithAWarningReason_ShowsTheWarningWithoutClaimingTheSlotFailed', async () => {
+    // The server commits the run and its trades, THEN calibrates. A calibration failure leaves the
+    // import true and the per-symbol point value stale, so it arrives as a non-Rejected outcome
+    // carrying a reason. Rendering nothing for it is a silent skip; rendering it as an error would
+    // claim the slot failed when its data landed.
+    const warned: BacktestImportResultDto = {
+      fileName: 'deploy.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: "imported, but the calibration of 'XAUUSD_M1_UTC02' failed",
+    };
+    (backtestServiceMock.importDeploy as ReturnType<typeof vi.fn>).mockReturnValue(of(warned));
+
+    const fixture = create();
+    fixture.componentInstance.onFileSelected('deploy', makeFile('deploy.csv'));
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('calibration');
+    expect(host.querySelector('.import-backtests-modal__slot-warning')).not.toBeNull();
+    expect(host.querySelectorAll('.import-backtests-modal__slot-error')).toHaveLength(0);
+    expect(host.textContent).toContain('329');
+  });
+
   it('slots_AreThreeLabelledFileInputs_NotOneInferringDropZone', () => {
     // The slot IS the declaration. Nothing in a trade-list CSV says whether it came from the
     // deployed parameters or the previous window's, so an unlabelled drop zone would have to guess

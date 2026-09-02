@@ -149,17 +149,35 @@ An enum alone stops nothing — every read site must remember to filter. What st
 
 ```csharp
 // The ONLY way to obtain the boundary. No other read path exposes OosFromDate.
-public static bool TryGetOosWindow(BacktestRun run, StrategyWalkForwardExport? wf, out DateTime from)
+// Nested INSIDE OosWindow, whose constructor is private, so the resolver is the only code the
+// compiler permits to build one. Called as OosWindow.Resolver.TryGetOosWindow(...).
+public static bool TryGetOosWindow(BacktestRun run, StrategyWalkForwardExport? export, out OosWindow? window)
 ```
 
-It returns `false` when `run.Kind != Evaluation` **or** `wf is null`. A deploy run cannot produce a
-boundary, so `OosTrades(run)` returns an empty sequence for it. There is no hand-written
-`CloseTime >= x` filter anywhere in the OOS path.
+It returns `false` when `run.Kind != Evaluation`, **or** `export is null`, **or**
+`export.StrategyId != run.StrategyId`.
+
+A deploy run yields **no window at all** — not an empty window, not an empty sequence of trades.
+That distinction is the whole point and it must not be softened: an empty result reads as "measured,
+and there was nothing out of sample", which is a claim about the evidence. `null` reads as "there is
+no boundary here", which is the truth, and it forces the caller to handle the case instead of
+quietly rendering a zero. `OosWindow` is a class rather than a struct for the same reason — a struct
+would always have a `default` instance whose boundary is `DateTime.MinValue`, a window admitting
+every trade ever imported.
+
+The third condition is not defensive noise: an export belongs to exactly one strategy, so a
+mismatched pair would apply a boundary produced by a different parameter set to these trades. The
+grid's aggregate already correlates on `StrategyId`; the single-run path states the same rule rather
+than trusting its callers to pair correctly.
+
+There is no hand-written `CloseTime >= x` filter anywhere in the OOS path — every comparison lives
+in `OosWindow.cs`, which is a convention checked by grep, not a structural guarantee, and the source
+says so in those words.
 
 ### D9 — WF export parser: a SEPARATE service, not a shared policy
 
 Two files, two decimal conventions. One shared policy corrupts one of them, so there is no shared
-policy: `SqxWalkForwardExportParserService` is its own pure service with its own column table, and
+policy: `WalkForwardExportParserService` is its own pure service with its own column table, and
 zero culture state is shared with `SqxTradeListParserService`.
 
 | Trap | Handling |
@@ -220,9 +238,15 @@ Marker is a **total function**, derived, never stored:
 
 | Marker | Condition |
 |---|---|
-| white `None` | no run of either kind |
-| amber `SizingOnly` | has a deploy run, but not (evaluation run AND WF export AND ≥1 trade at/after boundary) |
+| white `None` | no run of either kind **holding at least one trade** |
+| amber `SizingOnly` | a run holding trades, but not (evaluation run AND WF export AND ≥1 trade at/after boundary) |
 | green `Evaluable` | evaluation run AND WF export AND ≥1 trade at/after `OosFromDate` |
+
+Amber and green are both affirmative claims about what the strategy supports, so the white condition
+is about TRADES, not about run rows. Position sizing is computed from the trades; a run holding none
+supports nothing, and reporting it as "can be sized" would be exactly the unsupported evidence claim
+this marker exists to prevent. The two booleans behind it are named `HasSizingEvidence` and
+`HasOosEvidence` for that reason — an earlier `HasAnyRun` described the query rather than the claim.
 
 | Option | Tradeoff | Decision |
 |---|---|---|
@@ -306,7 +330,7 @@ relaxing D5's guard for that member — no schema change. Cheap enough to defer 
        │        POST /api/strategies/{id}/backtests/{deploy|evaluation}   POST .../walk-forward
        │                     │                                                  │
        │                     ▼                                                  ▼
-       │       SqxTradeListParserService                    SqxWalkForwardExportParserService
+       │       SqxTradeListParserService                    WalkForwardExportParserService
        │       (dot prices, comma money)                    (comma everywhere, dot inside
        │                     │                               Parameters, N/A → null)
        │                     ▼                                                  │
@@ -317,8 +341,19 @@ relaxing D5's guard for that member — no schema change. Cheap enough to defer 
        │                     ▼ (per touched symbol, DISTINCT ContentHash)        │
        │        SymbolPointValueCalibrator ──> SymbolCalibrations                │
        │                                                                        │
-       └── GET /strategies/{id}/backtests ── TryGetOosWindow(run, wf) ───────────┘
-                                          └─ WalkForwardRobustnessCalculator (derived)
+       └── GET /trading-accounts/{id}/strategies ── OosWindow.Resolver.ReadinessRows ──┘
+                     (the grid marker — the ONLY production consumer of the boundary here)
+
+NOT WIRED IN SLICE 1 — named so the gap is visible instead of assumed:
+
+- `TryGetOosWindow(run, export)` exists, is compiler-fenced and is tested, but has **no production
+  caller**. The per-run out-of-sample view that would use it is a later slice. The aggregate above
+  reaches the same boundary by a different path, and both live in `OosWindow.cs` so the comparison
+  is written once.
+- `WalkForwardRobustnessCalculator` was **not built**.
+- `GET /strategies/{id}/backtests` reports what EXISTS and deliberately carries **no** readiness
+  field. Deriving the marker there as well as in `GetByAccountAsync` would be two definitions of one
+  rule, free to disagree — the exact defect class D3a was about.
 
 ## File Changes
 
@@ -329,13 +364,13 @@ relaxing D5's guard for that member — no schema change. Cheap enough to defer 
 | `Domain/Entities/BacktestRun.cs` | Modify | +`StrategyId` FK, +`Kind`; −`StrategyNameKey`, −`RunLabel`, −`StrategyLinks`, −`DeriveAttributionStatus` |
 | `Domain/Enums/BacktestRunKind.cs`, `BacktestReadiness.cs` | Create | `Deploy=1, Evaluation=2`; `None=0, SizingOnly=1, Evaluable=2` |
 | `Domain/Entities/StrategyWalkForwardExport.cs`, `WalkForwardWindow.cs` | Create | One export per strategy (unique FK) + its windows |
-| `Domain/Constants/BacktestFieldLengths.cs` | Modify | −`FileNameOrKey` split usage; +`Parameters` (500) |
+| `Domain/Constants/BacktestFieldLengths.cs` | Modify | −`FileNameOrKey` split usage; +`WalkForwardParameters` (1000 — the field is an opaque `key=value` list that grows with the number of optimised inputs) |
 | `Application/Interfaces/IBacktestDbContext.cs` | Modify | −`BacktestRunStrategies`, −`GetStrategyNameIndexAsync`; +2 DbSets |
-| `Application/Interfaces/ISqxWalkForwardParser.cs`, `IStrategyBacktestService.cs` | Create | Contracts |
+| `Application/Interfaces/IWalkForwardExportParser.cs`, `IWalkForwardImportService.cs`, `IBacktestReadService.cs` | Create | Contracts. Reads are a SEPARATE service from the importer: the runs list must join `Strategies` to show whose run a row is, and D2 forbids that on the importer's surface |
 | `Application/DTOs/Backtests/*` | Modify/Create | −`StrategyNameRefDto`; +`ParsedWalkForwardExportDto`, `ParsedWalkForwardWindowDto`, `StrategyBacktestSummaryDto`, `WalkForwardRobustnessDto` |
-| `Application/DTOs/Strategies/StrategyDto.cs` | Modify | +`BacktestReadiness Readiness`, +`int OosTradeCount` (4 construction sites) |
-| `Infrastructure/Services/SqxWalkForwardExportParserService.cs` | Create | Pure, own column table (D9) |
-| `Infrastructure/Services/WalkForwardRobustnessCalculator.cs` | Create | Pure static, future window excluded (D13) |
+| `Application/DTOs/Strategies/StrategyDto.cs` | Modify | +`BacktestReadiness BacktestReadiness`. `OosTradeCount` was **not** added — the grid needs the marker, not the count, and an unused field is a second thing to keep true |
+| `Infrastructure/Services/WalkForwardExportParserService.cs` | Create | Pure, own column table (D9) |
+| `Infrastructure/Services/WalkForwardRobustnessCalculator.cs` | ~~Create~~ **not built in slice 1** | Deferred with D13; no caller exists yet |
 | `Infrastructure/Services/BacktestImportService.cs` | Modify | Slot idempotency (D3), calibration dedup (D4), −attribution |
 | `Infrastructure/Services/StrategyService.cs` | Modify | `GetByAccountAsync` +1 grouped readiness query (D12) |
 | `Infrastructure/Persistence/Configurations/*` | Modify/Create | −`BacktestRunStrategyConfiguration`; +2 configs; drop UNIQUE `ContentHash` |

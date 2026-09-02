@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { of, throwError } from 'rxjs';
 import {
   AccountDetailComponent,
@@ -15,7 +16,47 @@ import { GridPresetService, GridPresetDto } from '../../../core/services/grid-pr
 import { HttpErrorResponse } from '@angular/common/http';
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
 import { BacktestReadiness } from '../../../core/services/backtest.service';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, ValueFormatterParams } from 'ag-grid-community';
+
+/** The exact strings the two shipped translation files carry for the readiness marker. */
+const READINESS_TRANSLATIONS = {
+  en: {
+    SQX: {
+      BACKTESTS: {
+        READINESS_NONE: 'None',
+        READINESS_SIZING_ONLY: 'Sizing only',
+        READINESS_EVALUABLE: 'Evaluable',
+      },
+    },
+  },
+  es: {
+    SQX: {
+      BACKTESTS: {
+        READINESS_NONE: 'Sin datos',
+        READINESS_SIZING_ONLY: 'Solo dimensionamiento',
+        READINESS_EVALUABLE: 'Evaluable',
+      },
+    },
+  },
+};
+
+/**
+ * The text ag-grid actually writes into a readiness cell: the marker column's own
+ * `valueFormatter`, invoked exactly as the grid invokes it.
+ */
+function renderReadiness(
+  comp: AccountDetailComponent,
+  readiness: BacktestReadiness,
+): string | undefined {
+  const flat = comp
+    .columnDefs()
+    .flatMap((c) => ('children' in c ? (c.children as ColDef<StrategyDto>[]) : [c]));
+  const marker = flat.find(
+    (c) => (c as ColDef<StrategyDto>).field === 'backtestReadiness',
+  ) as ColDef<StrategyDto>;
+  const format = marker.valueFormatter as (p: ValueFormatterParams<StrategyDto>) => string;
+  return format({ value: readiness, node: null } as unknown as ValueFormatterParams<StrategyDto>);
+}
 
 function makeStrategy(id = '1'): StrategyDto {
   return {
@@ -156,7 +197,7 @@ describe('AccountDetailComponent', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      imports: [AccountDetailComponent],
+      imports: [AccountDetailComponent, TranslateModule.forRoot()],
       providers: [
         { provide: StrategyService, useValue: strategyServiceMock },
         { provide: TradingAccountService, useValue: tradingAccountServiceMock },
@@ -173,6 +214,13 @@ describe('AccountDetailComponent', () => {
   });
 
   function create() {
+    // Real translations, loaded before the component is built: the marker column renders through
+    // ngx-translate, and stubbing that away would hide the very defect this file now fences.
+    const translate = TestBed.inject(TranslateService);
+    translate.setTranslation('en', READINESS_TRANSLATIONS.en);
+    translate.setTranslation('es', READINESS_TRANSLATIONS.es);
+    translate.use('en');
+
     const fixture = TestBed.createComponent(AccountDetailComponent);
     return fixture;
   }
@@ -881,20 +929,40 @@ describe('AccountDetailComponent', () => {
     expect(comp.readinessCellClass(BacktestReadiness.Evaluable)).toBe('readiness-cell--evaluable');
   });
 
-  it('readinessLabel_UsesTranslationKeysNotHardcodedText', () => {
+  it('readinessColumn_RendersTranslatedText_NotTheRawTranslationKey', () => {
+    // What the user sees, not what the method returns. An ag-grid `valueFormatter` is a plain
+    // function — no `translate` pipe runs inside it — so a formatter that returns the key writes
+    // "SQX.BACKTESTS.READINESS_EVALUABLE" into every row of the grid. Asserting the component
+    // method instead of the column definition is what let that ship green.
     (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
       of(makePagedResult([makeStrategy('s1')])),
     );
     const fixture = create();
     fixture.detectChanges();
-    const comp = fixture.componentInstance;
 
-    expect(comp.readinessLabel(BacktestReadiness.None)).toBe('SQX.BACKTESTS.READINESS_NONE');
-    expect(comp.readinessLabel(BacktestReadiness.SizingOnly)).toBe(
-      'SQX.BACKTESTS.READINESS_SIZING_ONLY',
+    expect(renderReadiness(fixture.componentInstance, BacktestReadiness.None)).toBe('None');
+    expect(renderReadiness(fixture.componentInstance, BacktestReadiness.SizingOnly)).toBe(
+      'Sizing only',
     );
-    expect(comp.readinessLabel(BacktestReadiness.Evaluable)).toBe(
-      'SQX.BACKTESTS.READINESS_EVALUABLE',
+    expect(renderReadiness(fixture.componentInstance, BacktestReadiness.Evaluable)).toBe(
+      'Evaluable',
+    );
+  });
+
+  it('readinessColumn_FollowsALanguageSwitch', () => {
+    // The formatter closure is not a reactive context, so the column definitions must themselves
+    // depend on the resolved labels — otherwise the grid keeps the language it first rendered in.
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([makeStrategy('s1')])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+
+    TestBed.inject(TranslateService).use('es');
+    fixture.detectChanges();
+
+    expect(renderReadiness(fixture.componentInstance, BacktestReadiness.SizingOnly)).toBe(
+      'Solo dimensionamiento',
     );
   });
 

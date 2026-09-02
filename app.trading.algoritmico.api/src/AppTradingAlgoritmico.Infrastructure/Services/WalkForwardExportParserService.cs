@@ -1,6 +1,7 @@
 using System.Globalization;
 using AppTradingAlgoritmico.Application.DTOs.Backtests;
 using AppTradingAlgoritmico.Application.Interfaces;
+using AppTradingAlgoritmico.Domain.Constants;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
@@ -18,7 +19,16 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// Every guard is FILE-level. A trade list can drop one malformed row and keep the rest, because
 /// rows there are independent observations. A window is not: the row ORDER carries the meaning
 /// (<c>OosFromDate</c> is the second-to-last row's OOS start), so silently dropping a row would
-/// move the boundary without saying so.
+/// move the boundary without saying so. That includes the LENGTH guards below: a trade list rejects
+/// an over-length row and keeps the file, this parser refuses the file.
+/// </para>
+/// <para>
+/// Text lengths are read from <see cref="BacktestFieldLengths"/>, the same constants the EF
+/// configurations use. They are two ends of one rule: the value is refused here while it is still
+/// data, so it never reaches the column that would refuse it as a "String or binary data would be
+/// truncated" error at <c>SaveChanges</c> — which is NOT transient, so no retry strategy recovers
+/// from it. <c>Parameters</c> in particular is an opaque strategy-specific <c>key=value</c> list
+/// whose length grows with the number of optimised inputs, so it is the one most likely to overflow.
 /// </para>
 /// </summary>
 public sealed class WalkForwardExportParserService : IWalkForwardExportParser
@@ -91,6 +101,14 @@ public sealed class WalkForwardExportParserService : IWalkForwardExportParser
     public Task<ParsedWalkForwardExportDto> ParseAsync(Stream csv, string fileName, CancellationToken ct)
     {
         var sanitizedFileName = Path.GetFileName(fileName);
+
+        // FILE-LEVEL length guard on the one column the name feeds, mirroring the trade-list parser.
+        if (sanitizedFileName.Length > BacktestFieldLengths.FileNameOrKey)
+        {
+            return Task.FromResult(Rejected(
+                sanitizedFileName,
+                $"file name is {sanitizedFileName.Length} characters, exceeding the {BacktestFieldLengths.FileNameOrKey}-character limit"));
+        }
 
         using var reader = new StreamReader(csv);
         var headerLine = reader.ReadLine();
@@ -241,6 +259,17 @@ public sealed class WalkForwardExportParserService : IWalkForwardExportParser
             return false;
         }
 
+        // Persisted verbatim into three nvarchar(WalkForwardParameters) columns — the window's own
+        // and the export's Deploy/Evaluation pair — so the width is checked once, here.
+        var parameters = fields[ColParameters];
+        if (parameters.Length > BacktestFieldLengths.WalkForwardParameters)
+        {
+            rejectionReason =
+                $"value at row {rowIndex}, column 'Parameters' is {parameters.Length} characters, "
+                + $"exceeding the {BacktestFieldLengths.WalkForwardParameters}-character limit";
+            return false;
+        }
+
         window = new ParsedWalkForwardWindowDto(
             RowIndex: rowIndex,
             PeriodIsStart: isStart,
@@ -257,7 +286,7 @@ public sealed class WalkForwardExportParserService : IWalkForwardExportParser
             RetDdRatioOos: values[ColRetDdOos],
             DrawdownOos: values[ColDrawdownOos],
             AvgTradesPerMonthOos: values[ColAvgTradesOos],
-            Parameters: fields[ColParameters],
+            Parameters: parameters,
             IsFutureWindow: isFutureWindow);
 
         return true;

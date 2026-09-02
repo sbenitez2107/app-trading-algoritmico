@@ -12,7 +12,7 @@ namespace AppTradingAlgoritmico.Domain.Enums;
 /// </para>
 /// <para>
 /// The enum alone stops nothing. What stops a deploy run being read as out-of-sample evidence is
-/// <c>OosWindowResolver</c>: it is the only way to obtain an OOS boundary, and it refuses to
+/// <c>OosWindow.Resolver</c>: it is the only way to obtain an OOS boundary, and it refuses to
 /// produce one for <see cref="Deploy"/>. See design.md D8.
 /// </para>
 /// </summary>

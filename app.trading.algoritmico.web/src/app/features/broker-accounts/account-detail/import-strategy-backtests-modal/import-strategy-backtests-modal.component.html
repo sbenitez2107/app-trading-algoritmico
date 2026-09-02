@@ -54,6 +54,16 @@
                   &mdash; {{ result.tradeCount }} {{ 'SQX.BACKTESTS.TRADES_SUFFIX' | translate }}
                 }
               </p>
+              <!--
+                A reason on a NON-rejected outcome is a warning, not a failure: the run and its
+                trades committed and something derived from them did not. Dropping it here is how a
+                stale per-symbol calibration becomes invisible.
+              -->
+              @if (result.reason) {
+                <p class="import-backtests-modal__slot-warning" role="status">
+                  {{ result.reason }}
+                </p>
+              }
             }
           }
 

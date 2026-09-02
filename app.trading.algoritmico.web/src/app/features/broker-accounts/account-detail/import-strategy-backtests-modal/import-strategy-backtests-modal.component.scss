@@ -96,6 +96,14 @@
     color: var(--color-loss);
   }
 
+  // The slot succeeded but something derived from it did not — amber, so it cannot be read as
+  // either a clean import or a failed one.
+  &__slot-warning {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--color-warning, #f9e2af);
+  }
+
   &__slot-result {
     margin: 0;
     font-size: 0.75rem;

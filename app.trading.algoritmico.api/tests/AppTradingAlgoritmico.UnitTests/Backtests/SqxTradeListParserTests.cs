@@ -47,6 +47,42 @@ public class SqxTradeListParserTests
     private static Stream CsvStream(params string[] lines)
         => new MemoryStream(Encoding.UTF8.GetBytes(string.Join("\r\n", lines)));
 
+    // ---- A file with a valid header and no usable row is not an import ----
+
+    [Fact]
+    public async Task ParseAsync_HeaderOnlyFile_IsRejectedWholeAndNotReportedAsASuccessfulImport()
+    {
+        // Zero trades is not "an import that happened to be empty". Accepted, this file REPLACES an
+        // occupied slot with nothing and still reports success, and the readiness marker then claims
+        // the strategy can be sized from a run holding no trades.
+        await using var stream = CsvStream(Header);
+
+        var result = await Sut.ParseAsync(stream, "Empty.csv", CancellationToken.None);
+
+        result.IsRejected.Should().BeTrue();
+        result.RejectionReason.Should().Contain("no trade rows");
+        result.Trades.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ParseAsync_EveryDataRowRejected_RejectsTheWholeFileNamingTheCount()
+    {
+        // Same end state reached the other way: rows existed, none survived. A per-row report of
+        // "3 rejected, 0 imported" alongside outcome=Imported is the same false claim.
+        await using var stream = CsvStream(
+            Header,
+            Row(ticket: 1, openPrice: "1000.00", closePrice: "1000.00"),
+            Row(ticket: 2, openPrice: "1000.00", closePrice: "1000.00"),
+            Row(ticket: 3, openPrice: "1000.00", closePrice: "1000.00"));
+
+        var result = await Sut.ParseAsync(stream, "AllRowsBad.csv", CancellationToken.None);
+
+        result.IsRejected.Should().BeTrue();
+        result.RejectionReason.Should().Contain("no usable trade rows");
+        result.RejectionReason.Should().Contain("3");
+        result.Trades.Should().BeEmpty();
+    }
+
     // ---- 1.2: row counts ----
 
     [Fact]
@@ -115,12 +151,15 @@ public class SqxTradeListParserTests
     [Fact]
     public async Task ParseAsync_CommaInDotColumn_RejectsRowNamingColumn()
     {
-        await using var stream = CsvStream(Header, Row(openPrice: "1066,19"));
+        // One surviving row alongside the bad one: the property under test is that a separator
+        // mismatch is ROW-level, and a file whose every row is rejected is refused whole by a
+        // different rule (see ParseAsync_EveryDataRowRejected_...), which would mask this one.
+        await using var stream = CsvStream(Header, Row(ticket: 1), Row(ticket: 2, openPrice: "1066,19"));
 
         var result = await Sut.ParseAsync(stream, F1Name, CancellationToken.None);
 
         result.IsRejected.Should().BeFalse("a bad row must not fail the whole file");
-        result.Trades.Should().BeEmpty();
+        result.Trades.Should().ContainSingle();
         result.RejectedRows.Should().ContainSingle();
         result.RejectedRows[0].Reason.Should().Contain("Open price");
     }

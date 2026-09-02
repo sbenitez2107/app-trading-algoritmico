@@ -146,24 +146,33 @@ public class BacktestImportBatchResilienceTests
         return new BacktestFileUploadDto(fileName, new MemoryStream(Encoding.UTF8.GetBytes(string.Join("\r\n", lines))));
     }
 
-    /// <summary>Hands out a context whose <c>SaveChangesAsync</c> throws on the nth attempt (all attempts when null).</summary>
+    /// <summary>
+    /// Hands out contexts whose <c>SaveChangesAsync</c> throws on the nth PERSISTENCE attempt (all
+    /// of them when null).
+    /// <para>
+    /// The victim is chosen by counting attempts that actually write a run or its trades, NOT by
+    /// counting contexts handed out. Those were the same number until the per-symbol calibration
+    /// upsert also began taking a fresh context per attempt from this factory; after that, an
+    /// ordinal over <c>Create()</c> silently retargeted the injected fault onto the PREVIOUS
+    /// import's calibration, and the slot that was supposed to fail while persisting quietly
+    /// succeeded. Counting the thing the test names — a persistence attempt — is what makes the
+    /// targeting survive a change in who else borrows the factory.
+    /// </para>
+    /// </summary>
     private sealed class FailOnNthAttemptFactory(DbContextOptions<AppDbContext> options, int? failOnAttempt)
         : IBacktestDbContextFactory
     {
-        private int _attempt;
+        private readonly int[] _persistAttempts = [0];
 
         public IBacktestDbContext Create()
-        {
-            _attempt++;
-            var inner = new AppDbContext(options);
-            return failOnAttempt is null || _attempt == failOnAttempt
-                ? new ThrowOnSaveDbContext(inner)
-                : inner;
-        }
+            => new ThrowOnPersistDbContext(new AppDbContext(options), _persistAttempts, failOnAttempt);
     }
 
-    private sealed class ThrowOnSaveDbContext(AppDbContext inner) : IBacktestDbContext
+    private sealed class ThrowOnPersistDbContext(
+        AppDbContext inner, int[] persistAttempts, int? failOnAttempt) : IBacktestDbContext
     {
+        private bool _counted;
+
         public DbSet<BacktestRun> BacktestRuns => inner.BacktestRuns;
 
         public DbSet<BacktestTrade> BacktestTrades => inner.BacktestTrades;
@@ -177,9 +186,30 @@ public class BacktestImportBatchResilienceTests
         public DatabaseFacade Database => inner.Database;
 
         public Task<int> SaveChangesAsync(CancellationToken ct)
-            => throw new DbUpdateException(
-                "An error occurred while saving the entity changes. See the inner exception for details.",
-                new InvalidOperationException("String or binary data would be truncated in table 'BacktestTrades', column 'Comment'."));
+        {
+            var persistsTheRun = inner.ChangeTracker.Entries<BacktestRun>().Any()
+                || inner.ChangeTracker.Entries<BacktestTrade>().Any();
+
+            if (!persistsTheRun)
+                return inner.SaveChangesAsync(ct);
+
+            // One count per context: ReplaceAsync flushes twice inside a single attempt, and that
+            // is still one attempt.
+            if (!_counted)
+            {
+                _counted = true;
+                persistAttempts[0]++;
+            }
+
+            if (failOnAttempt is null || persistAttempts[0] == failOnAttempt)
+            {
+                throw new DbUpdateException(
+                    "An error occurred while saving the entity changes. See the inner exception for details.",
+                    new InvalidOperationException("String or binary data would be truncated in table 'BacktestTrades', column 'Comment'."));
+            }
+
+            return inner.SaveChangesAsync(ct);
+        }
 
         public ValueTask DisposeAsync() => inner.DisposeAsync();
     }

@@ -7,7 +7,9 @@
   <section class="backtests-list__panel">
     <h2 class="backtests-list__panel-title">{{ 'SQX.BACKTESTS.RUNS_TITLE' | translate }}</h2>
 
-    @if (runs().length === 0 && !isLoading()) {
+    @if (runsError()) {
+      <p class="backtests-list__error" role="alert">{{ runsError()! | translate }}</p>
+    } @else if (runs().length === 0 && !isLoading()) {
       <p class="backtests-list__empty">{{ 'SQX.BACKTESTS.EMPTY_RUNS' | translate }}</p>
     } @else {
       <table class="backtests-list__table">
@@ -62,7 +64,9 @@
       {{ 'SQX.BACKTESTS.CALIBRATIONS_TITLE' | translate }}
     </h2>
 
-    @if (calibrations().length === 0) {
+    @if (calibrationsError()) {
+      <p class="backtests-list__error" role="alert">{{ calibrationsError()! | translate }}</p>
+    } @else if (calibrations().length === 0) {
       <p class="backtests-list__empty">{{ 'SQX.BACKTESTS.EMPTY_CALIBRATIONS' | translate }}</p>
     } @else {
       <table class="backtests-list__table">

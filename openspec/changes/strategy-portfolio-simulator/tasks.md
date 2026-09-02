@@ -392,5 +392,81 @@ The simulator engine, resizing, selection and R-normalization. `SimulationResult
 RECORDS the windows, slice 3 JUDGES them. Recalibration is still not triggered by
 a strategy DELETE, and D1's cascade now removes trades rather than links, so a
 stale `SymbolCalibration` is slightly MORE reachable than in rev 1: known gap,
-recorded, not solved here. Also still absent: an exception boundary around
-end-of-batch calibration.
+recorded, not solved here. The exception boundary around
+end-of-batch calibration was CLOSED in revision 3 (WU5) — see below.
+
+
+---
+
+# REVISION 3 — rev2 review correction (8 corroborated findings, 1 transaction, 8 work units)
+
+Not new feature work: every item below repairs something the rev2 review proved
+wrong in shipped code. Baseline backend 352 / frontend 366; final 365 / 371.
+
+## Visible defects
+
+- [x] R3.1 [WU1] The grid rendered raw i18n keys. `readinessLabel` returned
+      `'SQX.BACKTESTS.READINESS_*'` and the component injected no translator, so
+      ag-grid's `valueFormatter` wrote the key verbatim into every row. Labels now
+      resolve through `TranslateService.stream` into a signal that `columnDefs`
+      depends on. AC: the marker column's own formatter returns "Evaluable" /
+      "Sizing only" / "None", and follows a language switch.
+- [x] R3.2 [WU2] A header-only CSV was accepted as a successful import, and
+      `ReplaceAsync` wiped an occupied slot while reporting `Replaced`. BOTH halves
+      fixed: the parser rejects a zero-usable-row file file-level, and the readiness
+      aggregate requires a run that HOLDS TRADES (`HasAnyRun` → `HasSizingEvidence`).
+      AC: header-only file is Rejected and writes nothing; a zero-trade run is
+      `None`, not `SizingOnly`.
+- [x] R3.3 [WU3] A backend failure rendered identically to "nothing imported yet"
+      — `loadRuns` swallowed the error, `loadCalibrations` had no error callback at
+      all and the rejection escaped the component. Per-panel error signals, rendered
+      as `role="alert"`, gating the empty state. AC: a failing load shows the error
+      and never the empty state; the two panels fail independently.
+
+## Integrity
+
+- [x] R3.4 [WU4] `WalkForwardExportParserService` never referenced
+      `BacktestFieldLengths` while writing `Parameters` into `nvarchar(1000)` and a
+      filename into `nvarchar(260)`. Both guards added, FILE-level (row order is
+      meaning). AC: over-length `Parameters` rejects naming the row and the limit;
+      exactly-at-limit is accepted.
+- [x] R3.5 [WU5] Concurrent imports raced on the calibration upsert — an unguarded
+      read-then-insert against a UNIQUE index, called OUTSIDE the exception boundary,
+      so the loser became a bare 500 for a request whose rows had already committed.
+      Both halves: the upsert retries once on a fresh context (converging on the
+      winner's row), and the call moved inside the boundary WITHOUT rewriting the
+      import's true outcome — the failure is carried in `Reason` and rendered in the
+      modal as a warning. AC: losing the race still imports and still calibrates; a
+      permanent calibration fault reports `Imported` + a named reason, never a throw.
+
+- [x] R3.6 [WU6] The migration had no working rollback: `Down()` re-added
+      `StrategyNameKey`/`RunLabel` with `defaultValue: ""` and then created a UNIQUE
+      index over that pair, which collides at two rows — the ordinary steady state.
+      `Down()` now discards the backtest rows first and documents the loss.
+      EDITED the existing migration rather than adding a new one, because `Down()`
+      is per-migration and a later migration cannot repair an earlier one's.
+      AC: no unique index is created over surviving rows that cannot satisfy it.
+
+## Honesty
+
+- [x] R3.7 [WU7] `design.md` D8 asserted the OPPOSITE of the implemented
+      invariant ("returns an empty sequence" for a Deploy run — the permissive shape
+      `OosWindow` exists to make unrepresentable). Corrected, along with the stale
+      parser/interface names, `Parameters (500)` → `WalkForwardParameters (1000)`,
+      the D12 marker rule, and two data-flow entries naming things never built. Two
+      dead doc-comment targets fixed in production source. AC: no documented claim
+      contradicts shipped behaviour.
+- [x] R3.8 [WU8] `TryGetOosWindow` never checked that the export belonged to the
+      run's strategy, and the tests paired two INDEPENDENT `Guid.NewGuid()` values —
+      certifying "an unrelated strategy's boundary is valid for this run" as the
+      contract. Ownership check added; fixtures now share an owning strategy.
+      AC: a foreign export yields no window.
+
+## Deliberately NOT fixed in revision 3 (recorded in the ledger)
+
+`rejectedRowCount` never rendered; zero logging across the slice; calibration
+staleness when a replace changes symbol; a strategy delete not triggering
+recalibration; raw provider messages in the import response; missing row/size caps
+on uploads; the readiness aggregate having no fallback if its tables are absent;
+`BacktestReadiness.None` doubling as a not-computed placeholder; `ParseAsync`
+length/complexity.

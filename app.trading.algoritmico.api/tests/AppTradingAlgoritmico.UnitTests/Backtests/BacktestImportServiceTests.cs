@@ -153,6 +153,31 @@ public class BacktestImportServiceTests
     }
 
     [Fact]
+    public async Task ImportTradeListAsync_HeaderOnlyFileIntoAnOccupiedSlot_LeavesTheRunIntact()
+    {
+        // Replace removes every existing trade and adds the new ones. With no usable row that is a
+        // silent wipe reported as a successful replacement — the slot keeps a run holding zero
+        // trades, which every downstream reader treats as evidence that exists.
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        var runBefore = await db.BacktestRuns.AsNoTracking().SingleAsync();
+
+        var result = await sut.ImportTradeListAsync(
+            strategyId,
+            BacktestRunKind.Deploy,
+            new BacktestFileUploadDto("Empty.csv", new MemoryStream(Encoding.UTF8.GetBytes(Header))),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be(BacktestImportOutcome.Rejected);
+        result.Reason.Should().Contain("no trade rows");
+        (await db.BacktestTrades.CountAsync()).Should().Be(329, "a rejected file writes nothing at all");
+        var runAfter = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        runAfter.ContentHash.Should().Be(runBefore.ContentHash);
+    }
+
+    [Fact]
     public async Task ImportTradeListAsync_DifferentBytesIntoAnOccupiedSlot_ReplacesTheRunInPlace()
     {
         using var db = CreateDb();

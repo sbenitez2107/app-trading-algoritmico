@@ -3,7 +3,7 @@
 /// <summary>
 /// THE source of truth for the length-bounded text columns of the backtest-import tables.
 /// <para>
-/// The EF configurations and the SQX CSV parser MUST both read these constants. They are two ends
+/// The EF configurations and BOTH SQX CSV parsers MUST read these constants. They are two ends
 /// of one rule: the parser refuses an over-length value while it is still data, so it never
 /// reaches the column that would refuse it as a "String or binary data would be truncated" error
 /// at <c>SaveChanges</c> — an error that is NOT transient, so no retry strategy recovers from it.

@@ -265,6 +265,20 @@ public sealed class SqxTradeListParserService : ISqxTradeListParser
                 $"multiple values in the 'Sample type' column: {string.Join(", ", distinctSampleTypes.OrderBy(v => v, StringComparer.Ordinal))}"));
         }
 
+        // FILE-LEVEL zero-usable-row guard, LAST so the two guards above still give the more
+        // specific diagnosis when they apply. An accepted zero-trade file is not a harmless empty
+        // import: it REPLACES whatever occupied the slot with nothing while reporting success, and
+        // the run it leaves behind holds no trades at all — which every downstream reader, the
+        // readiness marker included, would otherwise treat as evidence that exists.
+        if (trades.Count == 0)
+        {
+            return Task.FromResult(Rejected(
+                sanitizedFileName,
+                rejectedRows.Count == 0
+                    ? "no trade rows: the header is a trade list but the file carries no data"
+                    : $"no usable trade rows: all {rejectedRows.Count} data rows were rejected"));
+        }
+
         var fileSymbol = distinctSymbols.SingleOrDefault();
 
         return Task.FromResult(new ParsedBacktestFileDto(

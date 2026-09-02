@@ -7,8 +7,11 @@ import {
   effect,
   OnInit,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateService } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   CellClassParams,
@@ -46,6 +49,25 @@ import { TradeImportResultDto } from '../../../core/services/trading-account.ser
 import { BacktestReadiness } from '../../../core/services/backtest.service';
 import { symbolToColor } from '../../../shared/utils/symbol-color';
 import { formatCurrency } from '../../../shared/utils/format';
+
+/**
+ * THE readiness-to-i18n-key mapping, stated once. A total function over the three states: a value
+ * that fell through would read as "no backtest" and quietly understate what is there.
+ */
+const READINESS_LABEL_KEYS: Record<BacktestReadiness, string> = {
+  [BacktestReadiness.None]: 'SQX.BACKTESTS.READINESS_NONE',
+  [BacktestReadiness.SizingOnly]: 'SQX.BACKTESTS.READINESS_SIZING_ONLY',
+  [BacktestReadiness.Evaluable]: 'SQX.BACKTESTS.READINESS_EVALUABLE',
+};
+
+/**
+ * Resolves one readiness value against an already-loaded label map. Falls back to the key so a
+ * missing translation is visible as a missing translation, never as a blank or a wrong state.
+ */
+function labelFrom(labels: Record<string, string>, readiness: BacktestReadiness): string {
+  const key = READINESS_LABEL_KEYS[readiness] ?? READINESS_LABEL_KEYS[BacktestReadiness.None];
+  return labels[key] ?? key;
+}
 
 export interface KpiColDef {
   field: keyof StrategyDto;
@@ -179,6 +201,19 @@ export class AccountDetailComponent implements OnInit {
   private readonly strategyService = inject(StrategyService);
   private readonly tradingAccountService = inject(TradingAccountService);
   private readonly gridPresetService = inject(GridPresetService);
+  private readonly translate = inject(TranslateService);
+
+  /**
+   * The three readiness labels, resolved and kept live. `stream` re-emits when the translation
+   * files finish loading and again on every language switch, so reading this signal inside
+   * `columnDefs` is what makes the grid follow a language change.
+   */
+  private readonly readinessLabels = toSignal(
+    this.translate.stream(Object.values(READINESS_LABEL_KEYS)) as Observable<
+      Record<string, string>
+    >,
+    { initialValue: {} as Record<string, string> },
+  );
 
   accountId = '';
   /** Absolute base path for the back button, injected via route data (e.g. "/darwinex", "/ftmo"). */
@@ -219,17 +254,6 @@ export class AccountDetailComponent implements OnInit {
         return 'readiness-cell--sizing';
       default:
         return 'readiness-cell--none';
-    }
-  }
-
-  readinessLabel(readiness: BacktestReadiness): string {
-    switch (readiness) {
-      case BacktestReadiness.Evaluable:
-        return 'SQX.BACKTESTS.READINESS_EVALUABLE';
-      case BacktestReadiness.SizingOnly:
-        return 'SQX.BACKTESTS.READINESS_SIZING_ONLY';
-      default:
-        return 'SQX.BACKTESTS.READINESS_NONE';
     }
   }
 
@@ -332,6 +356,10 @@ export class AccountDetailComponent implements OnInit {
 
   readonly columnDefs = computed<(ColDef<StrategyDto> | ColGroupDef<StrategyDto>)[]>(() => {
     const visible = this.visibleColumns();
+    // Read here, not only inside the formatter: a `valueFormatter` closure is not a reactive
+    // context, so this is the dependency that rebuilds the column — and re-renders the cells —
+    // when the translations land or the language changes.
+    const readinessLabels = this.readinessLabels();
     const nameDef: ColDef<StrategyDto> = {
       field: 'name',
       headerName: 'Name',
@@ -367,7 +395,7 @@ export class AccountDetailComponent implements OnInit {
       headerName: 'Backtest',
       width: 110,
       valueFormatter: (p: ValueFormatterParams<StrategyDto>) =>
-        p.node?.rowPinned ? '' : this.readinessLabel(p.value as BacktestReadiness),
+        p.node?.rowPinned ? '' : labelFrom(readinessLabels, p.value as BacktestReadiness),
       cellClass: (p: CellClassParams<StrategyDto>) =>
         p.node?.rowPinned ? '' : this.readinessCellClass(p.value as BacktestReadiness),
     };

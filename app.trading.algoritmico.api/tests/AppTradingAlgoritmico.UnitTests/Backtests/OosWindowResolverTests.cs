@@ -14,21 +14,28 @@ public class OosWindowResolverTests
 {
     private static readonly DateTime Boundary = new(2025, 5, 26);
 
-    private static BacktestRun Run(BacktestRunKind kind) => new()
+    /// <summary>
+    /// The strategy that owns BOTH the run and the export by default. Two independent
+    /// <c>Guid.NewGuid()</c> values here would have made every positive test assert that an
+    /// UNRELATED strategy's boundary is valid for this run — certifying the defect as the contract.
+    /// </summary>
+    private static readonly Guid OwningStrategyId = Guid.NewGuid();
+
+    private static BacktestRun Run(BacktestRunKind kind, Guid? strategyId = null) => new()
     {
         Id = Guid.NewGuid(),
         SourceFileName = "ListOfTrades_XAUUSD_H1_IST.csv",
         ContentHash = "hash",
-        StrategyId = Guid.NewGuid(),
+        StrategyId = strategyId ?? OwningStrategyId,
         Kind = kind,
         Symbol = "XAUUSD_M1_UTC02",
         CreatedAt = DateTime.UtcNow,
     };
 
-    private static StrategyWalkForwardExport Export() => new()
+    private static StrategyWalkForwardExport Export(Guid? strategyId = null) => new()
     {
         Id = Guid.NewGuid(),
-        StrategyId = Guid.NewGuid(),
+        StrategyId = strategyId ?? OwningStrategyId,
         OosFromDate = Boundary,
         DeployParameters = "TEMAPeriod1=32,",
         EvaluationParameters = "TEMAPeriod1=35,",
@@ -86,6 +93,23 @@ public class OosWindowResolverTests
 
         obtained.Should().BeTrue();
         window!.FromInclusive.Should().Be(Boundary);
+    }
+
+    [Fact]
+    public void TryGetOosWindow_ExportOwnedByADifferentStrategy_YieldsNoWindow()
+    {
+        // The boundary is the export's, and an export belongs to exactly one strategy. Reading
+        // another strategy's OosFromDate for this run produces a date with no relationship to the
+        // parameters that generated these trades — a fabricated out-of-sample claim, which is
+        // precisely what this type exists to make unreachable. The grid's aggregate already
+        // correlates on StrategyId; the single-run path must agree with it.
+        var run = Run(BacktestRunKind.Evaluation);
+        var foreignExport = Export(strategyId: Guid.NewGuid());
+
+        var obtained = OosWindow.Resolver.TryGetOosWindow(run, foreignExport, out var window);
+
+        obtained.Should().BeFalse();
+        window.Should().BeNull();
     }
 
     [Fact]

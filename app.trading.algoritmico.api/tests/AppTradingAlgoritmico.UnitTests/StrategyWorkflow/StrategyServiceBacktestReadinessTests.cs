@@ -143,6 +143,37 @@ public class StrategyServiceBacktestReadinessTests
     }
 
     [Fact]
+    public async Task GetByAccountAsync_RunHoldingZeroTrades_IsNone_NotSizingOnly()
+    {
+        // "SizingOnly" is an affirmative claim: this strategy CAN be sized. A run with no trades
+        // supports nothing — position sizing is computed from the trades, and there are none. The
+        // marker exists to prevent an unsupported evidence claim, so it must not make one.
+        var readiness = await ReadinessAsync((db, accountId) =>
+        {
+            var id = AddStrategy(db, accountId, "EmptyRun");
+            AddRun(db, id, BacktestRunKind.Deploy);
+        });
+
+        readiness.Should().Be(BacktestReadiness.None);
+    }
+
+    [Fact]
+    public async Task GetByAccountAsync_AnEmptyRunAlongsideARunWithTrades_IsStillSizingOnly()
+    {
+        // The rule is "at least one run carries trades", not "every run does" — an empty Evaluation
+        // slot must not erase the Deploy run's evidence.
+        var readiness = await ReadinessAsync((db, accountId) =>
+        {
+            var id = AddStrategy(db, accountId, "MixedRuns");
+            var deployRunId = AddRun(db, id, BacktestRunKind.Deploy);
+            AddTrade(db, deployRunId, 0, Boundary.AddYears(1));
+            AddRun(db, id, BacktestRunKind.Evaluation);
+        });
+
+        readiness.Should().Be(BacktestReadiness.SizingOnly);
+    }
+
+    [Fact]
     public async Task GetByAccountAsync_EvaluationRunWithoutItsExport_IsStillSizingOnly()
     {
         var readiness = await ReadinessAsync((db, accountId) =>

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { BacktestsListComponent } from './backtests-list.component';
 import {
   BacktestService,
@@ -126,6 +126,57 @@ describe('BacktestsListComponent', () => {
 
     expect(fixture.componentInstance.calibrations()).toEqual([calibration]);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('90');
+  });
+
+  // --- A failed load must not read as "nothing imported yet" ---
+
+  it('loadRuns_WhenTheRequestFails_ShowsAnErrorAndNotTheEmptyState', () => {
+    // A 500, a dropped connection and an unapplied migration all leave `runs` empty. Rendering the
+    // reassuring "No backtest runs imported yet." for them tells the user their data is gone.
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      throwError(() => new Error('500 Internal Server Error')),
+    );
+
+    const fixture = create();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(fixture.componentInstance.runsError()).toBe('SQX.BACKTESTS.RUNS_ERROR');
+    expect(text).toContain('SQX.BACKTESTS.RUNS_ERROR');
+    expect(text).not.toContain('SQX.BACKTESTS.EMPTY_RUNS');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).not.toBeNull();
+  });
+
+  it('loadCalibrations_WhenTheRequestFails_ShowsAnErrorAndNotTheEmptyState', () => {
+    // The two panels load independently, so they fail independently: a calibration outage must not
+    // claim the runs list failed, and vice versa.
+    (backtestServiceMock.getCalibrations as ReturnType<typeof vi.fn>).mockReturnValue(
+      throwError(() => new Error('500 Internal Server Error')),
+    );
+
+    const fixture = create();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(fixture.componentInstance.calibrationsError()).toBe('SQX.BACKTESTS.CALIBRATIONS_ERROR');
+    expect(text).toContain('SQX.BACKTESTS.CALIBRATIONS_ERROR');
+    expect(text).not.toContain('SQX.BACKTESTS.EMPTY_CALIBRATIONS');
+    expect(fixture.componentInstance.runsError()).toBeNull();
+  });
+
+  it('loadRuns_AfterAFailure_ClearsTheErrorOnceItSucceeds', () => {
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      throwError(() => new Error('boom')),
+    );
+    const fixture = create();
+    expect(fixture.componentInstance.runsError()).toBe('SQX.BACKTESTS.RUNS_ERROR');
+
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      of({ items: [makeRun()], totalCount: 1, page: 1, pageSize: 20 }),
+    );
+    fixture.componentInstance.loadRuns();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.runsError()).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('BTC_H1_Fractal_MACD');
   });
 
   it('goToPage_OutOfRange_DoesNotReload', () => {

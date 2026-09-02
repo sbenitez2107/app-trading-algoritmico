@@ -142,7 +142,7 @@ public class BacktestReadinessQueryCostTests : IDisposable
 
         commands.Should().Be(1);
         rows.Should().ContainSingle();
-        rows[0].HasAnyRun.Should().BeTrue();
+        rows[0].HasSizingEvidence.Should().BeTrue();
         rows[0].HasOosEvidence.Should().BeTrue();
         rows[0].Readiness.Should().Be(BacktestReadiness.Evaluable);
     }

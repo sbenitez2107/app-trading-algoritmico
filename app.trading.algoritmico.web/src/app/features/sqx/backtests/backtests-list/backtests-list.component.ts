@@ -47,6 +47,17 @@ export class BacktestsListComponent implements OnInit {
   readonly calibrations = signal<SymbolCalibrationDto[]>([]);
   readonly isLoading = signal(false);
 
+  /**
+   * The i18n key of the message shown when a load FAILS, or null when it did not.
+   *
+   * An empty list and a failed request are different facts and must not render the same way: a
+   * 500, a dropped connection or an unapplied migration all leave the array empty, and the empty
+   * state would tell the user their imports are gone. Separate signals per panel because the two
+   * loads are separate requests — a calibration outage must not claim the runs list failed.
+   */
+  readonly runsError = signal<string | null>(null);
+  readonly calibrationsError = signal<string | null>(null);
+
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize)));
 
   readonly kindLabels = BACKTEST_KIND_LABELS;
@@ -59,19 +70,27 @@ export class BacktestsListComponent implements OnInit {
 
   loadRuns(): void {
     this.isLoading.set(true);
+    this.runsError.set(null);
     this.backtestService.getRuns(this.page(), this.pageSize).subscribe({
       next: (result) => {
         this.isLoading.set(false);
         this.runs.set(result.items);
         this.totalCount.set(result.totalCount);
       },
-      error: () => this.isLoading.set(false),
+      error: () => {
+        this.isLoading.set(false);
+        this.runsError.set('SQX.BACKTESTS.RUNS_ERROR');
+      },
     });
   }
 
   loadCalibrations(): void {
+    this.calibrationsError.set(null);
     this.backtestService.getCalibrations().subscribe({
       next: (data) => this.calibrations.set(data),
+      // Without this the rejection escapes the component entirely as an unhandled error and the
+      // panel still renders "no calibrations yet".
+      error: () => this.calibrationsError.set('SQX.BACKTESTS.CALIBRATIONS_ERROR'),
     });
   }
 

@@ -240,6 +240,8 @@
       "EMPTY_RUNS": "Aún no se importaron backtests.",
       "CALIBRATIONS_TITLE": "Calibraciones por Símbolo",
       "EMPTY_CALIBRATIONS": "Aún no hay calibraciones.",
+      "RUNS_ERROR": "No se pudieron cargar los backtests. Verificá la conexión con la API e intentá de nuevo.",
+      "CALIBRATIONS_ERROR": "No se pudieron cargar las calibraciones de símbolos. Verificá la conexión con la API e intentá de nuevo.",
       "PAGE_PREV": "Anterior",
       "PAGE_NEXT": "Siguiente",
       "PAGE_INFO": "Página {{page}} de {{totalPages}}",

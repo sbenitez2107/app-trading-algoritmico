@@ -8,7 +8,7 @@ namespace AppTradingAlgoritmico.Domain.Entities;
 /// This entity OWNS <see cref="OosFromDate"/>. The boundary is never copied onto a
 /// <see cref="BacktestRun"/> or a <see cref="BacktestTrade"/>: a value owned by A and copied onto
 /// B cannot observe A changing, so re-importing a newer export would leave every run pinned to the
-/// stale boundary. Because it is owned here and read through <c>OosWindowResolver</c>, a run
+/// stale boundary. Because it is owned here and read through <c>OosWindow.Resolver</c>, a run
 /// imported BEFORE its export needs no re-import when the export finally arrives — the boundary
 /// simply becomes obtainable. See design.md D10.
 /// </para>

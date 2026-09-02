@@ -45,6 +45,16 @@
     font-size: 0.875rem;
   }
 
+  // A failed load, styled so it cannot be mistaken for the muted "nothing here yet" line.
+  &__error {
+    background-color: rgba(243, 139, 168, 0.15);
+    border: 1px solid var(--color-error, #f38ba8);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    color: var(--color-error, #f38ba8);
+    font-size: 0.875rem;
+  }
+
   &__table {
     width: 100%;
     border-collapse: collapse;

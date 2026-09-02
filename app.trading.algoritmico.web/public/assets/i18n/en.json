@@ -240,6 +240,8 @@
       "EMPTY_RUNS": "No backtest runs imported yet.",
       "CALIBRATIONS_TITLE": "Symbol Calibrations",
       "EMPTY_CALIBRATIONS": "No calibrations yet.",
+      "RUNS_ERROR": "Could not load backtest runs. Check the API connection and try again.",
+      "CALIBRATIONS_ERROR": "Could not load symbol calibrations. Check the API connection and try again.",
       "PAGE_PREV": "Previous",
       "PAGE_NEXT": "Next",
       "PAGE_INFO": "Page {{page}} of {{totalPages}}",

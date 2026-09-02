@@ -1,4 +1,5 @@
 using AppTradingAlgoritmico.Application.Interfaces;
+using AppTradingAlgoritmico.Domain.Constants;
 using AppTradingAlgoritmico.Infrastructure.Services;
 using FluentAssertions;
 
@@ -50,6 +51,60 @@ public class WalkForwardExportParserTests
 
     private static Stream CsvStream(params string[] lines)
         => new MemoryStream(System.Text.Encoding.UTF8.GetBytes(string.Join("\r\n", lines)));
+
+    // ---- Length is a PARSING rule, shared with the columns via BacktestFieldLengths ----
+
+    [Fact]
+    public async Task ParseAsync_OverLengthParameters_RejectsTheWholeFileNamingTheRowAndTheLimit()
+    {
+        // Parameters is an opaque key=value list whose length grows with the number of optimised
+        // inputs, and it is persisted into three nvarchar(1000) columns. Left unchecked it reaches
+        // SaveChanges as "String or binary data would be truncated" — an error that is NOT
+        // transient, so the retry strategy cannot recover from it and the whole import dies with a
+        // provider message that names a column, not a file.
+        var tooLong = new string('x', BacktestFieldLengths.WalkForwardParameters + 1);
+
+        await using var stream = CsvStream(Header, Row(), Row(parameters: tooLong));
+
+        var result = await Sut.ParseAsync(stream, WfName, CancellationToken.None);
+
+        result.IsRejected.Should().BeTrue();
+        result.RejectionReason.Should().Contain("Parameters");
+        result.RejectionReason.Should().Contain("row 1");
+        result.RejectionReason.Should().Contain(BacktestFieldLengths.WalkForwardParameters.ToString());
+        result.Windows.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ParseAsync_ParametersExactlyAtTheLimit_IsAccepted()
+    {
+        // The boundary belongs to the accepting side — an off-by-one here would refuse a file the
+        // column can hold.
+        var atLimit = new string('x', BacktestFieldLengths.WalkForwardParameters);
+
+        await using var stream = CsvStream(Header, Row(), Row(parameters: atLimit));
+
+        var result = await Sut.ParseAsync(stream, WfName, CancellationToken.None);
+
+        result.IsRejected.Should().BeFalse(result.RejectionReason);
+        result.Windows.Should().HaveCount(2);
+        result.Windows[1].Parameters.Should().Be(atLimit);
+    }
+
+    [Fact]
+    public async Task ParseAsync_OverLengthFileName_RejectsTheWholeFile()
+    {
+        // The sanitised name is stored in an nvarchar(260) column, same as the trade-list side.
+        var tooLong = new string('n', BacktestFieldLengths.FileNameOrKey + 1) + ".csv";
+
+        await using var stream = CsvStream(Header, Row(), Row());
+
+        var result = await Sut.ParseAsync(stream, tooLong, CancellationToken.None);
+
+        result.IsRejected.Should().BeTrue();
+        result.RejectionReason.Should().Contain(BacktestFieldLengths.FileNameOrKey.ToString());
+        result.Windows.Should().BeEmpty();
+    }
 
     // ---- 4.1: comma decimals ----
 

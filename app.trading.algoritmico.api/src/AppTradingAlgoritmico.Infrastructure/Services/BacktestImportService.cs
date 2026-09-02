@@ -14,11 +14,10 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// Both persistence dependencies are <see cref="IBacktestDbContext"/>-shaped, so design.md D2
 /// still holds — this service structurally cannot reach <c>StrategyTrades</c> or a tracked
 /// <c>Strategy</c>. They differ in lifetime, and the difference is deliberate:
-/// <paramref name="db"/> is the request-scoped context used for recalibration and to obtain the
-/// execution strategy, while <paramref name="dbFactory"/> supplies a fresh context per ATTEMPT of
-/// the retryable write unit. Calibration stays on the shared context safely because it issues a
-/// bare <c>SaveChangesAsync</c> with no explicit transaction, which EF retries internally as one
-/// batch.
+/// <paramref name="db"/> is the request-scoped context used to obtain the execution strategy, while
+/// <paramref name="dbFactory"/> supplies a fresh context per ATTEMPT — of the retryable write unit,
+/// and of the calibration upsert, which is retried for its own reason (see
+/// <c>RecalibrateSymbolAsync</c>).
 /// </para>
 /// </summary>
 public sealed class BacktestImportService(
@@ -53,10 +52,35 @@ public sealed class BacktestImportService(
                 Path.GetFileName(file.FileName), BacktestImportOutcome.Rejected, null, null, DescribeFailure(file, ex));
         }
 
-        // Calibration runs at the END, over ALL persisted SL-closed trades for the symbol — never
-        // from the incoming file — so import order never changes the result (CAL-4).
-        if (symbol is not null)
+        if (symbol is null)
+            return result;
+
+        // CALIBRATION BOUNDARY. Calibration runs at the END, over ALL persisted SL-closed trades
+        // for the symbol — never from the incoming file — so import order never changes the result
+        // (CAL-4). By the time it runs the run and its trades are already COMMITTED, which is why
+        // its failure is reported rather than raised or swallowed:
+        //   * letting it escape turned a request whose data landed into a bare 500 — the user is
+        //     told the slot failed while the rows sit in the database;
+        //   * reporting Rejected would be the same lie in the other direction;
+        //   * catching it silently would leave a stale per-symbol point value with nothing said.
+        // So the outcome stays true and the calibration failure is named alongside it.
+        try
+        {
             await RecalibrateSymbolAsync(symbol, ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var root = ex.GetBaseException();
+            return result with
+            {
+                Reason = $"imported, but the calibration of '{symbol}' failed and its stored point value may be stale: "
+                    + $"{root.GetType().Name}: {root.Message}",
+            };
+        }
 
         return result;
     }
@@ -231,12 +255,52 @@ public sealed class BacktestImportService(
         CreatedAt = DateTime.UtcNow,
     };
 
+    /// <summary>
+    /// Recomputes and stores the symbol's calibration, retrying ONCE on a persistence conflict.
+    /// <para>
+    /// The upsert is a read-then-write against <c>SymbolCalibrations.Symbol</c>, which carries a
+    /// UNIQUE index, and concurrent imports for one symbol are the normal case rather than an edge:
+    /// the import modal submits Deploy and Evaluation as two independent requests naming the same
+    /// strategy, therefore the same symbol. On that symbol's FIRST import both requests can observe
+    /// no row and both insert; the loser's INSERT is refused, and a duplicate key is not transient,
+    /// so no execution strategy retries it away.
+    /// </para>
+    /// <para>
+    /// The retry runs on a FRESH context for the same reason the write unit does: a
+    /// <c>SaveChangesAsync</c> that threw leaves the failed entity <c>Added</c> in the change
+    /// tracker, so re-saving would re-issue the very INSERT that was just refused. On the second
+    /// attempt the read finds the winner's row and takes the UPDATE branch, so the two writers
+    /// converge on one row instead of one of them failing. A second conflict is not retried — that
+    /// is no longer a race, and hiding it behind a loop would hide a real fault.
+    /// </para>
+    /// </summary>
     private async Task RecalibrateSymbolAsync(string symbol, CancellationToken ct)
     {
+        const int MaxAttempts = 2;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await UpsertCalibrationAsync(symbol, ct);
+                return;
+            }
+            catch (DbUpdateException) when (attempt < MaxAttempts)
+            {
+                // Lost the insert race. The next attempt reads committed state and updates.
+            }
+        }
+    }
+
+    private async Task UpsertCalibrationAsync(string symbol, CancellationToken ct)
+    {
+        // A FRESH context per attempt: see RecalibrateSymbolAsync for why a retry cannot reuse one.
+        await using var calibrationDb = dbFactory.Create();
+
         // RUN SELECTION FIRST, then trades. One run per distinct ContentHash — see
         // SymbolPointValueCalibrator.SelectDistinctContentRuns for why counting every run would
         // make SampleCount report double the sample it actually has.
-        var runsForSymbol = await db.BacktestRuns
+        var runsForSymbol = await calibrationDb.BacktestRuns
             .AsNoTracking()
             .Where(r => r.Symbol == symbol)
             .Select(r => new { r.Id, r.ContentHash })
@@ -246,16 +310,16 @@ public sealed class BacktestImportService(
             .SelectDistinctContentRuns(runsForSymbol.Select(r => (r.Id, r.ContentHash)))
             .ToList();
 
-        var slClosedTrades = await db.BacktestTrades
+        var slClosedTrades = await calibrationDb.BacktestTrades
             .Where(t => t.Symbol == symbol && t.CloseType == "SL" && runIds.Contains(t.BacktestRunId))
             .ToListAsync(ct);
 
         var result = SymbolPointValueCalibrator.Calibrate(symbol, slClosedTrades, DateTime.UtcNow);
 
-        var existing = await db.SymbolCalibrations.FirstOrDefaultAsync(c => c.Symbol == symbol, ct);
+        var existing = await calibrationDb.SymbolCalibrations.FirstOrDefaultAsync(c => c.Symbol == symbol, ct);
         if (existing is null)
         {
-            db.SymbolCalibrations.Add(new SymbolCalibration
+            calibrationDb.SymbolCalibrations.Add(new SymbolCalibration
             {
                 Id = Guid.NewGuid(),
                 Symbol = symbol,
@@ -279,6 +343,6 @@ public sealed class BacktestImportService(
             existing.UpdatedAt = DateTime.UtcNow;
         }
 
-        await db.SaveChangesAsync(ct);
+        await calibrationDb.SaveChangesAsync(ct);
     }
 }
