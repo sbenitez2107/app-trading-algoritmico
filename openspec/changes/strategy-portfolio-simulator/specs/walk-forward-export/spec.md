@@ -1,5 +1,9 @@
 # Walk-Forward Export Specification
 
+> **Revision 3 — documentation reconciliation.** Corrections and additions below bring this
+> spec in line with what shipped after the correction work units. NO code changed in that pass;
+> every requirement added or amended names the test that already pins it.
+
 ## Purpose
 
 Parse and own the SQX Optimizer "Walk-Forward Results" export: the boundary
@@ -59,6 +63,41 @@ policy with the trade-list parser.
 - GIVEN a WF export using `,` instead of `;`, or missing the `Parameters` column
 - WHEN imported
 - THEN rejected before any window is persisted, naming the problem
+
+### Requirement: The WF Parser Enforces The Shared Field-Length Limits
+
+The WF-export parser MUST validate the two length-bounded values it produces
+against the SAME shared length constants the database columns are configured
+from, so an over-length value is refused while it is still data rather than
+surfacing as a non-transient truncation error at persistence time (which no
+retry strategy recovers from). The uploaded file NAME MUST NOT exceed the
+`FileNameOrKey` limit (260). A row's `Parameters` text MUST NOT exceed the
+`WalkForwardParameters` limit (1000). Both violations MUST reject the file
+WHOLE — unlike the trade list, a WF export's row ORDER carries meaning (the
+boundary is the second-to-last row's OOS start), so dropping one row would
+silently move the boundary. The `Parameters` rejection MUST name the offending
+row and the limit. A value EXACTLY at the limit MUST be accepted.
+
+#### Scenario: Over-length Parameters rejects the file, naming the row and the limit
+
+- GIVEN a WF export whose row 3 `Parameters` text exceeds 1000 characters
+- WHEN it is imported
+- THEN the file is rejected whole, naming row 3 and the 1000-character limit, and no window is persisted
+- PINNED BY `WalkForwardExportParserTests.ParseAsync_OverLengthParameters_RejectsTheWholeFileNamingTheRowAndTheLimit`
+
+#### Scenario: Parameters exactly at the limit is accepted
+
+- GIVEN a WF export whose `Parameters` text is exactly 1000 characters
+- WHEN it is imported
+- THEN the file is accepted — the check is an over-length rejection, not an off-by-one
+- PINNED BY `WalkForwardExportParserTests.ParseAsync_ParametersExactlyAtTheLimit_IsAccepted`
+
+#### Scenario: Over-length file name rejects the file
+
+- GIVEN a WF export uploaded under a file name longer than 260 characters
+- WHEN it is imported
+- THEN the file is rejected whole, naming the length and the limit, before any window is persisted
+- PINNED BY `WalkForwardExportParserTests.ParseAsync_OverLengthFileName_RejectsTheWholeFile`
 
 ### Requirement: The Parameters Field Inverts Punctuation Roles
 
@@ -135,22 +174,52 @@ or `BacktestTrade`.
 ### Requirement: A Deploy Run's OOS Window Is Underivable, Not Empty
 
 Obtaining a run's OOS boundary MUST go through exactly one function that
-returns "none" (not an empty range) when `Kind != Evaluation`, or when the
-strategy has no WF export; it returns `OosFromDate` only when `Kind ==
-Evaluation` AND a WF export exists. No other code path MUST compute an OOS
-trade subset by any other means (e.g. an ad hoc `CloseTime >=` filter).
+returns "none" (not an empty range) when ANY of three conditions holds: `Kind
+!= Evaluation`; the strategy has no WF export; or the export handed in belongs
+to a DIFFERENT strategy than the run. It returns `OosFromDate` only when `Kind
+== Evaluation` AND a WF export exists AND that export's `StrategyId` equals the
+run's. No other code path MUST compute an OOS trade subset by any other means
+(e.g. an ad hoc `CloseTime >=` filter); that containment is a single-file
+convention checked by grep, not a structural guarantee (see `design.md` D8).
+
+(Revision 3 correction: the ownership condition is new. It was previously stated
+in terms of Kind and export presence only, and the tests paired two independent
+identifiers — certifying "an unrelated strategy's boundary is valid for this run"
+as the contract. A mismatched pair yields a date produced by a different
+parameter set than the one that produced these trades.)
+
+**Delivery status — this API is built and tested, but NOT YET WIRED.** The
+per-run entry point and its trade-filtering operations have ZERO production
+callers at this revision. The only wired consumer of the boundary is the grid's
+readiness aggregate (see `account-strategies`), which correlates on `StrategyId`
+and applies the boundary comparison inside the same single file, so the
+single-source containment above genuinely holds. This requirement is retained,
+not deleted: `design.md` designates the simulator-engine slice as its consumer,
+and the boundary type exists precisely so that slice cannot fabricate an
+out-of-sample claim. Scenarios marked NOT WIRED below are pinned at domain level
+only; no shipped user-facing feature produces their result.
 
 #### Scenario: Deploy run's OOS window is "none", even with a WF export present
 
 - GIVEN strategy `S1` has a Deploy run and a WF export
 - WHEN the Deploy run's OOS window is requested
 - THEN the result is "none" — not an empty date range, not a zero-trade set computed by filtering
+- PINNED BY `OosWindowResolverTests.TryGetOosWindow_DeployRunWithAnExportPresent_YieldsNoWindowAtAll`; `WalkForwardImportServiceTests.DeployRunPlusExport_IsNotEvaluableEvenThoughBothExist`
 
-#### Scenario: Evaluation run's OOS trades once the export exists
+#### Scenario: An export owned by another strategy yields no window
 
-- GIVEN `S1`'s Evaluation run and its WF export (`OosFromDate = 2025-05-26`)
-- WHEN the OOS trade set is requested
-- THEN it is every trade with `CloseTime >= 2025-05-26`
+- GIVEN an Evaluation run belonging to `S1` and a WF export belonging to `S2`
+- WHEN the run's OOS window is requested with that export
+- THEN the result is "none" — a boundary from a different parameter set is not a boundary for these trades
+- PINNED BY `OosWindowResolverTests.TryGetOosWindow_ExportOwnedByADifferentStrategy_YieldsNoWindow`
+
+#### Scenario: Evaluation run's OOS trades once the export exists (NOT WIRED)
+
+- GIVEN `S1`'s Evaluation run and `S1`'s own WF export (`OosFromDate = 2025-05-26`)
+- WHEN the OOS trade set is requested through the per-run boundary API
+- THEN it is every trade with `CloseTime >= 2025-05-26`, the boundary date itself included
+- PINNED BY `OosWindowResolverTests.OosWindow_Filter_ReturnsOnlyTradesAtOrAfterTheBoundary`; `.OosWindow_Includes_IsInclusiveOfTheBoundaryItself`; `.TryGetOosWindow_EvaluationRunWithAnExport_YieldsTheExportsBoundary`
+- NOT WIRED — domain-level only; no production caller produces this set at this revision
 
 ### Requirement: A Run Imported Before Its WF Export Stays Valid, Turns Green Later Without Re-Import
 

@@ -375,7 +375,16 @@ needs 2 and 4; Phase 6 (marker) needs 4's WF entities; Phase 7 (Angular) needs 5
       `Reattributed`, `import-backtests-modal`, `api/backtests/import`. AC: zero
       hits outside `openspec/changes/**` history.
 - [x] 8.5 [S] Map all 24 requirements / 48 scenarios across the 5 spec domains to
-      a named passing test. AC: no orphaned requirement, no orphaned test.
+      a named passing test. **AC RESTATED (revision 3):** every requirement maps
+      to at least one named passing test, and every mapping is recorded in the
+      compliance matrix. That is what was actually achieved.
+      **The ORIGINAL AC — "no orphaned requirement, no orphaned test" — was NOT
+      met and must not be read as if it were.** Verify found two orphaned
+      requirement clauses (the per-run OOS boundary API with zero production
+      callers; the unimplemented "insufficient sample (n/3)" reporting clause) and
+      eight behaviours pinned by tests that no requirement described. Both
+      directions are closed by **R3.9** below, not by this task. Task 8.4's orphan
+      sweep is unaffected — verify re-ran it independently and its AC holds.
 
 ## Threat Matrix
 
@@ -398,10 +407,12 @@ end-of-batch calibration was CLOSED in revision 3 (WU5) — see below.
 
 ---
 
-# REVISION 3 — rev2 review correction (8 corroborated findings, 1 transaction, 8 work units)
+# REVISION 3 — rev2 review correction (8 corroborated findings, 1 transaction, 8 work units) + R3.9 spec reconciliation
 
-Not new feature work: every item below repairs something the rev2 review proved
-wrong in shipped code. Baseline backend 352 / frontend 366; final 365 / 371.
+Not new feature work: R3.1–R3.8 repair something the rev2 review proved wrong in
+shipped code. Baseline backend 352 / frontend 366; final 365 / 371.
+**R3.9 was added AFTER verify** and is documentation only — it changes no source
+and no test, and the suites stay at 365 / 371.
 
 ## Visible defects
 
@@ -461,6 +472,23 @@ wrong in shipped code. Baseline backend 352 / frontend 366; final 365 / 371.
       certifying "an unrelated strategy's boundary is valid for this run" as the
       contract. Ownership check added; fixtures now share an owning strategy.
       AC: a foreign export yields no window.
+
+- [x] R3.9 [WU9] **Spec reconciliation (documentation only — no source or test
+      file touched).** The five delta specs were written for revision 2 and never
+      revisited across the eleven correction work units, so three drifts reached
+      the archive candidate: the `account-strategies` readiness rule still described
+      the pre-correction run-row shape and contradicted its own fourth scenario;
+      eight corrected behaviours were pinned by tests that no requirement described;
+      and the per-run OOS boundary API read as though it ships when it has zero
+      production callers. Also corrected: `sqx-backtest-import`'s unsatisfiable
+      "666 rows" claim (the OOST fixture is rejected whole, so 329 / F1 only), the
+      same dead arithmetic in `strategy-model`, and the stale "185 SL closes"
+      rationale in `symbol-point-value-calibration` (re-based to 90 in revision 2).
+      The unimplemented "insufficient sample (n/3)" reporting clause was NARROWED
+      out of its MUST and recorded as deferred, rather than archived as a guarantee
+      no code provides. AC: no requirement asserts behaviour the code contradicts;
+      every requirement added names the shipped test that pins it; every remaining
+      gap is stated in the spec text instead of promised.
 
 ## Deliberately NOT fixed in revision 3 (recorded in the ledger)
 

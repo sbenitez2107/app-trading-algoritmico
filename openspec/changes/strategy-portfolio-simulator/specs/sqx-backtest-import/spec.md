@@ -1,5 +1,9 @@
 # SQX Backtest Import Specification
 
+> **Revision 3 — documentation reconciliation.** Corrections and additions below bring this
+> spec in line with what shipped after the correction work units. NO code changed in that pass;
+> every requirement added or amended names the test that already pins it.
+
 ## Purpose
 
 Import AlgoWizard trade-list CSV exports as strategy-scoped backtest runs.
@@ -76,11 +80,18 @@ type, Close type, MAE ($), MFE ($), Time in trade, Comment). `Open price` and
 Parsing MUST be culture-invariant and MUST NOT apply one shared decimal
 policy to the whole file.
 
-#### Scenario: Both fixtures parse with the correct per-column convention
+#### Scenario: The importable fixture parses with the correct per-column convention
 
-- GIVEN `ListOfTrades_XAUUSD_H1_IST.csv` (329 rows) and `_OOST.csv` (337 rows) — 666 rows total
-- WHEN each is imported
-- THEN every row's `OpenPrice`/`ClosePrice` parses as dot-decimal (e.g. `"1066.19"` → `1066.19`) and every row's `Size`/`Profit/Loss`/`Balance`/`MAE`/`MFE` parses as comma-decimal (e.g. `"0,44000"` → `0.44000`), across all 666 rows, regardless of host culture
+- GIVEN `ListOfTrades_XAUUSD_H1_IST.csv` — 329 rows, the only committed trade-list fixture that is importable as a run
+- WHEN it is imported
+- THEN every row's `OpenPrice`/`ClosePrice` parses as dot-decimal (e.g. `"1066.19"` → `1066.19`) and every row's `Size`/`Profit/Loss`/`Balance`/`MAE`/`MFE` parses as comma-decimal (e.g. `"0,44000"` → `0.44000`), across all 329 rows, regardless of host culture
+- PINNED BY `SqxTradeListParserTests.ParseAsync_F1Fixture_Parses329Rows`; `.ParseAsync_UnderDeDeCulture_ProducesIdenticalResult`
+
+(Revision 3 correction: this scenario previously demanded "both fixtures … 666 rows
+total", counting `_OOST.csv`'s 337 rows. The single-sample-type requirement below
+rejects that fixture WHOLE, so no row of it is ever parsed into a run — the 666-row
+claim was unsatisfiable by construction, not merely untested. `_OOST.csv` survives
+only as that rejection's regression fixture.)
 
 #### Scenario: A single shared decimal policy would corrupt one side (must-fail guard)
 
@@ -126,6 +137,71 @@ file's `Sample type` literal on every `BacktestTrade`.
 - WHEN imported as a Deploy or Evaluation run
 - THEN rejected naming both observed values, zero trades persisted (this fixture is retained only as this rejection's regression fixture)
 
+### Requirement: A File With No Usable Trade Row Is Rejected Whole, Never Imported As A Success
+
+A trade-list file that yields ZERO accepted trade rows MUST be rejected at
+FILE level and MUST NOT be reported as a successful import. Both shapes count:
+a file carrying only a valid header and no data rows, and a file whose every
+data row was individually rejected. The rejection message MUST distinguish the
+two cases and MUST state how many data rows were rejected in the second. This
+guard MUST run AFTER the single-symbol and single-sample-type guards, so a file
+failing one of those still receives the more specific diagnosis. A rejected file
+MUST leave an already-occupied `(StrategyId, Kind)` slot exactly as it was — the
+outcome `Rejected` writes nothing, and is the fourth outcome alongside
+`Imported`/`Unchanged`/`Replaced`.
+
+#### Scenario: A header-only file is rejected, not counted as an import
+
+- GIVEN a file with a valid 16-column trade-list header and no data rows
+- WHEN it is imported to a slot
+- THEN the outcome is `Rejected`, naming "no trade rows", and nothing is persisted
+- PINNED BY `SqxTradeListParserTests.ParseAsync_HeaderOnlyFile_IsRejectedWholeAndNotReportedAsASuccessfulImport`
+
+#### Scenario: Every data row rejected rejects the file, naming the count
+
+- GIVEN a file whose every data row is individually rejected
+- WHEN it is imported
+- THEN the outcome is `Rejected`, naming "no usable trade rows" and the number of rejected rows
+- PINNED BY `SqxTradeListParserTests.ParseAsync_EveryDataRowRejected_RejectsTheWholeFileNamingTheCount`
+
+#### Scenario: A rejected file does not wipe an occupied slot
+
+- GIVEN `S1`'s Deploy slot already holds a run with its trades
+- WHEN a header-only file is imported to that same slot
+- THEN the outcome is `Rejected` and the existing run and all its trades remain intact — no `Replaced`, no partial delete
+- PINNED BY `BacktestImportServiceTests.ImportTradeListAsync_HeaderOnlyFileIntoAnOccupiedSlot_LeavesTheRunIntact`
+
+### Requirement: The Read Page Distinguishes A Backend Failure From An Empty Dataset
+
+The backtests read page loads runs and calibrations as TWO independent requests.
+A failing request MUST surface an error message in that panel, rendered with an
+assertive live-region role, and MUST NOT fall through to the panel's "nothing
+imported yet" empty state — the two are different facts and rendering them
+identically hides an outage. The two panels MUST fail independently: a
+calibration outage MUST NOT claim the runs list failed. An error MUST clear once
+a later load of the same panel succeeds.
+
+#### Scenario: A failing runs load shows an error, not the empty state
+
+- GIVEN the runs request fails
+- WHEN the page loads
+- THEN the runs panel renders the error and does NOT render its empty state
+- PINNED BY `backtests-list.component.spec.ts > loadRuns_WhenTheRequestFails_ShowsAnErrorAndNotTheEmptyState`
+
+#### Scenario: The calibrations panel fails independently
+
+- GIVEN the calibrations request fails while the runs request succeeds
+- WHEN the page loads
+- THEN only the calibrations panel reports an error; the runs panel renders its rows normally
+- PINNED BY `backtests-list.component.spec.ts > loadCalibrations_WhenTheRequestFails_ShowsAnErrorAndNotTheEmptyState`
+
+#### Scenario: A recovered load clears the error
+
+- GIVEN the runs panel is showing an error from a previous failed load
+- WHEN a later runs load succeeds
+- THEN the error is cleared and the rows are rendered
+- PINNED BY `backtests-list.component.spec.ts > loadRuns_AfterAFailure_ClearsTheErrorOnceItSucceeds`
+
 ### Requirement: Run Identity Is (StrategyId, Kind); ContentHash Is A De-Dup Key, Not Identity
 
 `BacktestRun` identity MUST be the unique pair `(StrategyId, Kind)`.
@@ -135,7 +211,9 @@ Importing into an empty `(StrategyId, Kind)` slot MUST produce `Imported`.
 Importing into an occupied slot with identical `ContentHash` MUST produce
 `Unchanged` and write nothing. Importing into an occupied slot with a
 different `ContentHash` MUST produce `Replaced`: prior trades removed, new
-trades inserted, no second run created.
+trades inserted, no second run created. These three outcomes describe an
+ACCEPTED file only; a file rejected at parse time produces `Rejected` and leaves
+the slot untouched (see "A File With No Usable Trade Row Is Rejected Whole").
 
 #### Scenario: Import into an empty slot
 

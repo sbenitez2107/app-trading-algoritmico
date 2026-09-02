@@ -427,8 +427,15 @@ and no data migration exists. ONE migration, `ReshapeBacktestRunsForStrategyScop
    (UNIQUE `(WalkForwardExportId, RowIndex)`, cascade).
 5. ADD index `BacktestTrades(BacktestRunId, CloseTime)` for D12's aggregate.
 
-`Down` restores revision 1's shape; zero data loss because there is no data. The
-`DeriveBacktestRunAttributionStatus` migration already dropped its column — nothing to undo, only the
+`Down` restores revision 1's shape and **discards every imported backtest run and trade** to do it.
+That is deliberate, and it was corrected after review: the original `Down` recreated unique indexes
+over columns it had just backfilled with a constant, so any account holding more than one run — the
+normal steady state, one Deploy slot plus one Evaluation slot — could not roll back at all. It threw
+instead of reverting. It now issues `DELETE FROM [BacktestTrades]` and `DELETE FROM [BacktestRuns]`
+ahead of every constraint those rows would violate, and states the loss at the point it happens. A
+rollback of a table-dropping migration is inherently lossy; what is not acceptable is one that
+refuses to run. The data is re-importable from the source CSVs.
+The `DeriveBacktestRunAttributionStatus` migration already dropped its column — nothing to undo, only the
 enum and the method to delete. Frontend rolls back independently; `sqx/backtests` survives read-only.
 
 Review budget: forecast **High**. Suggested slices: (1) WF parser + robustness calculator + their
