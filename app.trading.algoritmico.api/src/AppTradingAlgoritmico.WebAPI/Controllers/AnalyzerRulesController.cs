@@ -9,9 +9,7 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 [Route("api/analyzer-rules")]
 [Authorize]
 [Produces("application/json")]
-public class AnalyzerRulesController(
-    IAnalyzerRuleService service,
-    ILogger<AnalyzerRulesController> logger) : ControllerBase
+public class AnalyzerRulesController(IAnalyzerRuleService service) : ControllerBase
 {
     /// <summary>Returns all analyzer rules.</summary>
     [HttpGet]

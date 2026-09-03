@@ -9,9 +9,7 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 [Route("api/batches/{batchId:guid}/stages")]
 [Authorize]
 [Produces("application/json")]
-public class BatchStagesController(
-    IBatchStageService service,
-    ILogger<BatchStagesController> logger) : ControllerBase
+public class BatchStagesController(IBatchStageService service) : ControllerBase
 {
     /// <summary>Returns details of a specific pipeline stage.</summary>
     [HttpGet("{stageId:guid}")]

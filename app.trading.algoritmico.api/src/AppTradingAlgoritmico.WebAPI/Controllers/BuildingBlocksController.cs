@@ -9,9 +9,7 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 [Route("api/building-blocks")]
 [Authorize]
 [Produces("application/json")]
-public class BuildingBlocksController(
-    IBuildingBlockService service,
-    ILogger<BuildingBlocksController> logger) : ControllerBase
+public class BuildingBlocksController(IBuildingBlockService service) : ControllerBase
 {
     /// <summary>Returns all building blocks.</summary>
     [HttpGet]
