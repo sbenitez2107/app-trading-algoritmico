@@ -1,0 +1,84 @@
+{
+  "lineage_id": "trade-risk-normalization",
+  "generation": 1,
+  "mode": "ordinary",
+  "target_commit": "16b0cb37470e6841a53937b38c3b92b9877dceeb",
+  "final_candidate_tree": "a2a2c19ebb65e273cdcb460c69988ea260bde909",
+  "paths_digest": "sha256:b41e83ded0e266af2a8fe006bf482f99f5bfa217dd915cee7ba1bfdb932c9d24",
+  "reviewed_file_count": 17,
+  "frozen": true,
+  "lens": "reliability",
+  "severe_count": 0,
+  "findings": [
+    {
+      "id": "RELIABILITY-001",
+      "lens": "reliability",
+      "location": "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Infrastructure/Services/TradeResizer.cs:49,111",
+      "severity": "WARNING",
+      "evidence_class": "inferential",
+      "claim": "scale = target/A is rounded to 28 digits before multiplying, so Math.Floor(size*scale/step) can land one step below the correct multiple. Produces a silently under-sized position labelled OnTarget.",
+      "proof_refs": "Orchestrator executed the case in a scratch console project: A=199.98, target=66.66, size=3.00, step=0.01 gives 0.99 against an exact 1.00. Sweep 0.01-10.00 x 12 targets: disagreements a few percent, 0 upward. Rate is target-set dependent and is deliberately not quoted as a fixed percentage.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-002",
+      "lens": "reliability",
+      "location": "TradeResizer.cs:61,113-114",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "A Size <= 0 row was given ResizedSize = MinLot and counted in RaisedToMinimumCount (documented as OVER-risked) while its achieved risk was null and counted in UnknownAchievedRiskCount. Two reported aggregates contradict each other for one row.",
+      "proof_refs": "TradeResizer.cs:61 passed the row unfiltered to ResizeOne; :113 floored<MinLot is true for original<=0.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-003",
+      "lens": "reliability",
+      "location": "TradeRiskNormalizer.cs:268",
+      "severity": "WARNING",
+      "evidence_class": "inferential",
+      "claim": "D1's deterministic tie-break (most-covered lower endpoint, SMALLEST wins) has no test that constrains it; inverting the comparison is not detectably wrong on any available fixture.",
+      "proof_refs": "On IST a candidate covering all 90 bands must be >= max(low) = 199.98 and candidates are lows <= 199.98, so the maximum-coverage candidate is unique and the tie-break never fires. No synthetic test constructs an explicit tie of two distinct lows.",
+      "status": "open"
+    },
+    {
+      "id": "RELIABILITY-004",
+      "lens": "reliability",
+      "location": "TradeResizer.cs:44-49,111-114",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "Resize accepted any targetRiskPerTrade including 0 and negatives; a negative target floored negative, tripped the <MinLot branch, and returned a complete non-refused series with every trade at MinLot.",
+      "proof_refs": "No guard existed at TradeResizer.cs:44-49; TradeResizerTests covered only 200m, 2.00m, 40_000m, 100m and A.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-005",
+      "lens": "reliability",
+      "location": "openspec/changes/trade-risk-normalization/specs/trade-risk-normalization/spec.md:35-36",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "The spec defined Unavailable as 'the run failed to estimate A', contradicting design D5 (a per-row label) and unreachable given D4 (a refused run emits no rows at all).",
+      "proof_refs": "spec.md:35-36 vs design.md:79 and TradeRiskNormalizer.cs:179-180; RunRiskProfile is null on refusal.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-006",
+      "lens": "reliability",
+      "location": "TradeResizer.cs:44; RunRiskProfile.cs:17-19",
+      "severity": "SUGGESTION",
+      "evidence_class": "deterministic",
+      "claim": "Resize takes a LotGrid unrelated to the grid the profile was normalised on - RunRiskProfile carries no grid - so a mismatched pair is silently accepted. The precondition is stated nowhere.",
+      "proof_refs": "RunRiskProfile.cs:17-19 has no Grid member; TradeRiskNormalizer.cs:131 consumes and discards the grid.",
+      "status": "open"
+    },
+    {
+      "id": "RELIABILITY-007",
+      "lens": "reliability",
+      "location": "TradeRiskNormalizerEstimateTests.cs, TradeResizerTests.cs, TradeRiskNormalizerNormalizeTests.cs",
+      "severity": "SUGGESTION",
+      "evidence_class": "deterministic",
+      "claim": "Five tests invoke no production code under review and would still pass if TradeRiskNormalizer and TradeResizer were deleted. They characterise the committed CSVs but give no regression protection for the behaviour they are filed under.",
+      "proof_refs": "Each named test body calls only RawTradeListFixture plus local helpers.",
+      "status": "open"
+    }
+  ]
+}

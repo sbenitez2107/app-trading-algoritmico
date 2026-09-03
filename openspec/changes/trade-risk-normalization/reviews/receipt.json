@@ -1,0 +1,37 @@
+{
+  "lineage_id": "trade-risk-normalization",
+  "generation": 1,
+  "mode": "ordinary",
+  "target_commit": "16b0cb37470e6841a53937b38c3b92b9877dceeb",
+  "final_candidate_tree": "a2a2c19ebb65e273cdcb460c69988ea260bde909",
+  "paths_digest": "sha256:b41e83ded0e266af2a8fe006bf482f99f5bfa217dd915cee7ba1bfdb932c9d24",
+  "reviewed_file_count": 17,
+  "result": "approved",
+  "authoritative": false,
+  "validator_issued": false,
+  "WARNING": "This is a RECORD of a review that took place, not a validator-issued content-bound receipt. This environment has no gentle-ai CAS store under <git-common-dir> and no review-validate / review-resume / review-bundle-import tooling exists on PATH or under ~/.claude. No content-addressed chain, genesis event or bundle digest was ever created for this or any prior change in this repository. A lifecycle gate MUST NOT treat this file as a validated receipt: nothing here was produced or checked by the native validator, and the hashes below were computed by the orchestrator from git.",
+  "blobs": {
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/NormalizedTrade.cs": "e382cc92ae975d5d6e114c7e8e4178731ed73562",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/ResizedTrade.cs": "1eedae2550f1a72a31c6c5493778b6fccad8b174",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/ResizedTradeSeries.cs": "1c53422492da3fa485d0764f1cfefc906d9bce7b",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/RunRiskEstimate.cs": "22e8bec681bac53442606214cbef26dfdeb9caf1",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/RunRiskProfile.cs": "7f656a7407c9b090cae4529b0bad0746e1ffbf70",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Application/DTOs/Backtests/TradeRiskInterval.cs": "bf1238b6d034e6e67aa4232d18241ad5bc13e593",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Domain/Backtests/LotGrid.cs": "6397d13a7f975260fba3bab159f4981206bb28c2",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Domain/Enums/ResizeOutcome.cs": "eb971af670a80453f3ecb7d3efb07281f789ff4b",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Domain/Enums/RiskBasis.cs": "9fcc65d085d643591247b0520fd4ab6774617710",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Domain/Enums/RunRiskEstimateStatus.cs": "82bfdcea271dd73b0f1dedecb50fbfe0113f86a5",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Infrastructure/Services/TradeResizer.cs": "8f288451fefdd7e7d579922d7492527c2693d650",
+    "app.trading.algoritmico.api/src/AppTradingAlgoritmico.Infrastructure/Services/TradeRiskNormalizer.cs": "a2cbc43125e4d8428cdc590c948dd1ef385a64c7",
+    "app.trading.algoritmico.api/tests/AppTradingAlgoritmico.UnitTests/Backtests/LotGridTests.cs": "c165650258fe76255e6b0167404b473279adf814",
+    "app.trading.algoritmico.api/tests/AppTradingAlgoritmico.UnitTests/Backtests/RawTradeListFixture.cs": "a5250dcc68263e23f435f6bb4c98e884970cf460",
+    "app.trading.algoritmico.api/tests/AppTradingAlgoritmico.UnitTests/Backtests/TradeResizerTests.cs": "8fab4b1e1d6953fcfc7c2dc36ea691d6f389a05e",
+    "app.trading.algoritmico.api/tests/AppTradingAlgoritmico.UnitTests/Backtests/TradeRiskNormalizerEstimateTests.cs": "74b01536e2037219be39874b9637516ddb8c23ac",
+    "app.trading.algoritmico.api/tests/AppTradingAlgoritmico.UnitTests/Backtests/TradeRiskNormalizerNormalizeTests.cs": "8cbf3edd064d286f0bc54be084881bd62d27c597"
+  },
+  "evidence": {
+    "tests": "417/417 passed, 0 failed, 0 skipped",
+    "build": "dotnet build AppTradingAlgoritmico.slnx -warnaserror: 0 warnings, 0 errors (as of ac2fe4d)",
+    "verify_passes": 2
+  }
+}

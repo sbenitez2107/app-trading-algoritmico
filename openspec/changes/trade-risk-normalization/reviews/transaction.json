@@ -1,0 +1,62 @@
+{
+  "lineage_id": "trade-risk-normalization",
+  "generation": 1,
+  "mode": "ordinary",
+  "target_commit": "16b0cb37470e6841a53937b38c3b92b9877dceeb",
+  "final_candidate_tree": "a2a2c19ebb65e273cdcb460c69988ea260bde909",
+  "paths_digest": "sha256:b41e83ded0e266af2a8fe006bf482f99f5bfa217dd915cee7ba1bfdb932c9d24",
+  "reviewed_file_count": 17,
+  "state": "approved",
+  "counters": {
+    "initial_lens_sweeps": 1,
+    "refuter_batches": 0,
+    "correction_transactions": 1,
+    "scoped_validations": 1
+  },
+  "lenses_run": [
+    "review-reliability"
+  ],
+  "refuter_invoked": false,
+  "refuter_skipped_reason": "Zero severe (BLOCKER/CRITICAL) findings. The contract routes only severe inferential findings to a refuter.",
+  "correction": {
+    "findings_addressed": [
+      "RELIABILITY-001",
+      "RELIABILITY-002",
+      "RELIABILITY-004",
+      "RELIABILITY-005"
+    ],
+    "findings_deferred": [
+      "RELIABILITY-003",
+      "RELIABILITY-006",
+      "RELIABILITY-007"
+    ],
+    "method": "strict TDD; all four tests confirmed RED before implementation",
+    "test_evidence": "413/413 before, 417/417 after; -warnaserror clean on Domain/Application/Infrastructure"
+  },
+  "scoped_validation": {
+    "verdict": "approve",
+    "method": "src/ and tests/ copied to a scratch directory outside the repo; each fix reverted individually and the resizer suite re-run",
+    "result": "each of the four new tests fails under its own revert and only its own; the other tests stay green under every revert, confirming the pre-existing suite could not see these defects",
+    "appended_findings": [
+      {
+        "id": "SCOPED-FIX-VALIDATOR-001",
+        "severity": "SUGGESTION",
+        "claim": "Docs still read 'three things'/'three counts' after a fourth outcome was added; UnscalableCount had no <param> tag.",
+        "status": "fixed"
+      },
+      {
+        "id": "SCOPED-FIX-VALIDATOR-002",
+        "severity": "SUGGESTION",
+        "claim": "The figure '416/12000 (3.5%)' written into design.md and a code comment is not independently reproducible: the sweep's target set was never recorded, and an independent sweep gave 283/12000.",
+        "status": "fixed"
+      }
+    ]
+  },
+  "independent_verification": {
+    "passes": 2,
+    "final_verdict": "PASS",
+    "critical": 0,
+    "warning": 0,
+    "suggestion": 4
+  }
+}
