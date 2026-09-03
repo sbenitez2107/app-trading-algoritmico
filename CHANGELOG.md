@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.0] - 2026-09-03
+
+### Added
+- **Risk normalisation for imported backtests** — a calculator that recovers the dollar amount a StrategyQuant X run actually risked per trade, by inverting its lot rounding over the stop-loss-closed trades. It is measured from the run's own data and never seeded from the configured amount: on the reference 2-decimal export it recovers a band of `[199.98, 200.16)` that brackets the configured $200 without being told it, consistent with all 90 stop-loss closes.
+- **Every trade's risk is an interval with a stated provenance**, not a number. A stop-loss close is measured from its adverse excursion; any other close type is imputed from the run's estimate, because a trailing stop changes the exit and not the sizing; a trade pinned at the grid's minimum or maximum lot has one side of its interval open. The type deliberately exposes no way to collapse an interval to a bare figure.
+- **A resizer that reports what the lot grid actually achieves** rather than assuming the target was hit. Rounding is floor in both directions, matching the observed behaviour that realised risk tops out just under the target and never above it. Trades the grid cannot express are labelled and counted — raised to the minimum, capped at the maximum, or unscalable — never silently clamped.
+- **Grid adequacy is reported separately from model fit.** Two different questions, and on the available exports they separate in opposite directions: consistency with the sizing model reads 100% against 93%, which cannot tell the grids apart, while the share of trades pinned at the minimum lot reads 0.3% against 33.8%. Only consistency gates; the pinning share is reported for the reader.
+
+Nothing consumes these calculators yet — portfolio analytics still run on the existing weight multiplier, and the resized output is deliberately shaped so that multiplier cannot bind to it.
+
+---
+
 ## [0.22.1] - 2026-09-01
 
 ### Fixed
