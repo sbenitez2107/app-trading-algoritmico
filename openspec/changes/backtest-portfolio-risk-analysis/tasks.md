@@ -120,7 +120,7 @@ each reverted:
 | Item | Result |
 |---|---|
 | Backend suite | **489/489** (baseline **448/448**; +41 new: 12 bridge, 29 adapter) |
-| Frontend suite | **371/371**, not re-run — PR2 changes zero web files |
+| Frontend suite | **371/371**, not re-run — PR2 changes no web *code*. Corrected by verification: the diff does touch 3 web files, but only the `0.24.1`→`0.25.0` version bump, so no code path could alter the outcome. Skipping the suite was right; "zero web files" was not. |
 | `dotnet build -warnaserror` | 0 warnings, 0 errors solution-wide |
 | `dotnet format --verify-no-changes` | clean (required one formatting pass over the new adapter block) |
 | Changed lines | **1,709** = production **774** (278 added to `PortfolioAnalyticsCalculator.cs` + 496 in eight new files) + tests **935**. Estimate was ~670; the overrun is tests and per-field provenance doc comments, the same shape as PR1 (est. 330, actual 731) |
@@ -136,7 +136,8 @@ behaviour and were proven by injected defect instead:
    (*"to be 0.5000M ... but found 0M"*) **and** PR1's `ComputeCorrelation_UnionAlignment_PinsCoefficientAndAverage`
    (*"{1M, 0.8182M}, but {1M, 1M} differs at index 1"*). Reverted; 489/489 green.
 2. **The density gate itself.** Passing `PercentilePolicy.Unconditional` on the backtest daily door
-   failed 7 tests, and the JSON assertion printed the exact failure this slice exists to prevent:
+   failed **8** tests (recorded as 7 here originally — the OOST row of a `Theory` was undercounted;
+   corrected by verification), and the JSON assertion printed the exact failure this slice exists to prevent:
    `"dailyVar95":0` in the serialised payload. Reverted.
 
 **MEASURED CORRECTION — the published VaR99 is `199.4423`, not `199.46`.** Both `design.md` (E1)
