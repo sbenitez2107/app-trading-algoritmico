@@ -434,7 +434,7 @@ stays in Slice 3.
 - [ ] The 30-calendar-day monthly VaR95 for the same run produces a non-zero estimate and clears
       the 90-day `MinHistoryDays` gate.
 - [ ] Existing portfolio and live-trade suites are green and every shipped analytics number is
-      **bit-identical** after the calculator generalisation (365/365, 371/371).
+      **bit-identical** after the calculator generalisation (419/419 before PR1, 448/448 after; 371/371 frontend).
 - [ ] A `Weight` of `1.5`, `0.5` and `0` are each refused by the bridge, naming the member and the
       weight; `1` converts and every net is unscaled.
 - [ ] The zip invariant refuses a mismatched `RowIndex` pair and accepts an OOS-filtered subset.

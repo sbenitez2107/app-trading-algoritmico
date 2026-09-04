@@ -35,14 +35,55 @@ Chain strategy: pending
 
 ## Phase 1 (PR 1): Private cores — no new behaviour
 
-- [ ] 1.1 RED: pin current live `ComputeCorrelation`/`ComputeVaR`/monthly outputs as literal expected values (backfill, not RED-first — Note A).
-- [ ] 1.2 GREEN: private nested `AlignmentMode`; extract `CorrelationMatrixCore(labels, dayMaps, AlignmentMode)`; live `ComputeCorrelation` becomes an adapter passing `Union`. Signature unchanged.
-- [ ] 1.3 RED: `SupportedPercentile(sorted, p)` returns null iff `negativeCount < floor(p*(N-1)) + 1`; table cases including `N=3860, p=0.05 → 193` and `p=0.01 → 39`.
-- [ ] 1.4 GREEN: declare `internal readonly record struct SeriesDensity` and `Measure(...)` beside `SupportedPercentile`, with the input set per 0.1. `Percentile` body untouched.
-- [ ] 1.5 GREEN: private nested `PercentilePolicy { Unconditional, RequireSupport }`; thread it as a **required** parameter through `VarFromDaily(nets, policy)` and `ComputeMonthlyVar(nets, capital, policy)`. Both are private (`:440`, `:460`), so this is not a shipped-signature change.
-- [ ] 1.6 GREEN: live `ComputeVaR` becomes an adapter passing `Unconditional`.
-- [ ] 1.7 RED: `PercentilePolicy` regression — a live series that *would* fail the support test still returns its number (`Unconditional` never gates); every shipped daily and monthly VaR bit-identical.
-- [ ] 1.8 Verify 365/365 and 371/371 green and bit-identical. Do **not** assert "`ComputeMonthlyVar` untouched" — the spec forbids that claim; the assertion is live-output bit-identical.
+- [x] 1.1 RED: pin current live `ComputeCorrelation`/`ComputeVaR`/monthly outputs as literal expected values (backfill, not RED-first — Note A).
+- [x] 1.2 GREEN: private nested `AlignmentMode`; extract `CorrelationMatrixCore(labels, dayMaps, AlignmentMode)`; live `ComputeCorrelation` becomes an adapter passing `Union`. Signature unchanged.
+- [x] 1.3 RED: `SupportedPercentile(sorted, p)` returns null iff `negativeCount < floor(p*(N-1)) + 1`; table cases including `N=3860, p=0.05 → 193` and `p=0.01 → 39`.
+- [x] 1.4 GREEN: declare `internal readonly record struct SeriesDensity` and `Measure(...)` beside `SupportedPercentile`, with the input set per 0.1. `Percentile` body untouched.
+- [x] 1.5 GREEN: private nested `PercentilePolicy { Unconditional, RequireSupport }`; thread it as a **required** parameter through `VarFromDaily(nets, policy)` and `ComputeMonthlyVar(nets, capital, policy)`. Both are private (`:440`, `:460`), so this is not a shipped-signature change.
+- [x] 1.6 GREEN: live `ComputeVaR` becomes an adapter passing `Unconditional`.
+- [x] 1.7 RED: `PercentilePolicy` regression — a live series that *would* fail the support test still returns its number (`Unconditional` never gates); every shipped daily and monthly VaR bit-identical.
+- [x] 1.8 Verify the backend suite and 371/371 green and bit-identical (419/419 before PR1, **448/448** after — the 365/365 written here originally was a stale baseline). Do **not** assert "`ComputeMonthlyVar` untouched" — the spec forbids that claim; the assertion is live-output bit-identical.
+
+### PR 1 apply record
+
+| Item | Result |
+|---|---|
+| Backend suite | **448/448** (baseline was **419/419**, not the 365/365 this checklist and the design's testing strategy still say — stale figure, carried forward from an earlier slice) |
+| Frontend suite | **371/371**, untouched — PR1 changes no web file |
+| `dotnet build -warnaserror` | 0 warnings, 0 errors solution-wide |
+| `dotnet format --verify-no-changes` | clean |
+| Changed lines | **228 insertions / 21 deletions** in `PortfolioAnalyticsCalculator.cs` + **482** new authored test lines (est. was ~330 for production+tests combined) |
+| Files | `PortfolioAnalyticsCalculator.cs` (modified) · `PortfolioAnalyticsCalculatorLiveOutputRegressionTests.cs`, `PortfolioAnalyticsPrivateCoreTests.cs` (new) |
+
+**1.1 could not be RED-first** (Note A). It backfills shipped behaviour, so all 7 of its assertions
+passed before any production change. Trustworthiness came from three recorded injected-defect runs,
+each reverted:
+
+1. `AlignmentMode.Intersection` on the live `ComputeCorrelation` adapter ⇒
+   `ComputeCorrelation_UnionAlignment_PinsCoefficientAndAverage` FAILED:
+   *"Expected correlation.Matrix[0] to be equal to {1M, 0.8182M}, but {1M, 1M} differs at index 1."*
+2. `PercentilePolicy.RequireSupport` on all three live call sites ⇒ 3 failures, all
+   `System.InvalidOperationException : Nullable object must have a value` at
+   `PortfolioAnalyticsCalculator.cs:318`. The deliberate `.Value` (rather than `?? 0m`) turns a
+   mis-wired policy into a loud crash instead of a silently published `0`.
+3. `RequireSupport` on the **monthly call site only** ⇒ 2 failures, isolating the monthly half:
+   *"Expected service.MonthlyVar95 to be -300M because Unconditional never gates: 1 negative window
+   < the 4 the relation needs, but found &lt;null&gt;"* — and the pre-existing shipped test
+   `ComputeVaR_MonthlyVar_ZeroFilledDaysDoNotDistortSums` caught it independently.
+
+**Deviations from the checklist text**, both deliberate:
+
+- `CorrelationMatrixCore(dayMaps, mode)` takes **no `labels`** parameter. Labels shape the DTO, not
+  the math; keeping them in the adapter lets PR2's `decimal?`-celled DTO reuse the same core without
+  a second signature change. The core returns `(Matrix, ObservationDays, AverageCorrelation)`.
+- 1.3 and 1.4 are pinned **by reflection** over the non-public cores. Both are non-public by design
+  (D4/D7) and their first public consumers are PR2's adapters, so PR1 has no public surface through
+  which to assert the predicate table. The reflection binding doubles as a rename tripwire.
+- 1.4 gained tests it was not paired with (it is a GREEN-only row). New production code with zero
+  coverage in the PR that introduces it was judged worse than five extra assertions.
+- The synthetic boundary rows for the support relation (`floor(p(N-1))` exactly, and one more) are
+  asserted here at the **predicate** level for both `p = 0.05` and `p = 0.01`. That does not
+  discharge 2.14, which is the same boundary at the **gate/adapter** level.
 
 ## Phase 2A (PR 2): `backtest-net-series-bridge`
 

@@ -11,6 +11,12 @@ reads `sorted[floor(p × (N-1))]`. Sorted ascending, negative-net days occupy in
 ABOVE the zero block and can never supply the mass that index needs. That index holds a negative
 value only when `negativeDayCount >= floor(p × (N-1)) + 1`.
 
+**Sign convention, stated here because every figure below depends on it.** A reported VaR is a
+**positive loss magnitude**, not the raw percentile. `VarFromDaily` returns `-p95.Value` / `-p99.Value`
+and `ComputeMonthlyVar` returns `-p05.Value`, so a percentile of `-400.19` is published as `400.19`.
+Scenarios below assert the PUBLISHED value. Confusing the two is how a raw measurement reaches a
+requirement with its sign inverted, which happened to these anchors before this sentence existed.
+
 The daily VaR at confidence `p` (0.05 for VaR95, 0.01 for VaR99) MUST be withheld — represented by
 an explicit withheld state, never rendered as a numeric `0` — whenever `negativeDayCount <
 floor(p × (N-1)) + 1`. The gate is evaluated **independently per confidence level**: a series can
@@ -50,7 +56,7 @@ have — it is what withholds a legitimately sparser monthly series that no fixt
 #### Scenario: VaR99 reports while VaR95 is withheld on the same run
 - GIVEN the IST fixture's dense daily net series (`N` = 3,860 days, 164 negative-net days)
 - WHEN both VaR95 (`p` = 0.05) and VaR99 (`p` = 0.01) are requested
-- THEN VaR99 is reported as `sorted[38]` (164 ≥ `floor(0.01 × 3859) + 1` = 39) while VaR95 is withheld (164 < 193) — one run, two verdicts, because the gate is evaluated per confidence level, not as a single blanket rule
+- THEN VaR99 is published as `199.46` — `sorted[38]` is `-199.46`, negated — because 164 ≥ `floor(0.01 × 3859) + 1` = 39, while VaR95 is withheld (164 < 193) — one run, two verdicts, because the gate is evaluated per confidence level, not as a single blanket rule
 
 #### Scenario: Clearing a non-zero-day threshold does not clear the gate
 - GIVEN a dense daily net series whose non-zero-day share is 8%+ (both fixtures above qualify) but whose negative-day count is below `floor(0.05 × (N-1)) + 1`
@@ -60,12 +66,12 @@ have — it is what withholds a legitimately sparser monthly series that no fixt
 #### Scenario: Monthly gate exists and does not fire — IST fixture
 - GIVEN the IST fixture's 30-day rolling window sums (`M` = 3,831 windows, 1,148 negative windows)
 - WHEN the monthly VaR95 is computed
-- THEN the gate clears (`1,148 >= floor(0.05 × 3,830) + 1 = 192`) and the estimate is produced as `-400.19`, not withheld
+- THEN the gate clears (`1,148 >= floor(0.05 × 3,830) + 1 = 192`) and the estimate is published as `400.19` — the percentile is `-400.19`, negated into a positive loss magnitude
 
 #### Scenario: Monthly gate exists and does not fire — OOST fixture
 - GIVEN the population matching `ListOfTrades_XAUUSD_H1_OOST.csv`'s 30-day rolling window sums (`M` = 3,775 windows, 1,203 negative windows)
 - WHEN the monthly VaR95 is computed
-- THEN the gate clears (`1,203 >= floor(0.05 × 3,774) + 1 = 189`) and the estimate is produced as `-378.62`, not withheld
+- THEN the gate clears (`1,203 >= floor(0.05 × 3,774) + 1 = 189`) and the estimate is published as `378.62` — the percentile is `-378.62`, negated into a positive loss magnitude
 
 #### Scenario: Real-account daily VaR is unchanged
 - GIVEN a real-account `StrategyTrade` daily net series with the same sparse density

@@ -684,7 +684,7 @@ Strict TDD — every row is RED first.
 | Compile/reflection | `BacktestNetSeries` has no public ctor and no scaling member; `PortfolioMemberInput(Trades: resizedSeries)` still does not compile | Pins D3's structural half and the surviving D9 facts |
 | Unit — net rescaling | `net = Profit × ResizedSize/OriginalSize`; at `target = Â` the nets reproduce `Profit` exactly; `Unscalable` rows excluded and counted, never `0` | Pins D2; the round-trip mirrors 2a's D7 test |
 | Unit — correlation | Intersection alignment: a pair with disjoint trading days yields a **withheld cell**, not `0`; `CoActiveDays` reported; all-withheld ⇒ `AverageCorrelation is null` | Pins D6 |
-| Regression | Live `ComputeCorrelation`/`ComputeVaR` **bit-identical** after the core extraction; 365/365 + 371/371 | Assert before the new adapters are wired |
+| Regression | Live `ComputeCorrelation`/`ComputeVaR` **bit-identical** after the core extraction; 419/419 -> 448/448 backend + 371/371 frontend | Assert before the new adapters are wired |
 | Determinism | Repeated calls on unchanged inputs return byte-identical payloads; grep finds no `Random`/seed in the slice | Tripwire 1 |
 | Grep | No `CloseTime >=` and no `OosWindow` reference in this slice (stronger than slice 1's one-file convention — the comparison is absent, not localised); no iteration over candidate groups | D8 + tripwire 2 |
 | Integration | Endpoint returns the analysis; a `NonUnitWeight` member yields **422** naming the member; a heterogeneous group is refused naming the disagreeing members | Existing controller test pattern |
