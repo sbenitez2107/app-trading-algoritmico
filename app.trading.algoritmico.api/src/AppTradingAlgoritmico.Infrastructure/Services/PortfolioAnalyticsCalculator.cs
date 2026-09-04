@@ -1,6 +1,8 @@
+using AppTradingAlgoritmico.Application.DTOs.Backtests;
 using AppTradingAlgoritmico.Application.DTOs.Portfolios;
 using AppTradingAlgoritmico.Application.DTOs.Trades;
 using AppTradingAlgoritmico.Domain.Entities;
+using AppTradingAlgoritmico.Domain.Enums;
 
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
@@ -501,6 +503,282 @@ public static class PortfolioAnalyticsCalculator
         }
         if (sxx == 0 || syy == 0) return 0;
         return sxy / Math.Sqrt(sxx * syy);
+    }
+
+    // -------------------------------------------------------------------------
+    // Backtest adapters — the SECOND typed door (design.md D2/D4/D4a/D4b/D6)
+    //
+    // One copy of the math, two typed doors, NO raw door. A public overload over an untyped
+    // (label, broker, dated nets) tuple would let a hand-scaled projection bind to these
+    // primitives and re-open exactly the hole slice 2a's D9 closes, so there is none.
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Historical VaR over a group of BACKTEST-derived dated series, with the density gate applied
+    /// (<see cref="PercentilePolicy.RequireSupport"/>) and NO window trim.
+    /// <para>
+    /// The two differences from the live door are stated here rather than inferred: this path
+    /// passes <c>RequireSupport</c>, so a percentile whose read index cannot reach a loss is
+    /// WITHHELD as null instead of published as <c>0.00</c>; and it evaluates every relation over
+    /// the FULL dated series, because each figure is a descriptive statistic of a stated sample and
+    /// a trailing-250-day trim would silently answer a different question.
+    /// </para>
+    /// </summary>
+    public static BacktestPortfolioRiskDto ComputeVaR(
+        decimal initialCapital, IReadOnlyList<BacktestNetSeries> members)
+    {
+        var segment = GroupSegment(members);
+        var (nets, density) = BacktestDenseSeries(members);
+
+        var (var95, var99, _, _) = VarFromDaily(nets, PercentilePolicy.RequireSupport);
+        var monthly = ComputeMonthlyVar(nets, initialCapital, PercentilePolicy.RequireSupport);
+
+        // Ordered by name, not by magnitude: the shipped path orders by Var95 descending, which a
+        // nullable figure cannot rank, and determinism is a requirement of this capability.
+        var byService = members
+            .GroupBy(m => string.IsNullOrWhiteSpace(m.FundingService) ? "—" : m.FundingService!)
+            .Select(g => BacktestServiceRisk(initialCapital, g.Key, g.ToList()))
+            .OrderBy(s => s.Service, StringComparer.Ordinal)
+            .ToList();
+
+        return new BacktestPortfolioRiskDto(
+            InitialCapital: initialCapital,
+            Method: "Historical",
+            WindowDays: 0,
+            ObservationDays: nets.Count,
+            Segment: segment,
+            DailyVar95: var95,
+            DailyVar95Percent: PercentOfCapital(var95, initialCapital),
+            DailyVar95Withheld: DailyWithholdReason(var95, nets.Count),
+            DailyVar99: var99,
+            DailyVar99Percent: PercentOfCapital(var99, initialCapital),
+            DailyVar99Withheld: DailyWithholdReason(var99, nets.Count),
+            MonthlyVar95: monthly.monthlyVar95,
+            MonthlyVar95Percent: monthly.monthlyVar95Percent,
+            MonthlyVar95Withheld: MonthlyWithholdReason(monthly.monthlyVar95, monthly.insufficientHistory, nets.Count),
+            MonthlyVarOverlappingWindows: monthly.overlappingWindows,
+            MonthlyVarIndependentWindows: monthly.independentWindows,
+            Density: density,
+            ByService: byService,
+            // Populated by the read service once a broker's limits are known. This door has no
+            // access to guardrail configuration and never derives a band position of its own (D4c).
+            VarTarget: null);
+    }
+
+    /// <summary>
+    /// The correlation matrix over a group of BACKTEST-derived dated series, aligned per pair on
+    /// the INTERSECTION of their trading days and withholding a cell the pair cannot support.
+    /// <para>
+    /// The coefficients come from the same <see cref="CorrelationMatrixCore"/> the live path uses;
+    /// what this adapter adds is the co-activity disclosure and the mapping from
+    /// <see cref="Pearson"/>'s <c>0</c>-for-undefined to an explicit withheld cell. That mapping
+    /// lives here precisely so no shipped behaviour moves.
+    /// </para>
+    /// </summary>
+    public static BacktestCorrelationDto ComputeCorrelation(IReadOnlyList<BacktestNetSeries> members)
+    {
+        var labels = members.Select(m => m.Label).ToList();
+        var segment = GroupSegment(members);
+        var (_, density) = BacktestDenseSeries(members);
+        var n = members.Count;
+
+        var dayMaps = new List<Dictionary<DateTime, decimal>>(n);
+        foreach (var member in members)
+        {
+            var map = new Dictionary<DateTime, decimal>();
+            foreach (var dated in member.Nets)
+            {
+                var day = dated.When.Date;
+                map[day] = map.GetValueOrDefault(day) + dated.Net;
+            }
+
+            dayMaps.Add(map);
+        }
+
+        if (n == 0)
+        {
+            return new BacktestCorrelationDto(
+                labels, [], [], [], 0, null, 0, IntersectionAlignmentLabel, segment, density);
+        }
+
+        var (core, observationDays, _) = CorrelationMatrixCore(dayMaps, AlignmentMode.Intersection);
+
+        var matrix = new List<IReadOnlyList<decimal?>>(n);
+        var coActiveDays = new List<IReadOnlyList<int>>(n);
+        var coActiveShare = new List<IReadOnlyList<decimal>>(n);
+        var reportedSum = 0m;
+        var reportedPairs = 0;
+        var withheldPairs = 0;
+
+        for (var i = 0; i < n; i++)
+        {
+            var row = new List<decimal?>(n);
+            var daysRow = new List<int>(n);
+            var shareRow = new List<decimal>(n);
+
+            for (var j = 0; j < n; j++)
+            {
+                if (i == j)
+                {
+                    row.Add(1m);
+                    daysRow.Add(dayMaps[i].Count);
+                    shareRow.Add(dayMaps[i].Count > 0 ? 1m : 0m);
+                    continue;
+                }
+
+                var (x, y) = IntersectionAligned(dayMaps[i], dayMaps[j]);
+                var union = UnionDayCount(dayMaps[i], dayMaps[j]);
+                daysRow.Add(x.Length);
+                shareRow.Add(union > 0 ? Math.Round((decimal)x.Length / union, 4) : 0m);
+
+                // Pearson returns 0 for both of these. A published 0 reads as "uncorrelated",
+                // which is a different claim from "undefined".
+                var supported = x.Length >= 2 && !IsConstant(x) && !IsConstant(y);
+                row.Add(supported ? core[i][j] : null);
+
+                // Counted ONCE per unordered pair — the matrix is symmetric, so counting both
+                // orientations would double every disclosure.
+                if (i >= j) continue;
+                if (supported)
+                {
+                    reportedSum += core[i][j];
+                    reportedPairs++;
+                }
+                else
+                {
+                    withheldPairs++;
+                }
+            }
+
+            matrix.Add(row);
+            coActiveDays.Add(daysRow);
+            coActiveShare.Add(shareRow);
+        }
+
+        return new BacktestCorrelationDto(
+            Labels: labels,
+            Matrix: matrix,
+            CoActiveDays: coActiveDays,
+            CoActiveShare: coActiveShare,
+            ObservationDays: observationDays,
+            // Over REPORTED cells only, and null rather than 0 when there are none.
+            AverageCorrelation: reportedPairs > 0 ? Math.Round(reportedSum / reportedPairs, 4) : null,
+            WithheldCellCount: withheldPairs,
+            Alignment: IntersectionAlignmentLabel,
+            Segment: segment,
+            Density: density);
+    }
+
+    private const string IntersectionAlignmentLabel = "Intersection";
+
+    /// <summary>
+    /// One dense daily net series for a set of already-sized members, plus the density DTO that
+    /// accompanies every figure drawn from it.
+    /// <para>
+    /// The four DAY-level counts come from <see cref="Measure"/> — the same single derivation the
+    /// gates consume, so the reported count IS the gating count. The two TRADE-level counts are
+    /// summed from the bridge, which is the only thing that knows them. This composition is the one
+    /// place that holds both (design.md 0.1).
+    /// </para>
+    /// </summary>
+    private static (List<decimal> Nets, SeriesDensityDto Density) BacktestDenseSeries(
+        IReadOnlyList<BacktestNetSeries> members)
+    {
+        var events = new List<(DateTime When, decimal Net)>();
+        foreach (var member in members)
+            foreach (var dated in member.Nets)
+                events.Add((dated.When, dated.Net));
+
+        // Initial balance is irrelevant here: only the Net of each point is read, never EquityStart.
+        var nets = AnalyticsSeries.BuildDailyNetSeries(0m, events).Select(p => p.Net).ToList();
+        var measured = Measure(nets);
+
+        return (nets, new SeriesDensityDto(
+            TradeCount: members.Sum(m => m.TradeCount),
+            ExcludedUnscalableCount: members.Sum(m => m.ExcludedUnscalableCount),
+            DenseDayCount: measured.DenseDayCount,
+            NegativeDayCount: measured.NegativeDayCount,
+            NonZeroDayCount: measured.NonZeroDayCount,
+            NegativeWindowCount: measured.NegativeWindowCount));
+    }
+
+    private static BacktestServiceRiskDto BacktestServiceRisk(
+        decimal initialCapital, string service, IReadOnlyList<BacktestNetSeries> group)
+    {
+        var (nets, density) = BacktestDenseSeries(group);
+        var (var95, _, _, _) = VarFromDaily(nets, PercentilePolicy.RequireSupport);
+        var monthly = ComputeMonthlyVar(nets, initialCapital, PercentilePolicy.RequireSupport);
+
+        return new BacktestServiceRiskDto(
+            Service: service,
+            StrategyCount: group.Count,
+            NetProfit: group.Sum(m => m.Nets.Sum(d => d.Net)),
+            DailyVar95: var95,
+            DailyVar95Percent: PercentOfCapital(var95, initialCapital),
+            DailyVar95Withheld: DailyWithholdReason(var95, nets.Count),
+            MonthlyVar95: monthly.monthlyVar95,
+            MonthlyVar95Percent: monthly.monthlyVar95Percent,
+            MonthlyVar95Withheld: MonthlyWithholdReason(monthly.monthlyVar95, monthly.insufficientHistory, nets.Count),
+            MonthlyVarOverlappingWindows: monthly.overlappingWindows,
+            MonthlyVarIndependentWindows: monthly.independentWindows,
+            Density: density);
+    }
+
+    /// <summary>
+    /// The one sample label every figure in a group is computed over. A group whose members
+    /// disagree is REFUSED by the read service, naming them; reaching this door with a mixed group
+    /// is a wiring error, so it throws rather than silently labelling the output with one member's
+    /// segment.
+    /// </summary>
+    private static BacktestSegment GroupSegment(IReadOnlyList<BacktestNetSeries> members)
+    {
+        if (members.Count == 0) return BacktestSegment.Unknown;
+
+        var distinct = members.Select(m => m.Segment).Distinct().ToList();
+        if (distinct.Count > 1)
+        {
+            throw new ArgumentException(
+                "A correlation or VaR figure implies ONE sample label, but the members carry "
+                + string.Join(", ", distinct)
+                + ". A heterogeneous group must be refused before it reaches the analytics.",
+                nameof(members));
+        }
+
+        return distinct[0];
+    }
+
+    private static decimal? PercentOfCapital(decimal? figure, decimal initialCapital)
+        => figure is null || initialCapital <= 0m ? null : figure.Value / initialCapital;
+
+    private static VarWithholdReason DailyWithholdReason(decimal? figure, int denseDayCount)
+        => figure is not null ? VarWithholdReason.None
+            : denseDayCount == 0 ? VarWithholdReason.NoSeries
+            : VarWithholdReason.InsufficientNegativeObservations;
+
+    /// <summary>
+    /// The 90-day history floor and the density gate are DIFFERENT reasons and must stay legible as
+    /// such: the first is shipped and unchanged by this slice, the second is what this slice adds.
+    /// </summary>
+    private static VarWithholdReason MonthlyWithholdReason(
+        decimal? figure, bool insufficientHistory, int denseDayCount)
+        => figure is not null ? VarWithholdReason.None
+            : denseDayCount == 0 ? VarWithholdReason.NoSeries
+            : insufficientHistory ? VarWithholdReason.InsufficientHistory
+            : VarWithholdReason.InsufficientNegativeObservations;
+
+    private static int UnionDayCount(Dictionary<DateTime, decimal> left, Dictionary<DateTime, decimal> right)
+    {
+        var union = new HashSet<DateTime>(left.Keys);
+        union.UnionWith(right.Keys);
+        return union.Count;
+    }
+
+    /// <summary>A series with no variation: <see cref="Pearson"/>'s denominator is 0 for it.</summary>
+    private static bool IsConstant(double[] values)
+    {
+        for (var i = 1; i < values.Length; i++)
+            if (values[i] != values[0]) return false;
+        return true;
     }
 
     // -------------------------------------------------------------------------

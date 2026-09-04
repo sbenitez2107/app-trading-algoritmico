@@ -56,7 +56,14 @@ have — it is what withholds a legitimately sparser monthly series that no fixt
 #### Scenario: VaR99 reports while VaR95 is withheld on the same run
 - GIVEN the IST fixture's dense daily net series (`N` = 3,860 days, 164 negative-net days)
 - WHEN both VaR95 (`p` = 0.05) and VaR99 (`p` = 0.01) are requested
-- THEN VaR99 is published as `199.46` — `sorted[38]` is `-199.46`, negated — because 164 ≥ `floor(0.01 × 3859) + 1` = 39, while VaR95 is withheld (164 < 193) — one run, two verdicts, because the gate is evaluated per confidence level, not as a single blanket rule
+- THEN VaR99 is published as `199.4423` — because 164 ≥ `floor(0.01 × 3859) + 1` = 39 — while VaR95 is withheld (164 < 193): one run, two verdicts, because the gate is evaluated per confidence level and not as a single blanket rule
+
+> `199.4423`, not `199.46`. `Percentile` computes `rank = 0.01 × 3859 = 38.59`, which is fractional,
+> so it INTERPOLATES between `sorted[38] = -199.46` and `sorted[39] = -199.43`. An earlier version of
+> this scenario said "`sorted[38]`, negated", which is the value at the lower index rather than the
+> value the function returns. The shortcut is only safe when the rank lands on a whole index or both
+> neighbours are equal — which is exactly why it survived unnoticed in the VaR95 case, where
+> `rank = 192.95` interpolates between two zeros and gives `0.00` either way.
 
 #### Scenario: Clearing a non-zero-day threshold does not clear the gate
 - GIVEN a dense daily net series whose non-zero-day share is 8%+ (both fixtures above qualify) but whose negative-day count is below `floor(0.05 × (N-1)) + 1`

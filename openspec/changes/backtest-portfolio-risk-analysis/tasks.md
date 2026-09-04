@@ -87,33 +87,99 @@ each reverted:
 
 ## Phase 2A (PR 2): `backtest-net-series-bridge`
 
-- [ ] 2.1 Create `Domain/Enums/{BacktestNetSeriesStatus,VarWithholdReason}.cs`. No `SegmentSelection`/`SegmentSource` (D8).
-- [ ] 2.2 RED: `net_i = source[i].Profit * (ResizedSize / OriginalSize)`; at `target = Â` nets reproduce `Profit` exactly (IST `Â = 199.98`).
-- [ ] 2.3 RED: a resized `RowIndex` with no source match **throws** `ArgumentException` naming it.
-- [ ] 2.4 RED: a **duplicated** source `RowIndex` throws naming it (the concatenated-runs wiring error).
-- [ ] 2.5 RED: **defensive guard, hand-built** — a `ResizedTradeSeries` constructed directly in the test with a non-contiguous strict-subset `RowIndex` set pairs correctly and does not throw on the differing count. **Must not be fixture-driven**: `TradeResizer.Resize` adds a row per trade unconditionally, so every real series has equal counts and a fixture version would be green under the rejected positional zip. Carry the "defensive, hand-constructed, no production producer" label in the test name and comment — its absence is as untestable as the guard itself.
-- [ ] 2.6 RED: `Weight` `1.5`, `0.5`, `0` each refused as a **status** naming member + weight, `Series is null`, **no throw**; `1` converts with every net unscaled. One test with both assertions covers the bridge's two weight scenarios and the `trade-risk-normalization` pointer scenario (Note D) — do not write three.
-- [ ] 2.7 RED: `Unscalable` rows contribute no net to `Nets` (not a `0`); `Nets.Count == resized.Trades.Count - ExcludedUnscalableCount`, asserted on the same series instance.
-- [ ] 2.8 GREEN: `Application/DTOs/Backtests/BacktestNetSeries.cs` — sealed **class**, private ctor, nested `public static class Bridge` with `Build`/`TryBuild(out BacktestNetSeries?)`, required `decimal memberWeight`, `BacktestSegment segment`, `ExcludedUnscalableCount`, **no `Density` member**; plus `BacktestNetSeriesResult.cs` and `DatedNet`.
-- [ ] 2.9 Reflection test: no public ctor, no scaling member, no `Density`; `PortfolioMemberInput(Trades: resizedSeries)` still does not compile.
+- [x] 2.1 Create `Domain/Enums/{BacktestNetSeriesStatus,VarWithholdReason}.cs`. No `SegmentSelection`/`SegmentSource` (D8).
+- [x] 2.2 RED: `net_i = source[i].Profit * (ResizedSize / OriginalSize)`; at `target = Â` nets reproduce `Profit` exactly (IST `Â = 199.98`).
+- [x] 2.3 RED: a resized `RowIndex` with no source match **throws** `ArgumentException` naming it.
+- [x] 2.4 RED: a **duplicated** source `RowIndex` throws naming it (the concatenated-runs wiring error).
+- [x] 2.5 RED: **defensive guard, hand-built** — a `ResizedTradeSeries` constructed directly in the test with a non-contiguous strict-subset `RowIndex` set pairs correctly and does not throw on the differing count. **Must not be fixture-driven**: `TradeResizer.Resize` adds a row per trade unconditionally, so every real series has equal counts and a fixture version would be green under the rejected positional zip. Carry the "defensive, hand-constructed, no production producer" label in the test name and comment — its absence is as untestable as the guard itself.
+- [x] 2.6 RED: `Weight` `1.5`, `0.5`, `0` each refused as a **status** naming member + weight, `Series is null`, **no throw**; `1` converts with every net unscaled. One test with both assertions covers the bridge's two weight scenarios and the `trade-risk-normalization` pointer scenario (Note D) — do not write three.
+- [x] 2.7 RED: `Unscalable` rows contribute no net to `Nets` (not a `0`); `Nets.Count == resized.Trades.Count - ExcludedUnscalableCount`, asserted on the same series instance.
+- [x] 2.8 GREEN: `Application/DTOs/Backtests/BacktestNetSeries.cs` — sealed **class**, private ctor, nested `public static class Bridge` with `Build`/`TryBuild(out BacktestNetSeries?)`, required `decimal memberWeight`, `BacktestSegment segment`, `ExcludedUnscalableCount`, **no `Density` member**; plus `BacktestNetSeriesResult.cs` and `DatedNet`.
+- [x] 2.9 Reflection test: no public ctor, no scaling member, no `Density`; `PortfolioMemberInput(Trades: resizedSeries)` still does not compile.
 
 ## Phase 2B (PR 2): `backtest-portfolio-analytics` — adapters and gates
 
-- [ ] 2.10 Create `Application/DTOs/Backtests/SeriesDensityDto.cs`: `TradeCount`, `DenseDayCount`, `NegativeDayCount`, `NonZeroDayCount`, `NegativeWindowCount`, `ExcludedUnscalableCount`.
-- [ ] 2.11 RED: IST dense series 3,860 elements, 164 negative days (4.25%), 318 non-zero (8.24%); daily VaR95 withheld (164 < 193) while **VaR99 reports `sorted[38]`** (164 ≥ 39) — one run, two verdicts, the gate evaluated per confidence level. OOST 3,804 / 172 / 320, same VaR95 verdict.
-- [ ] 2.12 RED: monthly VaR95 reports **−400.19** on IST (1,148 negative windows of M=3,831, needs ≥192) and **−378.62** on OOST (1,203 of 3,775, needs ≥189); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
-- [ ] 2.13 RED: the wrong predicate — a non-zero-day gate at 5% would REPORT both fixtures (8.24%, 8.41%) while the true daily VaR95 is `0.00`.
-- [ ] 2.14 RED: **synthetic boundary, both gates** — a constructed population with exactly `floor(p(M-1))` negative observations withholds and one more reports; mirror case for the daily gate's *reporting* branch (Note B).
-- [ ] 2.15 RED: **injected defect** — zero out all but 191 of IST's negative window sums; the monthly figure flips to withheld with the count reported.
-- [ ] 2.16 RED: **one derivation** — the payload's `NegativeDayCount`/`NonZeroDayCount`/`DenseDayCount`/`NegativeWindowCount` are the same values the gates consumed; assert on the same `SeriesDensity`/`ComputeMonthlyVar` result, never on recomputed numbers. Scope excludes `TradeCount`/`ExcludedUnscalableCount` per 0.1.
-- [ ] 2.17 RED: no trim — the backtest adapter passes `windowDays: 0`; `ObservationDays == 3,860` on IST, not 250, and the gate needs 193 not 13.
-- [ ] 2.18 RED: intersection alignment — disjoint trading days yield a withheld (`null`) cell not `0`; `CoActiveDays`/`CoActiveShare` reported with **no** co-absence caveat; `CoActiveDays < 2` or a constant series withholds; all-withheld ⇒ `AverageCorrelation is null` + `WithheldCellCount`. Live path keeps `Union`, bit-identical.
-- [ ] 2.19 GREEN: `ComputeCorrelation(IReadOnlyList<BacktestNetSeries>)` with `AlignmentMode.Intersection`; `ComputeVaR(IReadOnlyList<BacktestNetSeries>)` passing `windowDays: 0` and `PercentilePolicy.RequireSupport`.
-- [ ] 2.20 RED: no public member accepts an untyped `(label, broker, dated nets)` tuple — reflection over the calculator's public surface; only the two typed entry points are public.
-- [ ] 2.21 GREEN: `BacktestPortfolioRiskDto.cs`, `BacktestCorrelationDto.cs`, `BacktestServiceRiskDto.cs`; reuse `VarTargetReadoutDto` unchanged. No shipped DTO touched.
-- [ ] 2.22 GREEN: project `SeriesDensity` → `SeriesDensityDto` at the read-service boundary, composing the bridge-sourced counts per 0.1, per series and for the merged group series.
-- [ ] 2.23 RED: every withheld figure serialises as JSON `null`, never `0`.
-- [ ] 2.24 RED: **no band position** (D4c) — `MonthlyVar95Percent` comes only from the shipped `monthlyVar95 / initialCapital` basis with the denominator label; the slice never derives a band position from the currency figure.
+- [x] 2.10 Create `Application/DTOs/Backtests/SeriesDensityDto.cs`: `TradeCount`, `DenseDayCount`, `NegativeDayCount`, `NonZeroDayCount`, `NegativeWindowCount`, `ExcludedUnscalableCount`.
+- [x] 2.11 RED: IST dense series 3,860 elements, 164 negative days (4.25%), 318 non-zero (8.24%); daily VaR95 withheld (164 < 193) while **VaR99 reports `sorted[38]`** (164 ≥ 39) — one run, two verdicts, the gate evaluated per confidence level. OOST 3,804 / 172 / 320, same VaR95 verdict.
+- [x] 2.12 RED: monthly VaR95 reports **−400.19** on IST (1,148 negative windows of M=3,831, needs ≥192) and **−378.62** on OOST (1,203 of 3,775, needs ≥189); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
+- [x] 2.13 RED: the wrong predicate — a non-zero-day gate at 5% would REPORT both fixtures (8.24%, 8.41%) while the true daily VaR95 is `0.00`.
+- [x] 2.14 RED: **synthetic boundary, both gates** — a constructed population with exactly `floor(p(M-1))` negative observations withholds and one more reports; mirror case for the daily gate's *reporting* branch (Note B).
+- [x] 2.15 RED: **injected defect** — zero out all but 191 of IST's negative window sums; the monthly figure flips to withheld with the count reported.
+- [x] 2.16 RED: **one derivation** — the payload's `NegativeDayCount`/`NonZeroDayCount`/`DenseDayCount`/`NegativeWindowCount` are the same values the gates consumed; assert on the same `SeriesDensity`/`ComputeMonthlyVar` result, never on recomputed numbers. Scope excludes `TradeCount`/`ExcludedUnscalableCount` per 0.1.
+- [x] 2.17 RED: no trim — the backtest adapter passes `windowDays: 0`; `ObservationDays == 3,860` on IST, not 250, and the gate needs 193 not 13.
+- [x] 2.18 RED: intersection alignment — disjoint trading days yield a withheld (`null`) cell not `0`; `CoActiveDays`/`CoActiveShare` reported with **no** co-absence caveat; `CoActiveDays < 2` or a constant series withholds; all-withheld ⇒ `AverageCorrelation is null` + `WithheldCellCount`. Live path keeps `Union`, bit-identical.
+- [x] 2.19 GREEN: `ComputeCorrelation(IReadOnlyList<BacktestNetSeries>)` with `AlignmentMode.Intersection`; `ComputeVaR(IReadOnlyList<BacktestNetSeries>)` passing `windowDays: 0` and `PercentilePolicy.RequireSupport`.
+- [x] 2.20 RED: no public member accepts an untyped `(label, broker, dated nets)` tuple — reflection over the calculator's public surface; only the two typed entry points are public.
+- [x] 2.21 GREEN: `BacktestPortfolioRiskDto.cs`, `BacktestCorrelationDto.cs`, `BacktestServiceRiskDto.cs`; reuse `VarTargetReadoutDto` unchanged. No shipped DTO touched.
+- [x] 2.22 GREEN: project `SeriesDensity` → `SeriesDensityDto` at the read-service boundary, composing the bridge-sourced counts per 0.1, per series and for the merged group series.
+- [x] 2.23 RED: every withheld figure serialises as JSON `null`, never `0`.
+- [x] 2.24 RED: **no band position** (D4c) — `MonthlyVar95Percent` comes only from the shipped `monthlyVar95 / initialCapital` basis with the denominator label; the slice never derives a band position from the currency figure.
+
+### PR 2 apply record
+
+| Item | Result |
+|---|---|
+| Backend suite | **489/489** (baseline **448/448**; +41 new: 12 bridge, 29 adapter) |
+| Frontend suite | **371/371**, not re-run — PR2 changes zero web files |
+| `dotnet build -warnaserror` | 0 warnings, 0 errors solution-wide |
+| `dotnet format --verify-no-changes` | clean (required one formatting pass over the new adapter block) |
+| Changed lines | **1,709** = production **774** (278 added to `PortfolioAnalyticsCalculator.cs` + 496 in eight new files) + tests **935**. Estimate was ~670; the overrun is tests and per-field provenance doc comments, the same shape as PR1 (est. 330, actual 731) |
+| Files | 8 created (`Domain/Enums/{BacktestNetSeriesStatus,VarWithholdReason}`, `Application/DTOs/Backtests/{BacktestNetSeries,BacktestNetSeriesResult,SeriesDensityDto,BacktestPortfolioRiskDto,BacktestServiceRiskDto,BacktestCorrelationDto}`) · `PortfolioAnalyticsCalculator.cs` modified · 2 test files created · 1 PR1 test file touched by one disambiguating line |
+
+**Every 2A/2B row was RED first.** The first build after the bridge tests failed with
+`CS0246: BacktestNetSeries could not be found`; the analytics tests were likewise written and
+compiled against absent types before any adapter existed. Two rows are backfills of shipped
+behaviour and were proven by injected defect instead:
+
+1. **Live union alignment** (2.18's last clause). Flipping the live `ComputeCorrelation` adapter to
+   `AlignmentMode.Intersection` failed PR2's new `ComputeCorrelation_LivePath_StillAlignsOnTheUnion...`
+   (*"to be 0.5000M ... but found 0M"*) **and** PR1's `ComputeCorrelation_UnionAlignment_PinsCoefficientAndAverage`
+   (*"{1M, 0.8182M}, but {1M, 1M} differs at index 1"*). Reverted; 489/489 green.
+2. **The density gate itself.** Passing `PercentilePolicy.Unconditional` on the backtest daily door
+   failed 7 tests, and the JSON assertion printed the exact failure this slice exists to prevent:
+   `"dailyVar95":0` in the serialised payload. Reverted.
+
+**MEASURED CORRECTION — the published VaR99 is `199.4423`, not `199.46`.** Both `design.md` (E1)
+and `portfolio-monthly-var/spec.md` state it as "`sorted[38]` is `-199.46`, negated".
+`sorted[38] == -199.46` is correct and is pinned by its own test. The **published** figure is not:
+`Percentile` reads `rank = p * (N-1) = 0.01 * 3859 = 38.59`, which is fractional, so it
+INTERPOLATES between `sorted[38] = -199.46` and `sorted[39] = -199.43`, giving `199.44229999999999988`.
+The scenario's actual claim — VaR99 reports while VaR95 is withheld on the same run — is unaffected;
+only the literal is wrong. **Every other measured anchor held exactly**: IST 3,860 / 164 / 318,
+OOST 3,804 / 172 / 320, monthly IST 1,148 of M=3,831 -> `400.19`, OOST 1,203 of M=3,775 -> `378.62`,
+and IST trimmed to 250 has exactly 5 negative days.
+
+**Deviations from the design, all deliberate and all additive:**
+
+- `BacktestNetSeries` carries **`TradeCount`**, which the design's *Interfaces* sketch omits.
+  `SeriesDensityDto.TradeCount` is specified as bridge-sourced (0.1) and nothing else knows it.
+- `BacktestPortfolioRiskDto` carries **`ObservationDays`**, which the sketch omits; task 2.17
+  asserts it. It equals `Density.DenseDayCount` precisely because nothing is trimmed.
+- **`SeriesDensityDto` is composed in the calculator adapter, not "at the read-service boundary"**
+  as D4/0.1 states. The risk DTO *contains* the density and the adapter *builds* the risk DTO, so
+  the read service never sees a `SeriesDensity` at all. The design's stated location is not
+  reachable; its stated *reason* (one place holding both origins) is satisfied here.
+- `GroupSegment` **throws** on a mixed-segment group. PR3 owns the user-facing refusal naming the
+  members; this is the D1-class backstop so the adapter can never silently label a figure with one
+  member's segment.
+- `ByService` is ordered by service name, not by `Var95` descending as the shipped path does — a
+  nullable figure cannot rank, and determinism is a requirement of this capability.
+- `AverageCorrelation` averages the already-rounded `decimal` cells; the live core averages the
+  raw `double`s. Different payload, no shipped number moved.
+- One line of `PortfolioAnalyticsCalculatorLiveOutputRegressionTests.cs` changed: `ComputeCorrelation([])`
+  became `ComputeCorrelation(Array.Empty<PortfolioMemberInput>())`. **Adding the second typed
+  overload makes an EMPTY collection expression ambiguous (CS0121)** — a source-compatibility
+  consequence worth recording. No pinned figure was touched.
+
+**2.15 could not be implemented literally.** "Zero out all but 191 of IST's negative window sums"
+is not reachable from outside the calculator: window sums are private and the adapter takes trades.
+The implemented equivalent is IST's own window count (M = 3,831) with its negative mass built to
+exactly 191 and 192 — one either side of the threshold — via a tail-loss construction, asserting
+the verdict flips while the count stays disclosed.
+
+**PR1's verification suggestion is discharged**: `ComputeVaR_MonthlyGateBoundary_Synthetic` is a
+monthly-LABELLED boundary pair (M = 91, 4 withholds / 5 reports), removing the shared-code-path
+inferential step.
 
 ## Phase 3 (PR 3): Run selection, endpoint, UI
 

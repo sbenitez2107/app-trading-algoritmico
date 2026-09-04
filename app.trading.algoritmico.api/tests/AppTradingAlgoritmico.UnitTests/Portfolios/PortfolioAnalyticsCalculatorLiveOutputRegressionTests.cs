@@ -100,7 +100,10 @@ public class PortfolioAnalyticsCalculatorLiveOutputRegressionTests
     [Fact]
     public void ComputeCorrelation_NoMembers_PinsEmptyMatrix()
     {
-        var correlation = PortfolioAnalyticsCalculator.ComputeCorrelation([]);
+        // Explicitly typed rather than `[]`: PR2 added a second typed overload
+        // (IReadOnlyList<BacktestNetSeries>), and an EMPTY collection expression is ambiguous
+        // between them. The pinned figures below are untouched.
+        var correlation = PortfolioAnalyticsCalculator.ComputeCorrelation(Array.Empty<PortfolioMemberInput>());
 
         correlation.Labels.Should().BeEmpty();
         correlation.Matrix.Should().BeEmpty();
