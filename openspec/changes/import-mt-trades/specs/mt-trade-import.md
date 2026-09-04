@@ -62,11 +62,18 @@ until the next section marker. Each row MUST be mapped to 14 columns:
 - WHEN the parser processes it
 - THEN `CloseReason=null`
 
-#### Scenario: Unrecognised close reason suffix
+#### Scenario: Unrecognised close reason suffix is preserved, not bucketed
 
 - GIVEN a row whose title ends with `[other_value]`
 - WHEN the parser processes it
-- THEN `CloseReason=Other`
+- THEN `CloseReason="OTHER_VALUE"` — the suffix is trimmed and upper-cased, never collapsed into an `Other` bucket
+
+> Corrected after the fact. This scenario previously specified `CloseReason=Other`. Commit
+> `04cd462` deliberately changed `MtStatementParserService.MapCloseReason` to preserve the raw
+> upper-cased suffix and updated the tests; the spec was not updated with it and described a
+> system that had stopped existing. The shipped behaviour is the better one — a bucket discards
+> the only information the suffix carried — so the spec was corrected to the code, not the
+> reverse.
 
 ---
 
@@ -179,6 +186,42 @@ use an exact integer match — no fuzzy name matching.
 
 ---
 
+### Requirement: R8b — Orphan Resolution By Exact Name
+
+After attribution (R8) has produced its orphans, the service MUST attempt to resolve each orphan
+bucket by name before reporting it. For a bucket carrying a non-empty `strategyNameHint`, the
+service MUST look for strategies on the same account whose `MagicNumber` is `null` and whose
+trimmed `Name` equals the hint case-insensitively. **Exactly one** candidate resolves the bucket:
+the service back-fills that strategy's `MagicNumber`, attributes the bucket's trades to it, and
+reports it under `autoAssigned`. Zero or more than one candidate leaves the bucket an orphan.
+
+The service MUST NEVER overwrite a `MagicNumber` that is already set.
+
+This does not weaken R8. Attribution is still an exact integer match; this is a separate recovery
+step for trades attribution could not place, and the name comparison is exact — case and
+surrounding whitespace are normalised, nothing is fuzzy-matched.
+
+#### Scenario: A single unmagicked strategy matching the hint is adopted
+
+- GIVEN an orphan bucket with `magicNumber=7532499` and `strategyNameHint="WF_9_26_XAUUSD_H1_KAMA_BB_4_53"`
+- AND exactly one strategy on the account named `"WF_9_26_XAUUSD_H1_KAMA_BB_4_53"` with `MagicNumber=null`
+- WHEN the file is imported
+- THEN that strategy's `MagicNumber` becomes 7532499, the bucket's trades are attributed to it, and it appears in `autoAssigned` with its `tradeCount`
+
+#### Scenario: An ambiguous hint is left as an orphan
+
+- GIVEN an orphan bucket whose hint matches two strategies with `MagicNumber=null`
+- WHEN the file is imported
+- THEN neither is modified and the bucket remains in `orphans`
+
+#### Scenario: A strategy that already carries a magic number is never re-pointed
+
+- GIVEN a strategy whose name matches the hint but whose `MagicNumber` is already set to a different value
+- WHEN the file is imported
+- THEN its `MagicNumber` is left untouched and the bucket remains in `orphans`
+
+---
+
 ### Requirement: R9 — Idempotent Upsert
 
 The service MUST upsert each trade on `(StrategyId, Ticket)`: if the pair exists it MUST UPDATE
@@ -228,10 +271,18 @@ The endpoint MUST return `TradeImportResultDto`:
   updated: int,
   skipped: int,
   orphans: [{ magicNumber: int, strategyNameHint: string, tradeCount: int }],
+  autoAssigned: [{ strategyId: guid, strategyName: string, magicNumber: int, tradeCount: int }],
+  availableStrategies: [{ id: guid, name: string }],
   snapshot: { balance, equity, floatingPnL, margin, freeMargin, closedTradePnL, reportTime }
 }
 ```
 Orphans MUST be aggregated by magic number (one entry per distinct unmatched magic number).
+
+`autoAssigned` reports the buckets R8b resolved, so a caller can see which strategies had a
+`MagicNumber` written for them rather than discovering it later. `availableStrategies` lists the
+account's strategies so the caller can offer a manual assignment for the orphans that remain. Both
+collections are present and possibly empty; neither was in the original contract, and both were
+added additively.
 
 #### Scenario: Orphan list is aggregated
 
