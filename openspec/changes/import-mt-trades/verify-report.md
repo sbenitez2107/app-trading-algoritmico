@@ -1,93 +1,98 @@
 # Verify Report: import-mt-trades
 
-**Verified**: 2026-09-04 (first verification, no prior report existed)
-**HEAD at verification**: fdcb962 (feature originally shipped at f2e647b; three unrelated commits landed on top: 308edf2, 04cd462, 04da10a)
-**Verifier**: sdd-verify (independent, read-only)
+**Verified**: 2026-09-04 (re-verification, independent, read-only, after correction commit `8b5f3ea`)
+**HEAD at verification**: `8b5f3ea` ("fix(mt-import): correct the spec to the shipped parser and cover cascade delete")
+**Prior pass**: FAIL -- 3 CRITICAL, 4 WARNING, 1 SUGGESTION (this same verifier)
+**Verifier**: sdd-verify (independent, read-only except one temporary, fully-reverted revert experiment described below)
 
 ## Measured Evidence (run by me, not inferred)
 
-- Backend build: `dotnet build AppTradingAlgoritmico.slnx -warnaserror` -> Build succeeded, 0 Warning(s), 0 Error(s). Matches stated baseline.
-- Backend tests: `dotnet test AppTradingAlgoritmico.slnx --no-build` -> Passed: 417, Failed: 0, Skipped: 0, Total: 417. Matches stated baseline exactly.
-- Frontend tests: `pnpm run test --watch=false` (Vitest via ng test) -> 30 test files, 371 tests, all passed.
-- No database was touched (in-memory EF provider only in all backend tests; SQL Server behaviors such as cascade-delete FK enforcement and the filtered unique index are not exercised at runtime by any test -- see finding below).
+- Backend build: dotnet build AppTradingAlgoritmico.slnx -warnaserror -> Build succeeded, 0 Warning(s), 0 Error(s).
+- Backend tests: dotnet test AppTradingAlgoritmico.slnx -> Passed: 419, Failed: 0, Skipped: 0, Total: 419 (417 baseline + 2 new StrategyTradeCascadeDeleteTests). Matches the stated baseline.
+- Frontend tests: pnpm run test --watch=false -> 30 test files, 371 tests, all passed. Matches the stated baseline.
+- Revert experiment (see CRITICAL 3 below): temporarily flipped StrategyTradeConfiguration.cs line 61 to DeleteBehavior.Restrict, ran only StrategyTradeCascadeDeleteTests -> both tests FAILED with SQLite Error 19: FOREIGN KEY constraint failed. Reverted via git checkout, re-ran the full backend suite -> 419/419 green again. git status --porcelain is clean; all scratch build directories and logs created during this pass were deleted.
+- No live database was touched at any point.
 
-## Task Completion
+## Per-Finding Verdict (against the prior FAIL report)
 
-`tasks.md`: 61/61 checked (57 base + a documented post-hoc "backend gap" fix). All code referenced by the tasks exists on disk and compiles. No unchecked tasks -- full verification proceeds.
+### CRITICAL 1 -- Change never archived / spec never merged: still open by construction, not re-judged as FAIL
+Confirmed still true: import-mt-trades remains under openspec/changes/, not openspec/changes/archive/. This is expected -- archiving is a separate later step, not part of this pass. See spec-merge sanity check below.
 
-## Sharpest Finding -- Spec Was Never Merged / Change Was Never Archived
+### CRITICAL 2 -- R7 spec factually wrong: CLOSED
+Diff of 8b5f3ea on openspec/changes/import-mt-trades/specs/mt-trade-import.md changes the scenario "Unrecognised close reason suffix" to "... is preserved, not bucketed", asserting CloseReason="OTHER_VALUE" for a [other_value] suffix, with an explicit note recording the prior wording and citing 04cd462 as the deliberate parser change. Checked against the shipped code:
 
-`import-mt-trades` is still sitting in `openspec/changes/import-mt-trades/` -- it is not in `openspec/changes/archive/`. Its capability spec `mt-trade-import.md` does not exist anywhere under `openspec/specs/` (flat or directory form) -- it only exists inside this unarchived change folder.
+    MtStatementParserService.cs:235-241
+    private static string? MapCloseReason(string? suffix)
+    {
+        if (string.IsNullOrWhiteSpace(suffix)) return null;
+        return suffix.Trim().ToUpperInvariant();
+    }
 
-Regarding the `strategy-model` collision:
-- `openspec/specs/strategy-model.md` (flat) was authored by commit `d875c4e` ("feat: SQX HTML parser, Darwinex demo strategies...") -- not by this change.
-- `openspec/specs/strategy-model/spec.md` (directory) was authored by the later `sqx-backtest-import` change's own archival (`ffdbaff`).
-- Neither file contains any MagicNumber / R-M1 / R-M2 / R-M3 content. Both describe an unrelated topic: `BatchStageId` nullability and the `TradingAccount` FK on `Strategy`.
+[other_value] -> trimmed, upper-cased -> "OTHER_VALUE". Spec and code now agree exactly. PASS.
 
-Conclusion: this is not the same spec promoted twice -- it is two different changes reusing the capability name `strategy-model` for two unrelated deltas, and neither ever incorporated `import-mt-trades`'s own `strategy-model.md` delta (the MagicNumber field). The R-M1/R-M2/R-M3 requirements are fully implemented in code (verified below) but undocumented in any canonical spec -- they exist only in this never-archived change. If `import-mt-trades` is archived as-is with the standard merge step, it will try to merge into `strategy-model.md`, which already diverged for unrelated reasons -- this needs a manual, careful merge, not a blind overwrite.
+### CRITICAL 3 -- Cascade delete untested: CLOSED, verified by direct experiment, not by trusting the commit message
+StrategyTradeCascadeDeleteTests.cs adds two tests using a SQLite in-memory connection opened with Foreign Keys=True, and deletes via ExecuteSqlRaw("DELETE FROM Strategies WHERE Id = {0}", ...) rather than through the EF change tracker -- this is the right design, because a Remove()-based test would only prove EF's client-side entity-graph cascade, not that the database itself enforces it.
+
+The commit message's own claim of "verified they catch a regression" was not accepted at face value; the revert was run independently:
+- Flipped StrategyTradeConfiguration.cs line 61 from Cascade to Restrict.
+- Ran StrategyTradeCascadeDeleteTests alone -> both FAILED (FOREIGN KEY constraint failed), confirming the tests are load-bearing against this exact configuration line.
+- Reverted with git checkout, confirmed the line reads Cascade again, and re-ran the full 419-test suite -> green.
+
+One caveat worth recording precisely, because it changes what the test proves: StrategyTrade.StrategyId is declared as a non-nullable Guid (StrategyTrade.cs line 7). For a required relationship, EF Core own convention default (with no OnDelete call at all) is already Cascade -- Restrict/SetNull are not valid defaults for a required FK, because leaving the FK non-null on the child after the parent disappears would violate NOT NULL. This means the explicit OnDelete(Cascade) on line 61 is not overriding an otherwise-different convention default; it is stating the convention default explicitly. That does not weaken the test: the experiment proves the configuration line is authoritative over the applied database behavior (flipping it to Restrict demonstrably changes runtime behavior), and it proves the database -- not EF's in-memory tracker -- is the one enforcing it. It does not, and cannot, prove that removing the line entirely would produce a different outcome, because removing it would leave the convention default in place, which is also Cascade for a required FK. This is a documentation nuance, not a defect: the explicit line makes intent visible in code review and is not redundant in any way that matters for correctness. PASS, with this nuance recorded for accuracy.
+
+### WARNING (R8 no fuzzy name matching) -- reasoning independently re-derived, not deferred: AGREE, closed
+Read TradeImportService.cs lines 26-96 directly. Attribution (step 3-4) is strategiesByMagic built from strategies with MagicNumber != null keyed by MagicNumber value, looked up via TryGetValue on the trade's MagicNumber -- an exact integer-keyed dictionary lookup, nothing approximate. Auto-assign (step 4.5, lines 58-93) runs only over the leftover orphan buckets that attribution could not place, and its match filters candidates whose MagicNumber is null AND whose trimmed Name equals the hint case-insensitively, then only commits when exactly one candidate exists.
+
+This is exact string equality after trim/ordinal-ignore-case normalization -- not a similarity/fuzzy match (no edit distance, no substring, no tokenization). It also never re-points an already-magicked strategy and only commits on an unambiguous single match. This matches R8b as written in the corrected spec and matches the three new scenarios (single-candidate adopted, ambiguous hint stays orphan, already-set MagicNumber never re-pointed) exactly. R8 is not contradicted -- it was never about recovery of unattributable trades, only about the attribution step itself, which remains an exact integer match. CLOSED.
+
+### WARNING (R11 DTO shape): CLOSED
+Spec diff adds autoAssigned and availableStrategies to the documented TradeImportResultDto contract, matching the AutoAssignedStrategyDto fields populated in TradeImportService.cs lines 86-90. Additive, non-breaking, now documented. PASS.
+
+## Spec-Merge Sanity Check (read-only -- no files touched)
+
+Read all three documents in full:
+- openspec/specs/strategy-model.md (flat) -- BatchStageId nullability, TradingAccountId FK, SetNull on BatchStage delete, orphan-state prevention. Four requirements, none named MagicNumber or R-M.
+- openspec/specs/strategy-model/spec.md (directory) -- backtest-run strategy-scoping and cascade, plus a rollback-migration requirement. Two requirements with PINNED BY test references. No MagicNumber or R-M content.
+- openspec/changes/import-mt-trades/specs/strategy-model.md -- R-M1 (nullable MagicNumber plus filtered unique index), R-M2 (AddStrategyModal input), R-M3 (StrategyDto field).
+
+There is zero requirement-name or scenario-name overlap across the three documents -- three genuinely disjoint topics happen to share the capability name strategy-model, which is pre-existing debt from two unrelated commits, neither of which is part of this change. Merging R-M1/R-M2/R-M3 into the directory form as additional ADDED Requirements entries would not overwrite, shadow, or contradict anything currently in that file -- it only adds new, independently-testable requirement blocks. Promoting mt-trade-import as a brand-new capability at openspec/specs/mt-trade-import/spec.md is uncontested since no file exists at that path today. Leaving the flat strategy-model.md untouched defers, but does not worsen, the pre-existing duplicate-name debt -- that debt was created by unrelated changes and reconciling the flat vs directory split is not this change's responsibility.
+
+Verdict: the plan is sound and loses nothing. The one residual risk it deliberately punts on -- two files answering to the same capability name -- already existed before this change and is not created or enlarged by executing this plan.
 
 ## Requirement-by-Requirement Verdict -- mt-trade-import.md
 
-| Req | Description | Backing test | Verdict |
-|---|---|---|---|
-| R1 | POST upload endpoint, 200/404/400 | TradingAccountsControllerImportTests (3 tests) | PASS |
-| R2 | Closed Transactions parsing, 14 cols | MtStatementParserServiceTests (normal row, TP, no-bracket) | PASS |
-| R3 | Open Trades parsing | MtStatementParserServiceTests (open trade row test) | PASS |
-| R4 | Cancelled rows skipped | MtStatementParserServiceTests (R4 cancelled-row test) | PASS |
-| R5 | Working Orders section skipped | MtStatementParserServiceTests (R5 test) | PASS |
-| R6 | Title regex + malformed title skip | MtStatementParserServiceTests (R6 malformed-title test) | PASS |
-| R7 | CloseReason mapping sl->SL, tp->TP, absent->null, else->Other | MtStatementParserServiceTests (TS-suffix test) | FAIL -- spec contradicted by shipped code. MtStatementParserService.MapCloseReason was rewritten (commit 04cd462) to return the raw uppercased suffix for everything else (e.g. "TS", "MO", "SO"), not "Other". The code comment states explicitly that the previous implementation collapsed everything outside SL/TP into "Other" and lost trailing-stop information. The test suite was updated to match the new behavior and now asserts CloseReason == "TS" for a trailing-stop suffix -- it no longer asserts "Other" for unrecognised suffixes anywhere. mt-trade-import.md still documents the old mapping table and the "Unrecognised close reason suffix -> Other" scenario (R2/R7), which is no longer true of the shipped system. |
-| R8 | Attribution by exact (TradingAccountId, MagicNumber), "no fuzzy name matching" | TradeImportServiceTests.ImportAsync_UnknownMagic_ProducesOrphanEntry (exact-match path) | PARTIAL / spec drift. Exact-match attribution is still correct and tested. But commit 308edf2 added a name-based auto-assign step (ImportAsync_HintMatchesSingleStrategyWithoutMagic_AutoAssignsAndImportsTrades and 3 related tests) that resolves orphans by matching StrategyNameHint against Strategy.Name and mutates Strategy.MagicNumber as a side effect of import. This is fuzzy name matching in the exact place the spec says "no fuzzy name matching." The behavior is well-tested, but it is undocumented anywhere in any spec -- a genuine capability was shipped with zero spec coverage. |
-| R9 | Idempotent upsert on (StrategyId, Ticket) | ImportAsync_FirstImport_InsertsAllMatchedTrades, ImportAsync_ReImport_UpdatesExistingRows | PASS |
-| R10 | One AccountEquitySnapshot per upload, ReportTime parse | ImportAsync_AlwaysWritesOneSnapshot (asserts 2 calls -> 2 rows), parser Summary test | PASS |
-| R11 | Response DTO shape {imported, updated, skipped, orphans, snapshot} | n/a -- shape check | WARNING -- DTO grew. TradeImportResultDto now also carries AutoAssigned and AvailableStrategies (added in 308edf2). Additive, non-breaking, but the spec's documented contract is incomplete versus the shipped contract. |
-| R12 | GET trades, status filter + ordering | GetByStrategyAsync_OpenFilter_..., _ClosedFilter_..., _AllFilter_OpenTradesAppearBeforeClosed | PASS (ordering now groups open-before-closed then CloseTime DESC, OpenTime DESC -- slightly more specific than the spec's "CloseTime DESC" text but consistent with intent; not a break) |
-| R13 | ImportTradesModal frontend | import-trades-modal.component.spec.ts | PASS (component now lives under features/broker-accounts/..., not features/darwinex/... per tasks.md -- path drift only, functionally intact) |
-| R14 | StrategyTradesGrid frontend, 14 columns, open-trade styling | strategy-trades-grid.component.spec.ts | PASS, but column set has grown to 16 (added Net Profit, Status) via shared buildTradeColumnDefs in trades-grid-shared.ts (commit 04cd462). Additive, not a break. |
-| Edge: Cascade delete on Strategy removes its trades | -- | CRITICAL -- UNTESTED. No test in the suite deletes a Strategy with associated StrategyTrade rows and asserts cascade. EF configuration (StrategyTradeConfiguration) does set OnDelete(DeleteBehavior.Cascade), but per verification rules a spec scenario is compliant only when a covering test passed at runtime -- none exists. This also cannot be verified against real SQL Server without a live database, which I am prohibited from touching. Unverifiable at runtime in this pass; flagged as untested, not passing. |
-| Edge: Upload to non-existent account -> 404, no data persisted | TradingAccountsControllerImportTests (404 test) + TradeImportServiceTests.ImportAsync_NonExistentAccount_ThrowsKeyNotFoundException | PASS |
-| Edge: Malformed HTML -> 400 | TradingAccountsControllerImportTests (400 test) + ImportAsync_ParserReturnsNull_ThrowsArgumentException | PASS |
-| Edge: Zero trades + Summary present | covered implicitly by ImportAsync_AlwaysWritesOneSnapshot (uses a statement with no trades) | PASS |
+| Req | Verdict | Note |
+|---|---|---|
+| R1-R6, R9, R10, R12-R14 | PASS | Unchanged since prior pass; re-confirmed passing under the current 419/419 backend + 371/371 frontend run. |
+| R7 | PASS | Corrected; see CRITICAL 2 above. |
+| R8 | PASS | Exact match confirmed at TradeImportService.cs lines 33-56. |
+| R8b (new) | PASS | Three scenarios each map to a distinct code path at TradeImportService.cs lines 58-93; behavior directly read, not inferred from test names alone. |
+| R11 | PASS | DTO shape now documents autoAssigned and availableStrategies. |
+| Edge: Cascade delete | PASS | Closed via StrategyTradeCascadeDeleteTests plus independent revert experiment above. |
+| Edge: 404 / 400 / zero-trades | PASS | Unchanged, previously verified. |
 
-## Requirement-by-Requirement Verdict -- strategy-model.md (delta)
+## Requirement-by-Requirement Verdict -- strategy-model.md (delta, this change's own MagicNumber requirements)
 
-| Req | Description | Backing test | Verdict |
-|---|---|---|---|
-| R-M1 | Strategy.MagicNumber nullable, filtered unique index on (TradingAccountId, MagicNumber) | StrategyConfiguration.cs lines 82-87 -- HasFilter("[TradingAccountId] IS NOT NULL AND [MagicNumber] IS NOT NULL"), IsUnique() -- configuration matches spec exactly | Configuration matches. The unique-constraint-violation and cross-account-no-conflict scenarios are not exercised by any test using a real relational provider (EF in-memory provider does not enforce SQL unique/filtered indexes). Unverifiable at runtime without a live database, which I am prohibited from touching. Flag as unverifiable, not pass/fail. |
-| R-M2 | AddStrategyModal optional numeric input, empty->null, non-numeric blocks | add-strategy-modal.component.spec.ts (3 magicNumber tests per task 6.4) | PASS |
-| R-M3 | StrategyDto.magicNumber: int or null | StrategyDto.cs has MagicNumber property (confirmed in code); controller tests pass magicNumber through (PostStrategy_WithMagicNumber_PassesMagicNumberToService) | PASS |
-
-## Design Coherence
-
-design.md's architecture (parser -> service -> controller, single-transaction upsert, snapshot-per-call) matches the shipped code. The one material deviation -- auto-assign-by-name in TradeImportService -- is not in design.md either; it was introduced by unrelated later work outside the SDD pipeline for this change.
-
-## Issues
-
-### CRITICAL
-
-1. Change never archived, spec never merged. `import-mt-trades` remains an open change; the mt-trade-import capability spec exists nowhere in openspec/specs/. Archiving now requires a deliberate, manual reconciliation of the strategy-model delta against the two already-diverged strategy-model specs (flat + directory) that belong to different, later changes.
-2. R7 (CloseReason mapping) is factually wrong for the shipped system. The spec documents sl->SL, tp->TP, absent->null, else->Other; the code (since 04cd462) returns the raw uppercased suffix for everything else, and tests were updated to match the new behavior, confirming this is not an isolated bug but an intentional, undocumented spec change.
-3. Cascade-delete edge case has zero runtime test coverage. No test deletes a Strategy with trades and asserts the StrategyTrade rows are removed. This is a documented spec scenario with no passing covering test -- must be reported as untested rather than accepted on the strength of the checked task or the EF fluent config alone.
-
-### WARNING
-
-4. R8 attribution rule ("no fuzzy name matching") is contradicted by later auto-assign-by-name code (308edf2), which is well tested but undocumented in any spec. Not a regression introduced by this change, but it means the spec this verification is asked to certify no longer accurately describes strategy attribution end-to-end.
-5. R11 response DTO has grown (AutoAssigned, AvailableStrategies fields added) beyond what the spec documents -- additive/non-breaking but the spec is incomplete.
-6. Frontend component paths moved from features/darwinex/... (per tasks.md) to features/broker-accounts/... -- cosmetic drift only, not a defect.
-7. R-M1's unique-index enforcement and R14's exact column list are only verifiable against a real SQL Server instance / rendered grid respectively; both are out of reach for this read-only, no-DB verification pass.
-
-### SUGGESTION
-
-8. Consider archiving import-mt-trades together with an explicit spec-reconciliation step that documents the R7 mapping change and the auto-assign feature (retroactively, as its own change or as an addendum), rather than silently merging a spec that no longer matches the code.
+| Req | Verdict | Note |
+|---|---|---|
+| R-M1 | Configuration matches spec exactly (StrategyConfiguration.cs, filtered unique index). Runtime enforcement against a real relational engine remains unverifiable in this pass -- see below. |
+| R-M2 | PASS | add-strategy-modal.component.spec.ts. |
+| R-M3 | PASS | StrategyDto plus controller tests. |
 
 ## Unverifiable (explicitly, not pass/fail)
 
-- SQL Server enforcement of the filtered unique index on (TradingAccountId, MagicNumber) -- requires a live database; prohibited from connecting.
-- Cascade-delete behavior against a real relational engine -- requires a live database; prohibited from connecting.
-- Any manual/visual confirmation of the rendered ImportTradesModal/StrategyTradesGrid UI -- not run in this pass (Vitest component tests were run and passed, which is the available substitute).
+- R-M1's filtered unique index enforcement on (TradingAccountId, MagicNumber) under a real SQL Server engine -- the EF in-memory/SQLite test providers used elsewhere in the suite do not exercise SQL Server's own filtered-index semantics, and connecting to a live database is prohibited. This was true in the prior pass and remains true; nothing in 8b5f3ea changes it.
+- Manual/visual confirmation of the rendered ImportTradesModal/StrategyTradesGrid UI beyond the passing Vitest component specs.
 
-## Overall Verdict: FAIL
+## Remaining Findings
 
-Rationale: task completion and the large majority of requirements are solidly backed by passing tests (417/417 backend, 371/371 frontend, clean warn-as-error build). However, this is the first-ever verification of a change that was fully implemented months ago and left unarchived, and independent inspection found the spec itself is stale in a substantive, behavior-changing way (R7), one documented edge-case scenario has no covering test (cascade delete), and the change's own capability spec was never merged anywhere -- so "does the spec still describe the shipped system" is answered no on at least one hard requirement (R7) plus one untested scenario (cascade delete). Per the decision gate (spec scenario has no passing covering test -> CRITICAL), this cannot be a clean PASS or PASS WITH WARNINGS.
+None CRITICAL. No new findings introduced by 8b5f3ea.
 
-Recommendation: do not archive as-is. Either (a) update mt-trade-import.md R7 to match shipped behavior and add a cascade-delete test before archiving, or (b) archive with an explicit addendum documenting the R7 change and the untested cascade-delete gap, and open a follow-up task for the missing test.
+### SUGGESTION (carried over, not a blocker)
+- When this change is archived, execute the spec-merge plan verified above (merge R-M1/R-M2/R-M3 into openspec/specs/strategy-model/spec.md, promote mt-trade-import as a new capability, leave the flat strategy-model.md as pre-existing debt) rather than a blind directory overwrite.
+
+## Overall Verdict: PASS
+
+All three CRITICAL findings from the prior pass are closed, verified independently rather than taken on the correction commit's own word: the spec now matches the shipped MapCloseReason, and the cascade-delete behavior is proven by a test that goes red when the production configuration line is reverted to Restrict and green again once restored -- an experiment run directly rather than accepting the commit message's claim. The one WARNING previously raised as an R8 contradiction does not hold up under direct code reading and is properly resolved by the new R8b requirement, not by a documentation trick. R11 documentation gap is closed. The only remaining CRITICAL-shaped item (never archived, spec never merged) is open by construction -- this pass is not the archive step -- and the archive plan it depends on has been independently sanity-checked here and found sound with no data loss or corruption risk beyond pre-existing, unrelated debt. R-M1's live-database enforcement remains explicitly unverifiable rather than assumed, per the no-DB constraint.
+
+Recommendation: proceed to archive, executing the spec-merge plan described above.
