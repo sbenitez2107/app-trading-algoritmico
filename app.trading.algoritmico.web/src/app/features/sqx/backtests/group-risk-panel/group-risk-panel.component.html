@@ -1,0 +1,235 @@
+<section class="group-risk">
+  <header class="group-risk__header">
+    <h2 class="group-risk__title">{{ 'SQX.BACKTESTS.GROUP_RISK.TITLE' | translate }}</h2>
+    <p class="group-risk__hint">{{ 'SQX.BACKTESTS.GROUP_RISK.HINT' | translate }}</p>
+  </header>
+
+  <div class="group-risk__controls">
+    <label class="group-risk__field">
+      <span>{{ 'SQX.BACKTESTS.GROUP_RISK.FIELD_SEGMENT' | translate }}</span>
+      <!-- [ngValue] binds the real value, so "not chosen" stays null instead of collapsing to 0. -->
+      <select [ngModel]="segment()" (ngModelChange)="segment.set($event)" name="segment">
+        <option [ngValue]="null">
+          {{ 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_NONE' | translate }}
+        </option>
+        @for (option of segmentOptions; track option) {
+          <option [ngValue]="option">{{ segmentLabels[option] | translate }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="group-risk__field">
+      <span>{{ 'SQX.BACKTESTS.GROUP_RISK.FIELD_RUN_KIND' | translate }}</span>
+      <select [ngModel]="runKind()" (ngModelChange)="runKind.set($event)" name="runKind">
+        <option [ngValue]="null">
+          {{ 'SQX.BACKTESTS.GROUP_RISK.RUN_KIND_ANY' | translate }}
+        </option>
+        @for (option of runKindOptions; track option) {
+          <option [ngValue]="option">
+            {{
+              (option === 1 ? 'SQX.BACKTESTS.KIND_DEPLOY' : 'SQX.BACKTESTS.KIND_EVALUATION')
+                | translate
+            }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <label class="group-risk__field">
+      <span>{{ 'SQX.BACKTESTS.GROUP_RISK.FIELD_CAPITAL' | translate }}</span>
+      <input
+        type="number"
+        name="initialCapital"
+        [ngModel]="initialCapital()"
+        (ngModelChange)="initialCapital.set($event)"
+      />
+    </label>
+
+    <label class="group-risk__field">
+      <span>{{ 'SQX.BACKTESTS.GROUP_RISK.FIELD_TARGET_RISK' | translate }}</span>
+      <input
+        type="number"
+        name="targetRiskPerTrade"
+        [ngModel]="targetRiskPerTrade()"
+        (ngModelChange)="targetRiskPerTrade.set($event)"
+      />
+    </label>
+
+    <button class="btn btn--primary" type="button" [disabled]="isLoading()" (click)="analyze()">
+      {{ 'SQX.BACKTESTS.GROUP_RISK.ANALYZE' | translate }}
+    </button>
+  </div>
+
+  @if (error()) {
+    <p class="group-risk__error" role="alert">{{ error()! | translate }}</p>
+  }
+
+  @if (refusal(); as refused) {
+    <!--
+      A refusal renders its OWN sentence. Nothing numeric is shown: not a zeroed figure, not a
+      dash in a figure slot. The server's own text names the member, the run or the weight.
+    -->
+    <div class="group-risk__refusal" role="alert" data-testid="refusal">
+      <p class="group-risk__refusal-title">{{ statusLabels[refused.status] | translate }}</p>
+      @if (refused.refusal) {
+        <p class="group-risk__refusal-detail">{{ refused.refusal }}</p>
+      }
+    </div>
+  }
+
+  @if (analysis()?.members?.length) {
+    <ul class="group-risk__members" data-testid="members">
+      @for (member of analysis()!.members; track member.strategyId) {
+        <li class="group-risk__member">
+          <span class="group-risk__member-label">{{ member.label }}</span>
+          <span class="group-risk__member-status">
+            {{ memberStatusLabels[member.status] | translate }}
+          </span>
+          @if (member.detail) {
+            <span class="group-risk__member-detail">{{ member.detail }}</span>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  @if (isCompleted() && analysis()!.risk; as risk) {
+    <div class="group-risk__figures">
+      <p class="group-risk__provenance">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.COMPUTED_OVER' | translate }}
+        <strong>{{ segmentKey(risk.segment) | translate }}</strong>
+        &middot; {{ 'SQX.BACKTESTS.GROUP_RISK.SIMULATED_CLOSES' | translate }}
+      </p>
+
+      <dl class="group-risk__var">
+        <dt>{{ 'SQX.BACKTESTS.GROUP_RISK.DAILY_VAR95' | translate }}</dt>
+        <!--
+          THE branch this whole slice exists for. `dailyVar95` is `number | null`; when it is null
+          the cell renders the REASON, never a substitute number. There is no `?? 0` anywhere in
+          this file, and a test asserts this cell contains no digit when the figure is withheld.
+        -->
+        <dd data-testid="daily-var95">
+          @if (risk.dailyVar95 !== null) {
+            {{ risk.dailyVar95 | number: '1.2-2' }}
+          } @else {
+            <span class="group-risk__withheld">
+              {{ withholdKey(risk.dailyVar95Withheld) | translate }}
+            </span>
+          }
+        </dd>
+
+        <dt>{{ 'SQX.BACKTESTS.GROUP_RISK.DAILY_VAR99' | translate }}</dt>
+        <dd data-testid="daily-var99">
+          @if (risk.dailyVar99 !== null) {
+            {{ risk.dailyVar99 | number: '1.2-4' }}
+          } @else {
+            <span class="group-risk__withheld">
+              {{ withholdKey(risk.dailyVar99Withheld) | translate }}
+            </span>
+          }
+        </dd>
+
+        <dt>{{ 'SQX.BACKTESTS.GROUP_RISK.MONTHLY_VAR95' | translate }}</dt>
+        <dd data-testid="monthly-var95">
+          @if (risk.monthlyVar95 !== null) {
+            {{ risk.monthlyVar95 | number: '1.2-2' }}
+          } @else {
+            <span class="group-risk__withheld">
+              {{ withholdKey(risk.monthlyVar95Withheld) | translate }}
+            </span>
+          }
+        </dd>
+      </dl>
+
+      <p class="group-risk__denominator">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.DENOMINATOR_LABEL' | translate }}
+        {{ risk.initialCapital | number: '1.0-2' }}
+      </p>
+
+      <ul class="group-risk__density" data-testid="density">
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.TRADE_COUNT' | translate }}: {{ risk.density.tradeCount }}
+        </li>
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.DENSE_DAYS' | translate }}: {{ risk.density.denseDayCount }}
+        </li>
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.NEGATIVE_DAYS' | translate }}:
+          {{ risk.density.negativeDayCount }}
+        </li>
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.NON_ZERO_DAYS' | translate }}:
+          {{ risk.density.nonZeroDayCount }}
+        </li>
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.NEGATIVE_WINDOWS' | translate }}:
+          {{ risk.density.negativeWindowCount }}
+        </li>
+        <li>
+          {{ 'SQX.BACKTESTS.GROUP_RISK.EXCLUDED_UNSCALABLE' | translate }}:
+          {{ risk.density.excludedUnscalableCount }}
+        </li>
+      </ul>
+
+      <p class="group-risk__disclaimer">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.APPROXIMATION_DISCLAIMER' | translate }}
+      </p>
+    </div>
+  }
+
+  @if (isCompleted() && analysis()!.correlation; as correlation) {
+    <div class="group-risk__correlation" data-testid="correlation-panel">
+      <h3 class="group-risk__subtitle">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.CORRELATION_TITLE' | translate }}
+      </h3>
+      <p class="group-risk__alignment">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.ALIGNMENT' | translate }}: {{ correlation.alignment }} &middot;
+        {{ 'SQX.BACKTESTS.GROUP_RISK.SIMULATED_CLOSES' | translate }}
+      </p>
+
+      <table class="group-risk__matrix">
+        <thead>
+          <tr>
+            <th></th>
+            @for (label of correlation.labels; track label) {
+              <th>{{ label }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of correlation.matrix; track $index; let r = $index) {
+            <tr>
+              <th>{{ correlation.labels[r] }}</th>
+              @for (cell of row; track $index; let c = $index) {
+                <td [attr.data-testid]="'cell-' + r + '-' + c">
+                  <!-- A withheld cell is `null`, not `0`: undefined is a different claim from uncorrelated. -->
+                  @if (cell !== null) {
+                    {{ cell | number: '1.2-2' }}
+                  } @else {
+                    <span class="group-risk__withheld">
+                      {{ 'SQX.BACKTESTS.GROUP_RISK.CELL_WITHHELD' | translate }}
+                    </span>
+                  }
+                  <small class="group-risk__co-active">{{ correlation.coActiveDays[r][c] }}</small>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <p class="group-risk__average" data-testid="average-correlation">
+        {{ 'SQX.BACKTESTS.GROUP_RISK.AVERAGE_CORRELATION' | translate }}:
+        @if (correlation.averageCorrelation !== null) {
+          {{ correlation.averageCorrelation | number: '1.2-2' }}
+        } @else {
+          <span class="group-risk__withheld">
+            {{ 'SQX.BACKTESTS.GROUP_RISK.CELL_WITHHELD' | translate }}
+          </span>
+        }
+        &middot; {{ 'SQX.BACKTESTS.GROUP_RISK.WITHHELD_CELLS' | translate }}:
+        {{ correlation.withheldCellCount }}
+      </p>
+    </div>
+  }
+</section>

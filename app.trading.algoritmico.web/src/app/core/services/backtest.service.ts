@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Observable, catchError, throwError } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
 
 /**
@@ -131,6 +131,154 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+/**
+ * Mirrors AppTradingAlgoritmico.Domain.Enums.VarWithholdReason.
+ *
+ * A withheld figure arrives as `null` with one of these beside it — NEVER as `0`. A numeric zero
+ * would read as "this group loses nothing at the 5th percentile", which is a claim the backtest
+ * data does not make, and the template must never substitute one.
+ */
+export enum VarWithholdReason {
+  None = 0,
+  NoSeries = 1,
+  InsufficientHistory = 2,
+  InsufficientNegativeObservations = 3,
+}
+
+/** Mirrors AppTradingAlgoritmico.Domain.Enums.GroupRiskMemberStatus. */
+export enum GroupRiskMemberStatus {
+  Resolved = 0,
+  RunSegmentsDisagree = 1,
+  NoEvidenceForSegment = 2,
+  AmbiguousRunSelection = 3,
+  RiskNotEstimable = 4,
+  NonUnitWeight = 5,
+}
+
+/** Mirrors AppTradingAlgoritmico.Domain.Enums.GroupRiskAnalysisStatus. */
+export enum GroupRiskAnalysisStatus {
+  Completed = 0,
+  SegmentNotSpecified = 1,
+  UnknownSegmentNotSelectable = 2,
+  NoStrategiesRequested = 3,
+  StrategyNotFound = 4,
+  InvalidLotGrid = 5,
+  RunSegmentsDisagree = 6,
+  NoEvidenceForSegment = 7,
+  AmbiguousRunSelection = 8,
+  RiskNotEstimable = 9,
+  NonUnitWeight = 10,
+  HeterogeneousGroup = 11,
+}
+
+/**
+ * Mixed provenance, deliberately: the four DAY-level counts are what the density gates consumed,
+ * while `tradeCount`/`excludedUnscalableCount` come from the bridge. `nonZeroDayCount` is
+ * disclosure only and never gates — a non-zero-day share threshold clears on both committed
+ * fixtures and would publish a daily VaR measured to be exactly 0.00.
+ */
+export interface SeriesDensityDto {
+  tradeCount: number;
+  excludedUnscalableCount: number;
+  denseDayCount: number;
+  negativeDayCount: number;
+  nonZeroDayCount: number;
+  negativeWindowCount: number;
+}
+
+export interface VarTargetReadoutDto {
+  targetVarPct: number | null;
+  varFloorPct: number | null;
+  horizonDays: number;
+  insufficientHistory: boolean;
+  observationDays: number;
+  overlappingWindows: number;
+  independentWindows: number;
+  monthlyVar95: number | null;
+  monthlyVar95Percent: number | null;
+  impliedMultiplier: number | null;
+}
+
+export interface BacktestServiceRiskDto {
+  service: string;
+  strategyCount: number;
+  netProfit: number;
+  dailyVar95: number | null;
+  dailyVar95Percent: number | null;
+  dailyVar95Withheld: VarWithholdReason;
+  monthlyVar95: number | null;
+  monthlyVar95Percent: number | null;
+  monthlyVar95Withheld: VarWithholdReason;
+  monthlyVarOverlappingWindows: number;
+  monthlyVarIndependentWindows: number;
+  density: SeriesDensityDto;
+}
+
+/** Every VaR field is nullable and paired with its reason. `windowDays` is always 0 — no trim. */
+export interface BacktestPortfolioRiskDto {
+  initialCapital: number;
+  method: string;
+  windowDays: number;
+  observationDays: number;
+  segment: BacktestSegment;
+  dailyVar95: number | null;
+  dailyVar95Percent: number | null;
+  dailyVar95Withheld: VarWithholdReason;
+  dailyVar99: number | null;
+  dailyVar99Percent: number | null;
+  dailyVar99Withheld: VarWithholdReason;
+  monthlyVar95: number | null;
+  monthlyVar95Percent: number | null;
+  monthlyVar95Withheld: VarWithholdReason;
+  monthlyVarOverlappingWindows: number;
+  monthlyVarIndependentWindows: number;
+  density: SeriesDensityDto;
+  byService: BacktestServiceRiskDto[];
+  varTarget: VarTargetReadoutDto | null;
+}
+
+export interface BacktestCorrelationDto {
+  labels: string[];
+  matrix: (number | null)[][];
+  coActiveDays: number[][];
+  coActiveShare: number[][];
+  observationDays: number;
+  averageCorrelation: number | null;
+  withheldCellCount: number;
+  alignment: string;
+  segment: BacktestSegment;
+  density: SeriesDensityDto;
+}
+
+export interface GroupRiskMemberDto {
+  strategyId: string;
+  label: string;
+  status: GroupRiskMemberStatus;
+  segment: BacktestSegment | null;
+  runKind: BacktestRunKind | null;
+  runId: string | null;
+  detail: string | null;
+}
+
+export interface GroupRiskAnalysisDto {
+  status: GroupRiskAnalysisStatus;
+  segment: BacktestSegment | null;
+  members: GroupRiskMemberDto[];
+  risk: BacktestPortfolioRiskDto | null;
+  correlation: BacktestCorrelationDto | null;
+  refusal: string | null;
+}
+
+/** The query the panel sends. `segment` is optional so "not specified" stays expressible. */
+export interface GroupRiskAnalysisQuery {
+  strategyIds: string[];
+  initialCapital: number;
+  targetRiskPerTrade: number;
+  segment?: BacktestSegment;
+  runKind?: BacktestRunKind;
+  fundingService?: string;
+}
+
 export const BACKTEST_OUTCOME_LABELS: Record<BacktestImportOutcome, string> = {
   [BacktestImportOutcome.Imported]: 'SQX.BACKTESTS.OUTCOME_IMPORTED',
   [BacktestImportOutcome.Unchanged]: 'SQX.BACKTESTS.OUTCOME_UNCHANGED',
@@ -141,6 +289,55 @@ export const BACKTEST_OUTCOME_LABELS: Record<BacktestImportOutcome, string> = {
 export const BACKTEST_KIND_LABELS: Record<BacktestRunKind, string> = {
   [BacktestRunKind.Deploy]: 'SQX.BACKTESTS.KIND_DEPLOY',
   [BacktestRunKind.Evaluation]: 'SQX.BACKTESTS.KIND_EVALUATION',
+};
+
+export const BACKTEST_SEGMENT_LABELS: Record<BacktestSegment, string> = {
+  [BacktestSegment.Unknown]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_UNKNOWN',
+  [BacktestSegment.InSample]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_IN_SAMPLE',
+  [BacktestSegment.OutOfSample]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_OUT_OF_SAMPLE',
+  [BacktestSegment.InSampleTest]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_IN_SAMPLE_TEST',
+};
+
+/**
+ * The label a WITHHELD figure renders instead of a number. There is no entry that renders as a
+ * digit, and `None` is never reached by the withheld branch — it accompanies a figure that is
+ * present.
+ */
+export const VAR_WITHHOLD_LABELS: Record<VarWithholdReason, string> = {
+  [VarWithholdReason.None]: 'SQX.BACKTESTS.GROUP_RISK.WITHHELD_NONE',
+  [VarWithholdReason.NoSeries]: 'SQX.BACKTESTS.GROUP_RISK.WITHHELD_NO_SERIES',
+  [VarWithholdReason.InsufficientHistory]: 'SQX.BACKTESTS.GROUP_RISK.WITHHELD_INSUFFICIENT_HISTORY',
+  [VarWithholdReason.InsufficientNegativeObservations]:
+    'SQX.BACKTESTS.GROUP_RISK.WITHHELD_INSUFFICIENT_NEGATIVE_OBSERVATIONS',
+};
+
+/** Each refusal keeps its own sentence — collapsing them would hide what the operator must fix. */
+export const GROUP_RISK_STATUS_LABELS: Record<GroupRiskAnalysisStatus, string> = {
+  [GroupRiskAnalysisStatus.Completed]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_COMPLETED',
+  [GroupRiskAnalysisStatus.SegmentNotSpecified]:
+    'SQX.BACKTESTS.GROUP_RISK.STATUS_SEGMENT_NOT_SPECIFIED',
+  [GroupRiskAnalysisStatus.UnknownSegmentNotSelectable]:
+    'SQX.BACKTESTS.GROUP_RISK.STATUS_UNKNOWN_SEGMENT',
+  [GroupRiskAnalysisStatus.NoStrategiesRequested]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NO_STRATEGIES',
+  [GroupRiskAnalysisStatus.StrategyNotFound]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_STRATEGY_NOT_FOUND',
+  [GroupRiskAnalysisStatus.InvalidLotGrid]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_INVALID_LOT_GRID',
+  [GroupRiskAnalysisStatus.RunSegmentsDisagree]:
+    'SQX.BACKTESTS.GROUP_RISK.STATUS_RUN_SEGMENTS_DISAGREE',
+  [GroupRiskAnalysisStatus.NoEvidenceForSegment]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NO_EVIDENCE',
+  [GroupRiskAnalysisStatus.AmbiguousRunSelection]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_AMBIGUOUS_RUN',
+  [GroupRiskAnalysisStatus.RiskNotEstimable]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_RISK_NOT_ESTIMABLE',
+  [GroupRiskAnalysisStatus.NonUnitWeight]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NON_UNIT_WEIGHT',
+  [GroupRiskAnalysisStatus.HeterogeneousGroup]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_HETEROGENEOUS',
+};
+
+export const GROUP_RISK_MEMBER_STATUS_LABELS: Record<GroupRiskMemberStatus, string> = {
+  [GroupRiskMemberStatus.Resolved]: 'SQX.BACKTESTS.GROUP_RISK.MEMBER_RESOLVED',
+  [GroupRiskMemberStatus.RunSegmentsDisagree]:
+    'SQX.BACKTESTS.GROUP_RISK.STATUS_RUN_SEGMENTS_DISAGREE',
+  [GroupRiskMemberStatus.NoEvidenceForSegment]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NO_EVIDENCE',
+  [GroupRiskMemberStatus.AmbiguousRunSelection]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_AMBIGUOUS_RUN',
+  [GroupRiskMemberStatus.RiskNotEstimable]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_RISK_NOT_ESTIMABLE',
+  [GroupRiskMemberStatus.NonUnitWeight]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NON_UNIT_WEIGHT',
 };
 
 export const CALIBRATION_STATUS_LABELS: Record<CalibrationStatus, string> = {
@@ -225,5 +422,39 @@ export class BacktestService {
 
   getCalibrations(): Observable<SymbolCalibrationDto[]> {
     return this.http.get<SymbolCalibrationDto[]>(`${this.base}/calibrations`);
+  }
+
+  /**
+   * Correlation and VaR for ONE named group of strategies over ONE named sample.
+   *
+   * A REFUSAL is not a transport failure. The server answers 400/404/422 with the same
+   * `GroupRiskAnalysisDto`, carrying the per-member evidence the operator has to act on, so those
+   * bodies are unwrapped and passed through rather than swallowed into a generic error. Only a
+   * genuine fault — no body, or one that is not an analysis — becomes an error, and it is re-thrown
+   * as a stable i18n key.
+   *
+   * `segment` is only appended when it is defined. Sending `segment=0` would be asking for
+   * `Unknown`, which is a DIFFERENT request from not having chosen one, and the server refuses each
+   * for its own reason.
+   */
+  getGroupRisk(query: GroupRiskAnalysisQuery): Observable<GroupRiskAnalysisDto> {
+    let params = new HttpParams()
+      .set('initialCapital', query.initialCapital)
+      .set('targetRiskPerTrade', query.targetRiskPerTrade);
+
+    for (const id of query.strategyIds) params = params.append('strategyIds', id);
+    if (query.segment !== undefined) params = params.set('segment', query.segment);
+    if (query.runKind !== undefined) params = params.set('runKind', query.runKind);
+    if (query.fundingService) params = params.set('fundingService', query.fundingService);
+
+    return this.http.get<GroupRiskAnalysisDto>(`${this.base}/portfolio-risk`, { params }).pipe(
+      catchError((err: HttpErrorResponse) => {
+        const body = err.error as GroupRiskAnalysisDto | null;
+        if (body && typeof body === 'object' && typeof body.status === 'number') return of(body);
+        return throwError(
+          () => new Error('SQX.BACKTESTS.GROUP_RISK.REQUEST_ERROR', { cause: err }),
+        );
+      }),
+    );
   }
 }

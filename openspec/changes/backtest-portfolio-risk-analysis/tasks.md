@@ -30,7 +30,7 @@ Chain strategy: pending
 ## Phase 0: Preconditions
 
 - [ ] 0.1 **Substantive** — decide `SeriesDensity` provenance. `internal static SeriesDensity Measure(IReadOnlyList<decimal> denseDailyNets)` cannot produce `TradeCount` (a dense *daily* series cannot recover a trade count) nor `ExcludedUnscalableCount`, yet D4 lists `TradeCount` among "what is measured" and the File Changes row calls `SeriesDensityDto` a "read projection of the Infrastructure-side `SeriesDensity`". Either widen `Measure`'s inputs or declare those two fields bridge-sourced and composed at the read-service boundary. Gates 2.16 and 2.22 — the single-derivation test is otherwise unimplementable as written.
-- [ ] 0.2 Clarify: `Min is null` yields "no evidence **for that run**" (analytics R6) while a missing match yields "no evidence for this **segment**" for the member (R4). A strategy with one trade-less run and one matching run must still succeed; neither file says the per-run state is non-fatal. Gates 3.3.
+- [x] 0.2 Clarify: `Min is null` yields "no evidence **for that run**" (analytics R6) while a missing match yields "no evidence for this **segment**" for the member (R4). A strategy with one trade-less run and one matching run must still succeed; neither file says the per-run state is non-fatal. Gates 3.3.
 - [ ] 0.3 Housekeeping: the design's *Spec Dependencies* section is headed "requirements this design needs that no delta spec currently covers", but items 1, 5, 6, 7 and 8 are all now covered by the specs. Prune it before apply so a later reader does not re-spec satisfied items.
 
 ## Phase 1 (PR 1): Private cores — no new behaviour
@@ -184,26 +184,109 @@ inferential step.
 
 ## Phase 3 (PR 3): Run selection, endpoint, UI
 
-- [ ] 3.1 RED: a request whose segment field is omitted (null) is refused; no figure produced.
-- [ ] 3.2 RED: an explicit request for `BacktestSegment.Unknown` is refused.
-- [ ] 3.3 RED: run-segment derivation — a run with no trades (`Min` is null) yields no segment and no evidence for that run, never coerced to `Unknown` (fatality per 0.2); a run whose trades disagree (`Min != Max`) is **refused**, naming the run.
-- [ ] 3.4 RED: a run whose trades are genuinely `Unknown` is never selected for any requested segment.
-- [ ] 3.5 RED: a member with no run carrying the requested segment yields the explicit *no evidence for this segment* state — no series, not an empty one.
-- [ ] 3.6 RED: **the anti-shortcut row** — a strategy whose `Deploy` run is `InSampleTest` and whose `Evaluation` run is `OutOfSample`, with `InSampleTest` requested, selects the `Deploy` run. `Kind` never infers or overrides `Segment`.
-- [ ] 3.7 RED: **both** runs carrying the requested segment ⇒ member refused naming the strategy and both `Kind`s; an optional `BacktestRunKind` disambiguates.
-- [ ] 3.8 RED: a group whose members' selected runs disagree on `Segment` is refused, naming the disagreeing members and their segments; no partial figure.
-- [ ] 3.9 GREEN: one server-side projection over `runs.Where(r => strategyIds.Contains(r.StrategyId))` selecting `Id`, `StrategyId`, `Kind`, `Min`/`Max` of `(int?)t.Segment` — one query for the whole group, the `ReadinessRows` precedent. No date comparison.
-- [ ] 3.10 GREEN: `Application/DTOs/Backtests/GroupRiskAnalysisRequest.cs` — `strategyIds[]`, `targetRiskPerTrade`, grid fields, **`BacktestSegment?`**, optional `BacktestRunKind`, funding service.
-- [ ] 3.11 GREEN: `IBacktestReadService.GetGroupRiskAnalysisAsync(...)` + `BacktestReadService` impl: select run → `TryNormalize` → `Resize` → `Bridge` → analytics. First production caller of slice 2a (Note C).
-- [ ] 3.12 GREEN: `BacktestsController` read endpoint `GET api/backtests/portfolio-risk`; `NonUnitWeight` → **422** naming the member; not-specified, `Unknown`, disagreeing-run, ambiguous-run, heterogeneous-group and no-evidence each map to their own distinct status.
-- [ ] 3.13 RED+GREEN: Vitest — withheld VaR renders its state label and never `0`; density counts, `ExcludedUnscalableCount`, segment label, denominator label, approximation disclaimer and "simulated closes" always present; each refusal state renders its own message. Then the panel in `web/features/sqx/...` + `assets/i18n/{en,es}.json`.
+- [x] 3.1 RED: a request whose segment field is omitted (null) is refused; no figure produced.
+- [x] 3.2 RED: an explicit request for `BacktestSegment.Unknown` is refused.
+- [x] 3.3 RED: run-segment derivation — a run with no trades (`Min` is null) yields no segment and no evidence for that run, never coerced to `Unknown` (fatality per 0.2); a run whose trades disagree (`Min != Max`) is **refused**, naming the run.
+- [x] 3.4 RED: a run whose trades are genuinely `Unknown` is never selected for any requested segment.
+- [x] 3.5 RED: a member with no run carrying the requested segment yields the explicit *no evidence for this segment* state — no series, not an empty one.
+- [x] 3.6 RED: **the anti-shortcut row** — a strategy whose `Deploy` run is `InSampleTest` and whose `Evaluation` run is `OutOfSample`, with `InSampleTest` requested, selects the `Deploy` run. `Kind` never infers or overrides `Segment`.
+- [x] 3.7 RED: **both** runs carrying the requested segment ⇒ member refused naming the strategy and both `Kind`s; an optional `BacktestRunKind` disambiguates.
+- [x] 3.8 RED: a group whose members' selected runs disagree on `Segment` is refused, naming the disagreeing members and their segments; no partial figure.
+- [x] 3.9 GREEN: one server-side projection over `runs.Where(r => strategyIds.Contains(r.StrategyId))` selecting `Id`, `StrategyId`, `Kind`, `Min`/`Max` of `(int?)t.Segment` — one query for the whole group, the `ReadinessRows` precedent. No date comparison.
+- [x] 3.10 GREEN: `Application/DTOs/Backtests/GroupRiskAnalysisRequest.cs` — `strategyIds[]`, `targetRiskPerTrade`, grid fields, **`BacktestSegment?`**, optional `BacktestRunKind`, funding service.
+- [x] 3.11 GREEN: `IBacktestReadService.GetGroupRiskAnalysisAsync(...)` + `BacktestReadService` impl: select run → `TryNormalize` → `Resize` → `Bridge` → analytics. First production caller of slice 2a (Note C).
+- [x] 3.12 GREEN: `BacktestsController` read endpoint `GET api/backtests/portfolio-risk`; `NonUnitWeight` → **422** naming the member; not-specified, `Unknown`, disagreeing-run, ambiguous-run, heterogeneous-group and no-evidence each map to their own distinct status.
+- [x] 3.13 RED+GREEN: Vitest — withheld VaR renders its state label and never `0`; density counts, `ExcludedUnscalableCount`, segment label, denominator label, approximation disclaimer and "simulated closes" always present; each refusal state renders its own message. Then the panel in `web/features/sqx/...` + `assets/i18n/{en,es}.json`.
 
 ## Phase 4: Tripwires and closeout
 
-- [ ] 4.1 Determinism test: repeated calls on unchanged inputs return byte-identical payloads.
-- [ ] 4.2 Grep test: no `Random`/seed in the slice (tripwire 1); no iteration over candidate groups (tripwire 2).
-- [ ] 4.3 Grep test: **no** `CloseTime >=` and **no** `OosWindow` reference anywhere in the slice — absence by construction (D8).
-- [ ] 4.4 `dotnet format`, `pnpm format`, full backend + web suites once.
+- [x] 4.1 Determinism test: repeated calls on unchanged inputs return byte-identical payloads.
+- [x] 4.2 Grep test: no `Random`/seed in the slice (tripwire 1); no iteration over candidate groups (tripwire 2).
+- [x] 4.3 Grep test: **no** `CloseTime >=` and **no** `OosWindow` reference anywhere in the slice — absence by construction (D8).
+- [x] 4.4 `dotnet format`, `pnpm format`, full backend + web suites once.
+
+### PR 3 apply record
+
+| Item | Result |
+|---|---|
+| Backend suite | **543/543** (baseline **489/489**; +54 new: 17 run selection, 3 query cost, 14 read service, 15 controller, 5 tripwire) |
+| Frontend suite | **380/380** (baseline **371/371**; +9 new panel tests), measured GREEN twice through `pnpm test`. Three later runs on the same machine produced 6, 6 and 2 failures - every one a bare `Test timed out in 5000ms`/`15000ms` with NO assertion, in a DIFFERENT and disjoint set of ag-grid specs each time (`portfolios-list`, `portfolio-trades-grid`, `strategy-trades-grid`, `account-detail`), while suite duration climbed 80s -> 158s -> 167s and `environment` time reached 1,130s. Three of those four spec files contain no reference to `backtest` at all, so this diff cannot reach them. Recorded as an environment/load flake, not resolved. The 9 group-risk-panel tests passed in EVERY run |
+| `dotnet build -warnaserror` | 0 warnings, 0 errors solution-wide |
+| `dotnet format --verify-no-changes` | clean (required one pass over `RunSegmentSelection.cs`) |
+| `prettier --write` | reformatted 3 web files; i18n JSON already conforming |
+| Changed lines | **~3,190** authored (excludes this checklist) = production **~1,715** (485 in 7 new backend files + 539 in 4 new web files + 691 added across 8 modified files) + tests **~1,475** (1,135 backend in 5 new files + 320 web + 19 amended). Measured: `git diff --stat` 818 insertions / 29 deletions plus 2,479 lines across 16 new files. Estimate was ~540; the overrun is tests and per-field provenance doc comments, the same shape as PR1 (330 -> 731) and PR2 (670 -> 1,709) |
+| Files | 7 backend created (`Domain/Enums/{BacktestRunSegmentState,GroupRiskMemberStatus,GroupRiskAnalysisStatus}`, `Domain/Backtests/{BacktestRunSegmentRow,RunSegmentSelection}`, `Application/DTOs/Backtests/{GroupRiskAnalysisRequest,GroupRiskAnalysisDto}`) - 3 backend modified (`IBacktestReadService`, `BacktestReadService`, `BacktestsController`) - 4 backend test files created - 4 web files created (`group-risk-panel/*`) - 4 web modified (`backtest.service.ts`, `backtests-list.component.{ts,html}`, its spec) - both i18n files |
+
+**Every Phase 3 and Phase 4 row was RED first.** Two recorded RED builds:
+`CS0246: BacktestRunSegmentRow could not be found` for the selection core, then a full-batch build
+failing on `GroupRiskAnalysisDto`, `GroupRiskAnalysisRequest`, `GroupRiskAnalysisStatus` and
+`GroupRiskMemberStatus`. The web batch was RED with
+`TS2307: Cannot find module './group-risk-panel.component'`.
+
+**Injected-defect proof of the slice's central claim.** `dailyVar95` is withheld on the IST fixture.
+Replacing the template's `@if (risk.dailyVar95 !== null) {...} @else {...}` with
+`{{ (risk.dailyVar95 ?? 0) | number: '1.2-2' }}` failed
+`withheldDailyVar95_RendersItsStateLabelAndNeverAZero` with exactly the output this slice exists to
+prevent: `AssertionError: expected ' 0.00 ' to contain 'SQX.BACKTESTS.GROUP_RISK.WITHHELD_INS...'`.
+Reverted; 380/380 green. The assertion is `expect(cell.textContent).not.toMatch(/\d/)` - a withheld
+cell may contain NO digit, so `0`, `0.00` and a zero-padded dash all fail it.
+
+**Deviations from the design, all deliberate:**
+
+- **`GroupRiskAnalysisRequest` gains `InitialCapital`.** The design's field list omits it, but
+  `BacktestPortfolioRiskDto.InitialCapital` is the percentage denominator every readout states and
+  nothing else can supply it for a bare group.
+- **`GroupRiskAnalysisRequest` gains an optional `PortfolioId`.** Without a weight SOURCE the D3
+  non-unit-weight refusal is unreachable in production and 3.12's 422 would be dead code. When
+  supplied, weights come from `PortfolioStrategy.Weight`; absent it every member's weight is `1`,
+  because a bare group carries no allocation decision.
+- **The projection and the selection rule live in `Domain/Backtests/`, not in the read service.**
+  `RunSegmentSelection.SegmentRows(...)` takes `IQueryable` sources rather than a `DbContext`,
+  exactly as `OosWindow.Resolver.ReadinessRows` does. It is still ONE server-side projection - fenced
+  on real SQLite at one command for 1 and for 30 strategies - and the rule becomes testable without
+  a database.
+- **A refused member refuses the whole analysis.** The spec states the member-level "no evidence"
+  STATE; it does not say whether the group proceeds without that member. Computing over the members
+  that happened to resolve would silently answer a different question, so the group is refused and
+  every member's row is still returned. The group takes the FIRST refused member's status in request
+  order, which keeps the payload deterministic.
+- **A disagreeing run refuses the member even when the OTHER run matches.** `Min != Max` means the
+  store was hand-edited, and no figure drawn from that strategy is trustworthy - unlike a trade-less
+  run, which is merely absent from the question.
+- **`GroupRiskAnalysisStatus.InvalidLotGrid` and `StrategyNotFound` are added.** `LotGrid`'s
+  constructor validates rather than clamps, and a named strategy that does not exist is a 404, not a
+  data refusal.
+
+**FINDING - the heterogeneous-group refusal is UNREACHABLE from this read path.** D8b introduces it
+as an obligation created by per-member segment labels, and analytics R7 specifies a scenario for it.
+But selection matches the requested segment EXACTLY, so every selected run carries that one segment
+and the group is homogeneous by construction. The refusal is implemented as a pure, public,
+user-facing sentence (`BacktestReadService.DescribeSegmentDisagreement`) and asserted directly, and
+the calculator's `GroupSegment` throw remains the backstop - but the R7 scenario as written cannot be
+reached through `GET /api/backtests/portfolio-risk`. Flagged, not resolved.
+
+**MEASURED - the read path reproduces PR2's anchors end to end.** Seeding the IST fixture into a run,
+requesting `InSampleTest` at target `199.98`: `ObservationDays` 3,860, density 329/164/318,
+`DailyVar95` **null** with `InsufficientNegativeObservations`, `DailyVar99` **199.44229999999999988**,
+`MonthlyVar95` **400.19**, correlation `Alignment` "Intersection". Nothing moved between the adapter
+and the endpoint.
+
+**The `OosWindow` tripwire greps EXECUTABLE text, not comments.** The first run failed because
+`RunSegmentSelection`'s doc comment cites the `OosWindow.Resolver` precedent it deliberately follows.
+Deleting that citation to keep a literal assertion green would have traded a real explanation for a
+string match, so the tripwire strips comments first. `CloseTime >=` and `OosWindow` are absent from
+every slice file's code.
+
+**One pre-existing web test was amended.** `page_HasNoImportControl_ImportBelongsToTheStrategyRow`
+asserted a total button count of 2, which broke when the panel added its "Analyze group" control. Its
+INTENT - no import action on this page - is preserved and now asserted by label
+(`labels.filter(l => l.includes('IMPORT'))` is empty) rather than by a count that forbids any new
+control from ever appearing.
+
+**Phase 0 status.** 0.2 is ticked: the spec now states the trade-less-run rule as non-fatal and
+`Select_WithOneTradelessRunAndOneMatchingRun_ResolvesFromTheMatchingRun` asserts it. 0.1 was
+discharged by PR2's mixed-provenance `SeriesDensityDto`, though its box is still open. 0.3 (pruning
+the design's *Spec Dependencies* section) remains open and is documentation housekeeping.
 
 ## Notes
 

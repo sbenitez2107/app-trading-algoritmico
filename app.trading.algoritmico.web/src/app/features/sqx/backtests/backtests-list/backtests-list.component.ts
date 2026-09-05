@@ -15,6 +15,7 @@ import {
   BACKTEST_KIND_LABELS,
   CALIBRATION_STATUS_LABELS,
 } from '../../../../core/services/backtest.service';
+import { GroupRiskPanelComponent } from '../group-risk-panel/group-risk-panel.component';
 
 const PAGE_SIZE = 20;
 
@@ -32,7 +33,7 @@ const PAGE_SIZE = 20;
 @Component({
   selector: 'app-backtests-list',
   standalone: true,
-  imports: [CommonModule, TranslateModule],
+  imports: [CommonModule, TranslateModule, GroupRiskPanelComponent],
   templateUrl: './backtests-list.component.html',
   styleUrl: './backtests-list.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +60,14 @@ export class BacktestsListComponent implements OnInit {
   readonly calibrationsError = signal<string | null>(null);
 
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize)));
+
+  /**
+   * The distinct strategies whose runs are on the CURRENT page — the group the risk panel offers to
+   * analyse. Scoped to the page rather than to every imported run because the group has to be
+   * something the operator can see: analysing strategies that are not on screen would produce a
+   * figure whose membership is invisible.
+   */
+  readonly pageStrategyIds = computed(() => [...new Set(this.runs().map((run) => run.strategyId))]);
 
   readonly kindLabels = BACKTEST_KIND_LABELS;
   readonly calibrationLabels = CALIBRATION_STATUS_LABELS;

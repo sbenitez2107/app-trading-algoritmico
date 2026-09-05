@@ -21,4 +21,16 @@ public interface IBacktestReadService
 
     /// <summary>Both slots, the walk-forward export and the derived readiness for ONE strategy.</summary>
     Task<StrategyBacktestsDto> GetByStrategyAsync(Guid strategyId, CancellationToken ct);
+
+    /// <summary>
+    /// Correlation and VaR for ONE caller-named group of strategies, over ONE requested sample
+    /// (design.md D8/D8a/D8b).
+    /// <para>
+    /// The return type is a single analysis, not a collection of them, and the request describes a
+    /// single group. That is deliberate and load-bearing: this capability evaluates exactly the
+    /// group it was given and never iterates over or ranks candidate groupings — the boundary
+    /// against the next slice.
+    /// </para>
+    /// </summary>
+    Task<GroupRiskAnalysisDto> GetGroupRiskAnalysisAsync(GroupRiskAnalysisRequest request, CancellationToken ct);
 }

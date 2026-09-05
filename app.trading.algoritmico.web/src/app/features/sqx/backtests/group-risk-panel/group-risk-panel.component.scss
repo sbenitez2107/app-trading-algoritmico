@@ -1,0 +1,181 @@
+.group-risk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-main);
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--spacing-sm);
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  &__error {
+    margin: 0;
+    color: var(--color-danger);
+  }
+
+  &__refusal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    border-left: 3px solid var(--color-warning, var(--color-danger));
+    padding: var(--spacing-sm);
+    background: var(--bg-elevated, transparent);
+  }
+
+  &__refusal-title {
+    margin: 0;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__refusal-detail {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__members {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  &__member {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+  }
+
+  &__member-label {
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__member-status,
+  &__member-detail {
+    color: var(--text-muted);
+  }
+
+  &__figures,
+  &__correlation {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  &__provenance,
+  &__denominator,
+  &__disclaimer,
+  &__alignment,
+  &__average {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  &__var {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--spacing-xs) var(--spacing-md);
+    margin: 0;
+
+    dt {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    dd {
+      margin: 0;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  /**
+   * A withheld figure is styled as PROSE, never as a number: no tabular alignment, no monospace,
+   * nothing that would let it read as a value in a column of values.
+   */
+  &__withheld {
+    font-style: italic;
+    font-variant-numeric: normal;
+    color: var(--text-muted);
+  }
+
+  &__density {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  &__matrix {
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+
+    th,
+    td {
+      border: 1px solid var(--border-color);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      text-align: right;
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+  }
+
+  &__co-active {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+  }
+}

@@ -95,4 +95,8 @@
       </table>
     }
   </section>
+
+  @if (pageStrategyIds().length > 0) {
+    <app-group-risk-panel [strategyIds]="pageStrategyIds()" />
+  }
 </div>

@@ -107,13 +107,18 @@ describe('BacktestsListComponent', () => {
       (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
     ) as HTMLButtonElement[];
 
-    // Only the two pagination controls remain. Import moved to the account grid's row action, where
-    // the strategy is known — an import button here would have nothing to attribute a file to.
-    expect(buttons).toHaveLength(2);
-    expect(buttons.map((b) => b.textContent?.trim())).toEqual([
-      'SQX.BACKTESTS.PAGE_PREV',
-      'SQX.BACKTESTS.PAGE_NEXT',
-    ]);
+    // Import moved to the account grid's row action, where the strategy is known — an import button
+    // here would have nothing to attribute a file to.
+    //
+    // Asserted by LABEL rather than by a total button count. The count was the original shape and it
+    // broke when the group risk panel added its own control, which is a legitimate addition to this
+    // page: a bare count says "nothing new may appear here", which is not the claim. What must stay
+    // true is that no control on this page offers to IMPORT.
+    const labels = buttons.map((b) => b.textContent?.trim() ?? '');
+    expect(labels).toEqual(
+      expect.arrayContaining(['SQX.BACKTESTS.PAGE_PREV', 'SQX.BACKTESTS.PAGE_NEXT']),
+    );
+    expect(labels.filter((label) => label.includes('IMPORT'))).toHaveLength(0);
   });
 
   it('calibrations_CalibratedSymbol_SurfacedInSignal', () => {

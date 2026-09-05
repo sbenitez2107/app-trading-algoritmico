@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.26.0] - 2026-09-05
+
+### Added
+- **Portfolio risk analysis over imported backtests** — a group of strategies can now be analysed on the risk figures the app already computes for live accounts, but sourced from SQX backtest trades instead. Correlation, Value-at-Risk and the density disclosure are read from a new panel on the backtests screen.
+- **A figure that the data cannot support is withheld, never shown as zero.** This is the reason the feature exists in the shape it does: reusing the live calculation unchanged on backtest data returns exactly `0.00` for the daily VaR95, because a backtest's trades are sparse against a dense calendar and the 5th percentile lands in the zero-filled block. A withheld figure now carries a stated reason and cannot render as a number. The gate is evaluated per confidence level, so a run can report VaR99 while withholding VaR95 — the more extreme percentile reads deeper into the losing tail, where a sparse series does have data.
+- **The same sparsity biases correlation toward zero**, because a day on which neither strategy traded scores as agreement. The backtest path therefore aligns each pair on the days both actually traded, reports how many those were, and withholds a coefficient rather than publishing one built on absence.
+- **Which sample a figure was computed over travels with it.** A run is selected by matching the segment its trades carry, never inferred from which slot it occupies. A strategy with one imported slot and one empty resolves normally; a strategy whose two runs both match the requested segment is refused rather than picked arbitrarily.
+- **An already-sized series cannot be combined with a portfolio weight.** The type that carries backtest nets can only be built through a factory that refuses any weight other than 1, because the position size is already the risk decision — multiplying a weight into it would size the position twice.
+
+### Changed
+- The live account path is untouched. Every shipped correlation and VaR figure is bit-identical, proven by injecting the backtest behaviour into the live path and watching the regression fail.
+
+---
+
 ## [0.23.0] - 2026-09-03
 
 ### Added

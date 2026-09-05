@@ -45,4 +45,47 @@ public class BacktestsController(IBacktestReadService service) : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<SymbolCalibrationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SymbolCalibrationDto>>> GetCalibrations(CancellationToken ct)
         => Ok(await service.GetCalibrationsAsync(ct));
+
+    /// <summary>
+    /// Correlation and VaR over ONE caller-named group of strategies, computed over the ONE sample
+    /// the caller names (design.md D8/D8a/D8b).
+    /// <para>
+    /// <b>Every refusal keeps its own status code AND its body.</b> The response is the same
+    /// <see cref="GroupRiskAnalysisDto"/> whether the analysis completed or was refused, because the
+    /// per-member evidence is what the operator acts on: which member, which run, which weight. A
+    /// bare status code would say only that something failed.
+    /// </para>
+    /// <para>
+    /// The 400s are about the REQUEST — it did not name a sample, named the one label that means
+    /// "unclassified", named no strategies, or described an impossible lot grid. The 422s are about
+    /// the DATA — the rows exist and are readable, but they cannot support the figure that was
+    /// asked for. They are separated so a client can tell "fix your query" from "import something".
+    /// </para>
+    /// </summary>
+    [HttpGet("portfolio-risk")]
+    [ProducesResponseType(typeof(GroupRiskAnalysisDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GroupRiskAnalysisDto), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(GroupRiskAnalysisDto), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(GroupRiskAnalysisDto), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<GroupRiskAnalysisDto>> GetPortfolioRisk(
+        [FromQuery] GroupRiskAnalysisRequest request, CancellationToken ct = default)
+    {
+        var analysis = await service.GetGroupRiskAnalysisAsync(request, ct);
+
+        return analysis.Status switch
+        {
+            GroupRiskAnalysisStatus.Completed => Ok(analysis),
+
+            // The request could not name a sample, or named one that means "unclassified".
+            GroupRiskAnalysisStatus.SegmentNotSpecified
+                or GroupRiskAnalysisStatus.UnknownSegmentNotSelectable
+                or GroupRiskAnalysisStatus.NoStrategiesRequested
+                or GroupRiskAnalysisStatus.InvalidLotGrid => BadRequest(analysis),
+
+            GroupRiskAnalysisStatus.StrategyNotFound => NotFound(analysis),
+
+            // The rows are readable but cannot support the figure that was asked for.
+            _ => UnprocessableEntity(analysis),
+        };
+    }
 }
