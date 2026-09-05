@@ -30,9 +30,10 @@ public enum VarWithholdReason
 
     /// <summary>
     /// The density gate: the series does not hold enough strictly-negative observations for the
-    /// percentile's read index to land on a loss at all
-    /// (<c>negativeCount &lt; floor(p * (N-1)) + 1</c>). Evaluated independently PER confidence
-    /// level, so a run can withhold VaR95 while reporting VaR99.
+    /// percentile to be a loss estimate at all. The percentile INTERPOLATES between
+    /// <c>sorted[floor(p * (N-1))]</c> and <c>sorted[ceil(p * (N-1))]</c>, so BOTH endpoints must
+    /// be losses: <c>negativeCount &lt; ceil(p * (N-1)) + 1</c> withholds. Evaluated independently
+    /// PER confidence level, so a run can withhold VaR95 while reporting VaR99.
     /// </summary>
     InsufficientNegativeObservations,
 }

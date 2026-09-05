@@ -21,11 +21,14 @@ namespace AppTradingAlgoritmico.UnitTests.Portfolios;
 /// and these tests fail loudly rather than silently stop covering it.
 ///
 /// The predicate under test, from `portfolio-monthly-var`:
-/// <c>Percentile(sorted, p)</c> reads <c>sorted[floor(p * (N-1))]</c>, and on an ascending sort the
-/// negatives occupy indices <c>0 .. negativeCount-1</c> — a positive observation sorts ABOVE the
-/// zero block and can never supply the mass that index needs. So the read is supported exactly when
-/// <c>negativeCount >= floor(p * (N-1)) + 1</c>. It is a relation against the NEGATIVE count and
-/// the percentile being computed — never a hard-coded share, and never the non-zero share.
+/// <c>Percentile(sorted, p)</c> INTERPOLATES between <c>sorted[floor(p * (N-1))]</c> and
+/// <c>sorted[ceil(p * (N-1))]</c>, and on an ascending sort the negatives occupy indices
+/// <c>0 .. negativeCount-1</c> — a zero-net day and a winning day both sort ABOVE them and neither
+/// can supply the mass a loss estimate needs. So the PUBLISHED FIGURE is supported exactly when
+/// BOTH endpoints are losses: <c>negativeCount >= ceil(p * (N-1)) + 1</c>, which is
+/// <c>floor(p * (N-1)) + 2</c> whenever the rank is not a whole number. It is a relation against
+/// the NEGATIVE count and the percentile being computed — never a hard-coded share, and never the
+/// non-zero share.
 /// </summary>
 public class PortfolioAnalyticsPrivateCoreTests
 {
@@ -60,44 +63,50 @@ public class PortfolioAnalyticsPrivateCoreTests
     }
 
     // -------------------------------------------------------------------------
-    // 1.3 — SupportedPercentile: null iff negativeCount < floor(p * (N-1)) + 1.
+    // 1.3 — SupportedPercentile: null iff negativeCount < ceil(p * (N-1)) + 1.
     // -------------------------------------------------------------------------
 
     [Theory]
-    // The measured IST fixture shape: N = 3,860 needs >= floor(0.05 * 3859) + 1 = 193 negative days
-    // and has 164 — withheld. Its OOST counterpart needs >= 191 and has 172 — also withheld.
+    // The measured IST fixture shape: N = 3,860 needs >= ceil(0.05 * 3859) + 1 = 194 negative days
+    // and has 164 — withheld. Its OOST counterpart needs >= 192 and has 172 — also withheld.
     [InlineData(3860, 0.05, 164, false)]
     [InlineData(3804, 0.05, 172, false)]
     // The boundary neither committed fixture can reach: exactly one short, and exactly on it.
-    [InlineData(3860, 0.05, 192, false)]
-    [InlineData(3860, 0.05, 193, true)]
-    [InlineData(3804, 0.05, 190, false)]
-    [InlineData(3804, 0.05, 191, true)]
-    // VaR99 reads DEEPER into the tail than VaR95: floor(0.01 * 3859) + 1 = 39, so the SAME 164
+    // 193 and 191 are the counts the SUPERSEDED `floor + 1` relation called supported; both now
+    // withhold, because at exactly those counts the second interpolation endpoint is the first
+    // NON-NEGATIVE observation and the published figure would be partly drawn from the zero block.
+    [InlineData(3860, 0.05, 193, false)]
+    [InlineData(3860, 0.05, 194, true)]
+    [InlineData(3804, 0.05, 191, false)]
+    [InlineData(3804, 0.05, 192, true)]
+    // VaR99 reads DEEPER into the tail than VaR95: ceil(0.01 * 3859) + 1 = 40, so the SAME 164
     // negative days that fail p = 0.05 clear p = 0.01. One population, two verdicts — the gate is
     // evaluated independently per confidence level.
-    [InlineData(3860, 0.01, 38, false)]
-    [InlineData(3860, 0.01, 39, true)]
+    [InlineData(3860, 0.01, 39, false)]
+    [InlineData(3860, 0.01, 40, true)]
     [InlineData(3860, 0.01, 164, true)]
     // Small populations: the relation still derives its threshold, it is never a fixed count.
-    [InlineData(5, 0.05, 0, false)]
-    [InlineData(5, 0.05, 1, true)]
+    [InlineData(5, 0.05, 1, false)]
+    [InlineData(5, 0.05, 2, true)]
+    // N = 1 is the WHOLE-RANK case: 0.05 * 0 = 0, so lo == hi, `Percentile` returns sorted[0]
+    // verbatim and there is no second endpoint to defend. One loss is the entire published figure,
+    // so one loss is enough — the relation is as strict as the number requires and no stricter.
     [InlineData(1, 0.05, 0, false)]
     [InlineData(1, 0.05, 1, true)]
-    public void SupportedPercentile_ReportsOnlyWhenNegativeCountReachesThePercentileIndex(
+    public void SupportedPercentile_ReportsOnlyWhenNegativeCountReachesEveryIndexTheFigureIsComposedOf(
         int total, double p, int negatives, bool expectedSupported)
     {
-        var required = (int)Math.Floor(p * (total - 1)) + 1;
+        var required = (int)Math.Ceiling(p * (total - 1)) + 1;
 
         var actual = InvokeSupportedPercentile(Population(total, negatives), p);
 
         if (expectedSupported)
             actual.Should().NotBeNull(
-                "{0} negative observations reach the {1} that floor({2} * {3}) + 1 requires",
+                "{0} negative observations reach the {1} that ceil({2} * {3}) + 1 requires",
                 negatives, required, p, total - 1);
         else
             actual.Should().BeNull(
-                "{0} negative observations fall short of the {1} that floor({2} * {3}) + 1 requires",
+                "{0} negative observations fall short of the {1} that ceil({2} * {3}) + 1 requires",
                 negatives, required, p, total - 1);
     }
 
@@ -114,7 +123,7 @@ public class PortfolioAnalyticsPrivateCoreTests
     {
         // The gate changes the VERDICT, never the NUMBER. `Percentile`'s body is untouched by this
         // slice, so a supported read must be bit-identical to the ungated one.
-        var population = Population(3860, 193);
+        var population = Population(3860, 194);
 
         var gated = InvokeSupportedPercentile(population, 0.05);
 
@@ -135,18 +144,116 @@ public class PortfolioAnalyticsPrivateCoreTests
 
         nonZeroShare.Should().BeGreaterThan(0.05m, "the wrong predicate's threshold is cleared");
         InvokeSupportedPercentile(population, 0.05).Should().BeNull(
-            "the relation is against the NEGATIVE count (164 < 193), never the non-zero share");
+            "the relation is against the NEGATIVE count (164 < 194), never the non-zero share");
     }
 
     [Fact]
     public void SupportedPercentile_PositiveObservationsNeverSupplyTheMissingMass()
     {
-        // Same 192 negatives — one short of the 193 the index needs — with and without a large
-        // block of positives. Adding positives cannot change the verdict, because they sort ABOVE
-        // the zero block and the read index is below it.
-        InvokeSupportedPercentile(Population(3860, negatives: 192), 0.05).Should().BeNull();
-        InvokeSupportedPercentile(Population(3860, negatives: 192, positives: 3000), 0.05)
-            .Should().BeNull("positives sort above the zeros and can never reach index 192");
+        // Same 193 negatives — one short of the 194 the two read indices need — with and without a
+        // large block of positives. Adding positives cannot change the verdict, because they sort
+        // ABOVE the zero block and both read indices are below it.
+        InvokeSupportedPercentile(Population(3860, negatives: 193), 0.05).Should().BeNull();
+        InvokeSupportedPercentile(Population(3860, negatives: 193, positives: 3000), 0.05)
+            .Should().BeNull("positives sort above the zeros and can never reach index 192 or 193");
+    }
+
+    // -------------------------------------------------------------------------
+    // RELIABILITY-001 — the gate must defend the value that is PUBLISHED, not one index of it.
+    //
+    // `Percentile` does not read a single index. It reads TWO — `sorted[lo]` and `sorted[lo + 1]`
+    // — and returns a LINEAR INTERPOLATION between them. A gate stated over `lo` alone therefore
+    // authorises a figure that is partly determined by `sorted[lo + 1]`, which at the exact
+    // boundary is by construction the FIRST NON-NEGATIVE observation. Asserting `NotBeNull()` at a
+    // boundary cannot see that: these tests assert the published VALUE.
+    // -------------------------------------------------------------------------
+
+    /// <summary>The two indices <c>Percentile</c> actually interpolates between, and the weight.</summary>
+    private static (int Lo, int Hi, decimal Frac) ReadIndices(int count, double p)
+    {
+        var rank = p * (count - 1);
+        var lo = (int)Math.Floor(rank);
+        var hi = (int)Math.Ceiling(rank);
+        return (lo, hi, (decimal)(rank - lo));
+    }
+
+    [Theory]
+    [InlineData(3860, 0.05, 193)]
+    [InlineData(3860, 0.05, 194)]
+    [InlineData(3860, 0.05, 3860)]
+    [InlineData(3804, 0.05, 191)]
+    [InlineData(3804, 0.05, 192)]
+    [InlineData(3860, 0.01, 39)]
+    [InlineData(3860, 0.01, 40)]
+    [InlineData(91, 0.05, 5)]
+    [InlineData(91, 0.05, 6)]
+    public void SupportedPercentile_APublishedFigureIsComposedOnlyOfLosses(
+        int total, double p, int negatives)
+    {
+        // Whatever the gate authorises, EVERY observation that determines the number must itself be
+        // a loss. A figure the gate calls "supported" while an interpolation endpoint is a zero-fill
+        // or a win is exactly the contamination this gate exists to eliminate.
+        var population = Population(total, negatives);
+        var (lo, hi, _) = ReadIndices(total, p);
+
+        var published = InvokeSupportedPercentile(population, p);
+
+        if (published is null) return;
+
+        population[lo].Should().BeNegative(
+            "index {0} determines the published figure {1}", lo, published);
+        population[hi].Should().BeNegative(
+            "index {0} is the second interpolation endpoint of the published figure {1}", hi, published);
+    }
+
+    [Fact]
+    public void SupportedPercentile_ExactlyOnTheOldThreshold_IsNotPublishedDilutedByTheZeroBlock()
+    {
+        // 3,860 observations, 193 negatives — the count the ORIGINAL relation (`floor(p(N-1)) + 1`)
+        // called supported. `Percentile` reads sorted[192] = -1 and sorted[193] = 0 with weight
+        // 0.95, so the number it publishes is -0.05: 95% of it comes from the ZERO BLOCK. This is
+        // the "0.00 that still passes" the gate was written to prevent, one index to the right.
+        var population = Population(3860, negatives: 193);
+
+        // `Percentile` derives its weight from a double, so the figure carries the rounding of that
+        // conversion — 0.95 is not exactly representable. That is not this finding, but it is why
+        // every value assertion here is approximate rather than exact.
+        InvokePercentile(population, 0.05).Should().BeApproximately(
+            -0.05m, 0.000001m, "the ungated interpolation is 95% zero-fill");
+        population[193].Should().Be(0m, "the second endpoint is the first observation of the zero block");
+
+        InvokeSupportedPercentile(population, 0.05).Should().BeNull(
+            "a figure 95% determined by a zero-net day is not a loss estimate");
+    }
+
+    [Fact]
+    public void SupportedPercentile_ExactlyOnTheOldThreshold_IsNotPublishedWithAnInvertedSign()
+    {
+        // The same boundary with a WIN as the second endpoint instead of a zero. 91 observations,
+        // 5 negatives (-5..-1) then 86 wins of +900. Percentile reads sorted[4] = -1 and
+        // sorted[5] = +900 at weight 0.5 and returns +449.50 — a POSITIVE low percentile, which the
+        // caller negates into a NEGATIVE "loss magnitude" and the UI renders, because the figure is
+        // not null.
+        var population = new List<decimal>();
+        for (var i = 0; i < 5; i++) population.Add(-(5 - i));
+        for (var i = 0; i < 86; i++) population.Add(900m);
+
+        InvokePercentile(population, 0.05).Should().BeApproximately(
+            449.50m, 0.000001m, "the win dominates the interpolation");
+
+        InvokeSupportedPercentile(population, 0.05).Should().BeNull(
+            "a percentile that a WIN pulls above zero is not a loss estimate at any confidence level");
+    }
+
+    [Fact]
+    public void SupportedPercentile_OneAboveTheOldThreshold_PublishesAFigureEveryPartOfWhichIsALoss()
+    {
+        // The reporting side of the same boundary, pinned as a VALUE. 194 negatives put BOTH
+        // endpoints inside the negative block: sorted[192] = -2, sorted[193] = -1, weight 0.95.
+        var population = Population(3860, negatives: 194);
+
+        InvokeSupportedPercentile(population, 0.05).Should().BeApproximately(
+            -1.05m, 0.000001m, "both interpolation endpoints are losses, so the published figure is one too");
     }
 
     // -------------------------------------------------------------------------

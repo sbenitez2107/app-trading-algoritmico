@@ -44,8 +44,8 @@ Shipped `ComputeVaR` trims its daily series to the most recent `windowDays` obse
 (default 250) before computing the percentile. The backtest adapter MUST pass no such trim and
 MUST evaluate every density-gate relation over the run's full dated series. Trimming would change
 `N` and therefore the gate's threshold and the withheld/produced outcome (measured: IST's full
-series has `N`=3,860, 164 negative days, needing ≥193 to produce; the same series trimmed to 250
-observations has only 5 negative days, needing ≥13 — a materially different, and wrong, gate
+series has `N`=3,860, 164 negative days, needing ≥194 to produce; the same series trimmed to 250
+observations has only 5 negative days, needing ≥14 — a materially different, and wrong, gate
 evaluation).
 
 #### Scenario: Gate evaluated over the full series, not the 250-observation trim
@@ -183,6 +183,33 @@ segments. No figure is computed with a "mixed" label, and no majority segment is
 - GIVEN a group where one member's selected run carries `BacktestSegment.InSampleTest` and another's carries `BacktestSegment.OutOfSample`
 - WHEN the group risk analysis is requested
 - THEN it is refused, naming both members and their segments; no correlation or VaR figure is produced
+
+### Requirement: A Non-Positive Initial Capital Is A Request Refusal, And An Incomputable Percentage Is Always Null
+
+`InitialCapital` is the denominator of every percentage the analysis publishes. It is a
+non-nullable decimal on a query-bound request record, so an OMITTED query parameter binds to `0`:
+left unvalidated, "the caller named no capital" and "the caller asked for zero capital" are the
+same request. A request whose `InitialCapital` is not strictly positive MUST therefore be refused
+with its own status, mapped to **400** — a REQUEST that did not state what it must state, the same
+class as an omitted segment, and not a **422** about data that cannot support a figure.
+
+Independently of that refusal, the payload MUST carry ONE convention for a figure it cannot
+compute: `null`, NEVER `0`. Any VaR percentage whose denominator is absent MUST be `null`, on the
+daily figures and the monthly figure alike, at group level and in the per-service breakdown. A
+payload carrying `dailyVar95Percent: null` beside `monthlyVar95Percent: 0` states "zero percent of
+capital at risk over a month" where it means "not computable", which is the same failure class as
+publishing a `0.00` VaR. This applies to the BACKTEST path only; the real-account path's shipped
+behaviour is unchanged.
+
+#### Scenario: An omitted or non-positive initial capital is refused
+- GIVEN a group risk analysis request whose `initialCapital` is `0` (the value an omitted query parameter binds to) or negative
+- WHEN it is submitted
+- THEN it is refused with its own status, answered as **400**, and no correlation or VaR figure is produced
+
+#### Scenario: An incomputable percentage is withheld, never zero
+- GIVEN a backtest analysis computed with a non-positive capital base whose monthly VaR95 currency figure IS supported
+- WHEN the payload is produced
+- THEN `monthlyVar95` carries the currency figure while `monthlyVar95Percent` is `null` — matching the daily percentages beside it, in the group payload and in every per-service entry
 
 ### Requirement: Density Metrics Accompany Every Figure
 

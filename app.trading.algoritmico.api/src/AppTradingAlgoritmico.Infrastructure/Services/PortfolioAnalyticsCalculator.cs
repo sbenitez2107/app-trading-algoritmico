@@ -554,7 +554,11 @@ public static class PortfolioAnalyticsCalculator
             DailyVar99Percent: PercentOfCapital(var99, initialCapital),
             DailyVar99Withheld: DailyWithholdReason(var99, nets.Count),
             MonthlyVar95: monthly.monthlyVar95,
-            MonthlyVar95Percent: monthly.monthlyVar95Percent,
+            // NOT `monthly.monthlyVar95Percent`. That field carries the LIVE path's convention, a
+            // 0 when there is no positive capital to divide by; this payload's rule is that a
+            // figure it cannot compute is `null`, NEVER `0`, and the daily percentages beside it
+            // already say so through `PercentOfCapital`. One payload, one convention.
+            MonthlyVar95Percent: PercentOfCapital(monthly.monthlyVar95, initialCapital),
             MonthlyVar95Withheld: MonthlyWithholdReason(monthly.monthlyVar95, monthly.insufficientHistory, nets.Count),
             MonthlyVarOverlappingWindows: monthly.overlappingWindows,
             MonthlyVarIndependentWindows: monthly.independentWindows,
@@ -717,7 +721,8 @@ public static class PortfolioAnalyticsCalculator
             DailyVar95Percent: PercentOfCapital(var95, initialCapital),
             DailyVar95Withheld: DailyWithholdReason(var95, nets.Count),
             MonthlyVar95: monthly.monthlyVar95,
-            MonthlyVar95Percent: monthly.monthlyVar95Percent,
+            // Same convention as the group payload above: null, never a zero percentage.
+            MonthlyVar95Percent: PercentOfCapital(monthly.monthlyVar95, initialCapital),
             MonthlyVar95Withheld: MonthlyWithholdReason(monthly.monthlyVar95, monthly.insufficientHistory, nets.Count),
             MonthlyVarOverlappingWindows: monthly.overlappingWindows,
             MonthlyVarIndependentWindows: monthly.independentWindows,
@@ -888,11 +893,27 @@ public static class PortfolioAnalyticsCalculator
     /// <see cref="Percentile"/>, withheld (<c>null</c>) when the series does not hold enough
     /// NEGATIVE observations for that percentile to be a loss estimate at all.
     ///
-    /// <see cref="Percentile"/> reads <c>sorted[floor(p * (N-1))]</c>. On an ascending sort the
-    /// negatives occupy indices <c>0 .. negativeCount-1</c>, then the zero-net observations, then
-    /// the positives — and a positive sorts ABOVE the zero block, so it can never supply the mass
-    /// that index needs. The read is therefore supported exactly when
-    /// <c>negativeCount &gt;= floor(p * (N-1)) + 1</c>.
+    /// <see cref="Percentile"/> does NOT read one index. It reads TWO — <c>sorted[lo]</c> and
+    /// <c>sorted[hi]</c>, where <c>lo = floor(p * (N-1))</c> and <c>hi = ceil(p * (N-1))</c> — and
+    /// returns the LINEAR INTERPOLATION between them. On an ascending sort the negatives occupy
+    /// indices <c>0 .. negativeCount-1</c>, then the zero-net observations, then the positives —
+    /// and a positive sorts ABOVE the zero block, so neither can supply the mass a loss estimate
+    /// needs. The published figure is therefore supported exactly when BOTH endpoints are losses:
+    /// <c>negativeCount &gt;= ceil(p * (N-1)) + 1</c>.
+    ///
+    /// WHY BOTH ENDPOINTS, and why this is not <c>floor(p * (N-1)) + 1</c>. A gate stated over
+    /// <c>lo</c> alone defends an index, not the number that gets published. Exactly on that older
+    /// threshold <c>sorted[hi]</c> is BY CONSTRUCTION the first non-negative observation, so the
+    /// figure it authorised was partly determined by a zero-fill or a win: measured, 3,860
+    /// observations with 193 negatives published <c>0.05</c>, 95% of it drawn from the zero block —
+    /// the same "a 0.00 that still passes" this gate exists to prevent, one index to the right —
+    /// and a series whose <c>sorted[hi]</c> is a WIN published a NEGATIVE loss magnitude.
+    ///
+    /// When <c>p * (N-1)</c> is a whole number, <c>lo == hi</c>: the published value IS
+    /// <c>sorted[lo]</c>, no interpolation happens, and one supported endpoint is the whole number.
+    /// <c>ceil</c> collapses to <c>floor</c> there and the relation stays exactly as strict as the
+    /// published figure requires — no stricter. For every other rank it is
+    /// <c>floor(p * (N-1)) + 2</c>.
     ///
     /// Three things this deliberately is NOT. It is not a hard-coded share (a bare <c>5%</c> is
     /// what produced the error this gate corrects); it is not a relation against the NON-ZERO
@@ -913,7 +934,8 @@ public static class PortfolioAnalyticsCalculator
         for (var i = 0; i < sorted.Count; i++)
             if (sorted[i] < 0m) negativeCount++;
 
-        var required = (int)Math.Floor(p * (sorted.Count - 1)) + 1;
+        // The HIGHEST index the published figure is composed of, +1 to turn it into a count.
+        var required = (int)Math.Ceiling(p * (sorted.Count - 1)) + 1;
         return negativeCount >= required ? Percentile(sorted, p) : null;
     }
 

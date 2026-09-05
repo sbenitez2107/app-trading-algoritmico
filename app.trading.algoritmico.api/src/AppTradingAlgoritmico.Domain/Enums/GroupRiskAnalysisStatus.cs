@@ -60,4 +60,14 @@ public enum GroupRiskAnalysisStatus
     /// their segments — never computed with a "mixed" label and never resolved by majority.
     /// </summary>
     HeterogeneousGroup,
+
+    /// <summary>
+    /// The request named a non-positive <c>InitialCapital</c>. It is the denominator of every
+    /// percentage the analysis publishes, and it is a NON-nullable decimal on a query-bound record,
+    /// so an omitted parameter binds to <c>0</c>: unvalidated, "no capital named" and "zero capital
+    /// requested" are the same request. A REQUEST-side refusal, like
+    /// <see cref="SegmentNotSpecified"/>, and it appears last only to keep the wire values of the
+    /// statuses that shipped before it unchanged.
+    /// </summary>
+    InvalidInitialCapital,
 }

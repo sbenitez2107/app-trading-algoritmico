@@ -67,18 +67,39 @@ public class BacktestsControllerGroupRiskTests
             Times.Once);
     }
 
+    /// <summary>
+    /// The INTENDED code for every status, written out once. It is the test's own statement of the
+    /// contract, deliberately independent of the controller's switch: a mapping table derived from
+    /// the code under test could only ever agree with it.
+    /// </summary>
+    private static readonly Dictionary<GroupRiskAnalysisStatus, int> ExpectedCodes = new()
+    {
+        [GroupRiskAnalysisStatus.Completed] = StatusCodes.Status200OK,
+        [GroupRiskAnalysisStatus.SegmentNotSpecified] = StatusCodes.Status400BadRequest,
+        [GroupRiskAnalysisStatus.UnknownSegmentNotSelectable] = StatusCodes.Status400BadRequest,
+        [GroupRiskAnalysisStatus.NoStrategiesRequested] = StatusCodes.Status400BadRequest,
+        [GroupRiskAnalysisStatus.InvalidLotGrid] = StatusCodes.Status400BadRequest,
+        [GroupRiskAnalysisStatus.InvalidInitialCapital] = StatusCodes.Status400BadRequest,
+        [GroupRiskAnalysisStatus.StrategyNotFound] = StatusCodes.Status404NotFound,
+        [GroupRiskAnalysisStatus.RunSegmentsDisagree] = StatusCodes.Status422UnprocessableEntity,
+        [GroupRiskAnalysisStatus.NoEvidenceForSegment] = StatusCodes.Status422UnprocessableEntity,
+        [GroupRiskAnalysisStatus.AmbiguousRunSelection] = StatusCodes.Status422UnprocessableEntity,
+        [GroupRiskAnalysisStatus.RiskNotEstimable] = StatusCodes.Status422UnprocessableEntity,
+        [GroupRiskAnalysisStatus.NonUnitWeight] = StatusCodes.Status422UnprocessableEntity,
+        [GroupRiskAnalysisStatus.HeterogeneousGroup] = StatusCodes.Status422UnprocessableEntity,
+    };
+
+    public static TheoryData<GroupRiskAnalysisStatus, int> RefusalMappings()
+    {
+        var data = new TheoryData<GroupRiskAnalysisStatus, int>();
+        foreach (var (status, code) in ExpectedCodes)
+            if (status != GroupRiskAnalysisStatus.Completed)
+                data.Add(status, code);
+        return data;
+    }
+
     [Theory]
-    [InlineData(GroupRiskAnalysisStatus.SegmentNotSpecified, StatusCodes.Status400BadRequest)]
-    [InlineData(GroupRiskAnalysisStatus.UnknownSegmentNotSelectable, StatusCodes.Status400BadRequest)]
-    [InlineData(GroupRiskAnalysisStatus.NoStrategiesRequested, StatusCodes.Status400BadRequest)]
-    [InlineData(GroupRiskAnalysisStatus.InvalidLotGrid, StatusCodes.Status400BadRequest)]
-    [InlineData(GroupRiskAnalysisStatus.StrategyNotFound, StatusCodes.Status404NotFound)]
-    [InlineData(GroupRiskAnalysisStatus.RunSegmentsDisagree, StatusCodes.Status422UnprocessableEntity)]
-    [InlineData(GroupRiskAnalysisStatus.NoEvidenceForSegment, StatusCodes.Status422UnprocessableEntity)]
-    [InlineData(GroupRiskAnalysisStatus.AmbiguousRunSelection, StatusCodes.Status422UnprocessableEntity)]
-    [InlineData(GroupRiskAnalysisStatus.RiskNotEstimable, StatusCodes.Status422UnprocessableEntity)]
-    [InlineData(GroupRiskAnalysisStatus.NonUnitWeight, StatusCodes.Status422UnprocessableEntity)]
-    [InlineData(GroupRiskAnalysisStatus.HeterogeneousGroup, StatusCodes.Status422UnprocessableEntity)]
+    [MemberData(nameof(RefusalMappings))]
     public async Task GetPortfolioRisk_MapsEachRefusalToItsOwnStatusCodeAndStillReturnsTheEvidence(
         GroupRiskAnalysisStatus status, int expectedCode)
     {
@@ -110,24 +131,40 @@ public class BacktestsControllerGroupRiskTests
         body.Refusal.Should().Contain("1.5");
     }
 
+    /// <summary>
+    /// The real tripwire for "a refusal was added without deciding its status code".
+    /// <para>
+    /// The previous version asserted only that each status produced one of the four codes the
+    /// endpoint uses. The controller's `_ =>` default RETURNS one of those four (422), so a status
+    /// nobody had mapped satisfied it: the test could not fail for the reason it claimed. Adding
+    /// <see cref="GroupRiskAnalysisStatus.InvalidInitialCapital"/> without its `BadRequest` arm was
+    /// measured to pass it while returning 422.
+    /// </para>
+    /// <para>
+    /// What actually catches that is COVERAGE of an independently written table: a new enum member
+    /// has no row in <see cref="ExpectedCodes"/>, so it fails here, and the theory above then
+    /// checks that the controller agrees with the row once one is written.
+    /// </para>
+    /// </summary>
     [Fact]
-    public async Task GetPortfolioRisk_EveryRefusalStatusHasItsOwnMapping()
+    public async Task GetPortfolioRisk_EveryRefusalStatusHasAnIntendedCodeAndTheControllerAgrees()
     {
-        // A rename tripwire: adding a refusal without mapping it would otherwise silently fall
-        // through to whatever the default branch happens to be.
-        foreach (var status in Enum.GetValues<GroupRiskAnalysisStatus>())
+        var declared = Enum.GetValues<GroupRiskAnalysisStatus>();
+
+        ExpectedCodes.Keys.Should().BeEquivalentTo(
+            declared,
+            "every status this endpoint can answer with needs a DECIDED code; a new one falling "
+            + "through the controller's default would otherwise be published as 422 by accident");
+
+        foreach (var status in declared)
         {
             var (controller, _) = CreateSut(Analysis(status));
 
             var result = await controller.GetPortfolioRisk(Request());
 
             var objectResult = result.Result.Should().BeAssignableTo<ObjectResult>().Subject;
-            objectResult.StatusCode.Should().NotBeNull($"{status} must map to an explicit status code");
-            objectResult.StatusCode.Should().BeOneOf(
-                StatusCodes.Status200OK,
-                StatusCodes.Status400BadRequest,
-                StatusCodes.Status404NotFound,
-                StatusCodes.Status422UnprocessableEntity);
+            objectResult.StatusCode.Should().Be(
+                ExpectedCodes[status], "{0} must map to its own intended code", status);
         }
     }
 }

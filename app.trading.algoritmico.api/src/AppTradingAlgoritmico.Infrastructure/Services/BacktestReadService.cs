@@ -149,6 +149,20 @@ public sealed class BacktestReadService(AppDbContext db) : IBacktestReadService
 
         var segment = request.Segment.Value;
 
+        // (3) No capital to divide by. `InitialCapital` is the denominator of every percentage on
+        //     the payload; on a non-nullable decimal an omitted query parameter binds to 0, so
+        //     without this rule the caller who forgot is answered with real currency figures and
+        //     incomputable percentages beside them.
+        if (request.InitialCapital <= 0m)
+        {
+            return Refused(
+                GroupRiskAnalysisStatus.InvalidInitialCapital,
+                $"InitialCapital {request.InitialCapital} is not a capital base: it is the "
+                + "denominator of every percentage this analysis publishes, and an omitted query "
+                + "parameter binds to 0, so a non-positive value cannot be distinguished from an "
+                + "unstated one.");
+        }
+
         var strategyIds = request.StrategyIds?.Distinct().ToList() ?? [];
         if (strategyIds.Count == 0)
             return Refused(GroupRiskAnalysisStatus.NoStrategiesRequested, "No strategies were named.");

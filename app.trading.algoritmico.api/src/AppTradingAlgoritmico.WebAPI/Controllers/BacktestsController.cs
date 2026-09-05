@@ -80,7 +80,8 @@ public class BacktestsController(IBacktestReadService service) : ControllerBase
             GroupRiskAnalysisStatus.SegmentNotSpecified
                 or GroupRiskAnalysisStatus.UnknownSegmentNotSelectable
                 or GroupRiskAnalysisStatus.NoStrategiesRequested
-                or GroupRiskAnalysisStatus.InvalidLotGrid => BadRequest(analysis),
+                or GroupRiskAnalysisStatus.InvalidLotGrid
+                or GroupRiskAnalysisStatus.InvalidInitialCapital => BadRequest(analysis),
 
             GroupRiskAnalysisStatus.StrategyNotFound => NotFound(analysis),
 

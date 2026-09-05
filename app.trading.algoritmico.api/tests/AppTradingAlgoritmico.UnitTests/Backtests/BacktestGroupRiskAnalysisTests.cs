@@ -46,10 +46,11 @@ public class BacktestGroupRiskAnalysisTests
         BacktestSegment? segment = BacktestSegment.InSampleTest,
         BacktestRunKind? runKind = null,
         decimal target = IstEstimate,
-        string? fundingService = null)
+        string? fundingService = null,
+        decimal? capital = null)
         => new(
             StrategyIds: strategyIds,
-            InitialCapital: Capital,
+            InitialCapital: capital ?? Capital,
             TargetRiskPerTrade: target,
             Segment: segment,
             RunKind: runKind,
@@ -138,6 +139,41 @@ public class BacktestGroupRiskAnalysisTests
             GroupRiskAnalysisStatus.SegmentNotSpecified,
             "the caller who forgot and the caller who asked for Unknown must stay distinguishable");
         result.Risk.Should().BeNull();
+    }
+
+    /// <summary>
+    /// RELIABILITY-002. `InitialCapital` is the denominator of every percentage this endpoint
+    /// publishes, and it is a NON-nullable decimal on a `[FromQuery]` record: an omitted query
+    /// parameter binds to `0`. Left unvalidated, "the caller named no capital" and "the caller
+    /// asked for zero capital" are the same request, and both produce a payload whose currency
+    /// figures are real while every percentage beside them is incomputable.
+    /// <para>
+    /// Refused rather than answered with null percentages, for the same reason
+    /// <see cref="GroupRiskAnalysisStatus.SegmentNotSpecified"/> is: this is a REQUEST that did not
+    /// state what it needs to state, not DATA that cannot support a figure. A caller who genuinely
+    /// wants only the currency figures still has to name the capital the analysis is run under.
+    /// </para>
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task GetGroupRiskAnalysis_WithNonPositiveInitialCapital_IsRefusedAsARequestError(
+        int capital)
+    {
+        await using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "IST strategy");
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, RawTradeListFixture.IstFileName);
+
+        var result = await CreateSut(db).GetGroupRiskAnalysisAsync(
+            Request([strategyId], capital: capital), CancellationToken.None);
+
+        result.Status.Should().Be(
+            GroupRiskAnalysisStatus.InvalidInitialCapital,
+            "an omitted `initialCapital` binds to 0, so an unvalidated 0 cannot be told apart from "
+            + "a caller who never named one");
+        result.Refusal.Should().Contain(capital.ToString());
+        result.Risk.Should().BeNull();
+        result.Correlation.Should().BeNull();
     }
 
     // =====================================================================

@@ -161,11 +161,11 @@ public class PortfolioAnalyticsCalculatorLiveOutputRegressionTests
         // Sorted ascending: [-1000, 10 x 99].
         //
         // The support relation the backtest path will apply (spec: withhold when
-        // negativeCount < floor(p * (N-1)) + 1) FAILS here for both the daily and the monthly
+        // negativeCount < ceil(p * (N-1)) + 1) FAILS here for both the daily and the monthly
         // percentile:
         //
-        //   daily   N = 100, p = 0.05 → floor(0.05 * 99) + 1 = 4 + 1 = 5   vs 1 negative day    → unsupported
-        //   monthly M =  71, p = 0.05 → floor(0.05 * 70) + 1 = 3 + 1 = 4   vs 1 negative window → unsupported
+        //   daily   N = 100, p = 0.05 → ceil(0.05 * 99) + 1 = 5 + 1 = 6   vs 1 negative day    → unsupported
+        //   monthly M =  71, p = 0.05 → ceil(0.05 * 70) + 1 = 4 + 1 = 5   vs 1 negative window → unsupported
         //
         // The live path passes Unconditional, so EVERY figure below must still be produced,
         // bit-identical to shipped behaviour:
@@ -211,9 +211,9 @@ public class PortfolioAnalyticsCalculatorLiveOutputRegressionTests
         // Five dense daily nets [100, -200, 50, -500, 300] → sorted [-500, -200, 50, 100, 300].
         //   Var95: rank = 0.05*4 = 0.2 → -500 + 300*0.2 = -440 ⇒ 440
         //   Var99: rank = 0.01*4 = 0.04 → -500 + 300*0.04 = -488 ⇒ 488
-        // Support relation for p=0.05, N=5: floor(0.05*4) + 1 = 1, and there are 2 negative days,
-        // so this series WOULD pass the gate — it is pinned as the interpolating counterpart to the
-        // sparse case above.
+        // Support relation for p=0.05, N=5: ceil(0.05*4) + 1 = 2, and there are 2 negative days,
+        // so this series WOULD pass the gate — both endpoints of the interpolation (sorted[0] and
+        // sorted[1]) are losses. Pinned as the interpolating counterpart to the sparse case above.
         var d = new DateTime(2026, 1, 1);
         var risk = PortfolioAnalyticsCalculator.ComputeVaR(100_000m, [
             Member("A",

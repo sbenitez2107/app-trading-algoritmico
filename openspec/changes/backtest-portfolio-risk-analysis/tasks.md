@@ -37,7 +37,7 @@ Chain strategy: pending
 
 - [x] 1.1 RED: pin current live `ComputeCorrelation`/`ComputeVaR`/monthly outputs as literal expected values (backfill, not RED-first — Note A).
 - [x] 1.2 GREEN: private nested `AlignmentMode`; extract `CorrelationMatrixCore(labels, dayMaps, AlignmentMode)`; live `ComputeCorrelation` becomes an adapter passing `Union`. Signature unchanged.
-- [x] 1.3 RED: `SupportedPercentile(sorted, p)` returns null iff `negativeCount < floor(p*(N-1)) + 1`; table cases including `N=3860, p=0.05 → 193` and `p=0.01 → 39`.
+- [x] 1.3 RED: `SupportedPercentile(sorted, p)` returns null iff `negativeCount < ceil(p*(N-1)) + 1`; table cases including `N=3860, p=0.05 → 194` and `p=0.01 → 40`. (Relation corrected in 5.1 — it was first written over `floor(...) + 1`, the LOWER interpolation endpoint alone.)
 - [x] 1.4 GREEN: declare `internal readonly record struct SeriesDensity` and `Measure(...)` beside `SupportedPercentile`, with the input set per 0.1. `Percentile` body untouched.
 - [x] 1.5 GREEN: private nested `PercentilePolicy { Unconditional, RequireSupport }`; thread it as a **required** parameter through `VarFromDaily(nets, policy)` and `ComputeMonthlyVar(nets, capital, policy)`. Both are private (`:440`, `:460`), so this is not a shipped-signature change.
 - [x] 1.6 GREEN: live `ComputeVaR` becomes an adapter passing `Unconditional`.
@@ -81,7 +81,7 @@ each reverted:
   which to assert the predicate table. The reflection binding doubles as a rename tripwire.
 - 1.4 gained tests it was not paired with (it is a GREEN-only row). New production code with zero
   coverage in the PR that introduces it was judged worse than five extra assertions.
-- The synthetic boundary rows for the support relation (`floor(p(N-1))` exactly, and one more) are
+- The synthetic boundary rows for the support relation (`ceil(p(N-1))` exactly, and one more) are
   asserted here at the **predicate** level for both `p = 0.05` and `p = 0.01`. That does not
   discharge 2.14, which is the same boundary at the **gate/adapter** level.
 
@@ -100,13 +100,13 @@ each reverted:
 ## Phase 2B (PR 2): `backtest-portfolio-analytics` — adapters and gates
 
 - [x] 2.10 Create `Application/DTOs/Backtests/SeriesDensityDto.cs`: `TradeCount`, `DenseDayCount`, `NegativeDayCount`, `NonZeroDayCount`, `NegativeWindowCount`, `ExcludedUnscalableCount`.
-- [x] 2.11 RED: IST dense series 3,860 elements, 164 negative days (4.25%), 318 non-zero (8.24%); daily VaR95 withheld (164 < 193) while **VaR99 reports `sorted[38]`** (164 ≥ 39) — one run, two verdicts, the gate evaluated per confidence level. OOST 3,804 / 172 / 320, same VaR95 verdict.
-- [x] 2.12 RED: monthly VaR95 reports **−400.19** on IST (1,148 negative windows of M=3,831, needs ≥192) and **−378.62** on OOST (1,203 of 3,775, needs ≥189); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
+- [x] 2.11 RED: IST dense series 3,860 elements, 164 negative days (4.25%), 318 non-zero (8.24%); daily VaR95 withheld (164 < 194) while **VaR99 reports** (164 ≥ 40) — one run, two verdicts, the gate evaluated per confidence level. OOST 3,804 / 172 / 320, same VaR95 verdict.
+- [x] 2.12 RED: monthly VaR95 reports **−400.19** on IST (1,148 negative windows of M=3,831, needs ≥193) and **−378.62** on OOST (1,203 of 3,775, needs ≥190); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
 - [x] 2.13 RED: the wrong predicate — a non-zero-day gate at 5% would REPORT both fixtures (8.24%, 8.41%) while the true daily VaR95 is `0.00`.
-- [x] 2.14 RED: **synthetic boundary, both gates** — a constructed population with exactly `floor(p(M-1))` negative observations withholds and one more reports; mirror case for the daily gate's *reporting* branch (Note B).
-- [x] 2.15 RED: **injected defect** — zero out all but 191 of IST's negative window sums; the monthly figure flips to withheld with the count reported.
+- [x] 2.14 RED: **synthetic boundary, both gates** — a constructed population with exactly `ceil(p(M-1))` negative observations withholds and one more reports, and the PUBLISHED VALUE is pinned on both sides (5.2); mirror case for the daily gate's *reporting* branch (Note B).
+- [x] 2.15 RED: **injected defect** — zero out all but 192 of IST's negative window sums; the monthly figure flips to withheld with the count reported.
 - [x] 2.16 RED: **one derivation** — the payload's `NegativeDayCount`/`NonZeroDayCount`/`DenseDayCount`/`NegativeWindowCount` are the same values the gates consumed; assert on the same `SeriesDensity`/`ComputeMonthlyVar` result, never on recomputed numbers. Scope excludes `TradeCount`/`ExcludedUnscalableCount` per 0.1.
-- [x] 2.17 RED: no trim — the backtest adapter passes `windowDays: 0`; `ObservationDays == 3,860` on IST, not 250, and the gate needs 193 not 13.
+- [x] 2.17 RED: no trim — the backtest adapter passes `windowDays: 0`; `ObservationDays == 3,860` on IST, not 250, and the gate needs 194 not 14.
 - [x] 2.18 RED: intersection alignment — disjoint trading days yield a withheld (`null`) cell not `0`; `CoActiveDays`/`CoActiveShare` reported with **no** co-absence caveat; `CoActiveDays < 2` or a constant series withholds; all-withheld ⇒ `AverageCorrelation is null` + `WithheldCellCount`. Live path keeps `Union`, bit-identical.
 - [x] 2.19 GREEN: `ComputeCorrelation(IReadOnlyList<BacktestNetSeries>)` with `AlignmentMode.Intersection`; `ComputeVaR(IReadOnlyList<BacktestNetSeries>)` passing `windowDays: 0` and `PercentilePolicy.RequireSupport`.
 - [x] 2.20 RED: no public member accepts an untyped `(label, broker, dated nets)` tuple — reflection over the calculator's public surface; only the two typed entry points are public.
@@ -287,6 +287,47 @@ control from ever appearing.
 `Select_WithOneTradelessRunAndOneMatchingRun_ResolvesFromTheMatchingRun` asserts it. 0.1 was
 discharged by PR2's mixed-provenance `SeriesDensityDto`, though its box is still open. 0.3 (pruning
 the design's *Spec Dependencies* section) remains open and is documentation housekeeping.
+
+## Phase 5: Correction transaction — reliability review at `e7e7383`
+
+One CRITICAL and four WARNINGs, corrected in place on the shipped chain (`55bc2a2`, `4c211e8`,
+`e516635`). Every row RED first; the two rows that backfill existing behaviour used the
+injected-defect treatment (Note A's precedent) and say so.
+
+- [x] 5.1 **RELIABILITY-001 (CRITICAL)** — the gate authorised a number it did not defend.
+      `Percentile` INTERPOLATES between `sorted[floor(p(N-1))]` and `sorted[ceil(p(N-1))]`; the gate
+      was stated over the lower index alone, so exactly on its threshold the published figure was
+      partly determined by the first NON-negative observation. RED: four rows of
+      `SupportedPercentile_APublishedFigureIsComposedOnlyOfLosses` plus the dilution and
+      sign-inversion facts fail on the old relation. GREEN: `negativeCount >= ceil(p*(N-1)) + 1`.
+- [x] 5.2 **RELIABILITY-003** — every gate boundary now asserts the published VALUE, not
+      `NotBeNull()`. The daily boundary pins `100`, the monthly boundary pins `14,971.50` (the
+      superseded relation published `4,970.50` one negative window earlier), and the gate-level
+      property test asserts both interpolation endpoints are losses whenever a figure is published.
+- [x] 5.3 **RELIABILITY-002** — one payload, one convention. The backtest path derives
+      `MonthlyVar95Percent` through `PercentOfCapital`, so an incomputable percentage is `null` and
+      never `0`, matching the daily percentages beside it. The live path's `ComputeMonthlyVar`
+      output is untouched.
+- [x] 5.4 **RELIABILITY-002 (boundary half)** — new `GroupRiskAnalysisStatus.InvalidInitialCapital`
+      (appended, so shipped wire values do not move), refused in `BacktestReadService` and mapped to
+      **400**: an omitted `initialCapital` query parameter binds to `0`, so "unstated" and "zero"
+      were the same request. Frontend enum, label map and EN/ES copy follow.
+- [x] 5.5 **RELIABILITY-004** — the status tripwire is real. The old one asserted `BeOneOf(200,
+      400, 404, 422)` while the controller's `_ =>` default RETURNS 422, so an unmapped status
+      passed it: measured, adding `InvalidInitialCapital` without its arm kept all 14 tests green.
+      Replaced by coverage of an independently written `ExpectedCodes` table plus per-status
+      equality; both halves were shown to fail under injected defects.
+- [x] 5.6 **RELIABILITY-005** — `getGroupRisk`'s refusal-unwrapping `catchError` is tested at the
+      service level with `HttpTestingController` (400/404/422 bodies, the transport-failure branch,
+      and the omitted-segment query). Backfill: neutering the unwrap fails exactly those three
+      refusal tests and nothing else in the 385-test suite.
+- [x] 5.7 Swept every statement of the relation: `portfolio-monthly-var/spec.md`,
+      `backtest-portfolio-analytics/spec.md`, `design.md` (D4 + new D4-C), `VarWithholdReason`,
+      `SupportedPercentile`'s doc, the adapter and live-regression test commentary, and this file.
+
+**Correction evidence.** Backend 560/560 (543 baseline + 17 new), frontend 385/385 (380 + 5),
+`dotnet build -warnaserror` 0 warnings / 0 errors. No fixture-published figure moved: IST monthly
+`400.19`, IST VaR99 `199.4423`, both daily VaR95 still withheld.
 
 ## Notes
 

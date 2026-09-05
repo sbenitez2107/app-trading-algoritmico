@@ -216,9 +216,11 @@ single-derivation assertion over all six and watch it fail for the wrong reason.
 **The threshold is not a threshold, and it is not a share.** On an ascending sort the negatives
 occupy indices `0 .. neg−1`, then the zero-filled days, then the positives — and **positives sort
 above the zeros, so they cannot help a low percentile**. What a low percentile needs is *negative*
-mass, not *non-zero* mass. `Percentile(sorted, p)` reads `sorted[⌊p(N−1)⌋]`, so:
+mass, not *non-zero* mass. `Percentile(sorted, p)` does **not** read one index: it INTERPOLATES
+between `sorted[⌊p(N−1)⌋]` and `sorted[⌈p(N−1)⌉]`, so the figure it publishes is supported only
+when **both** endpoints are losses:
 
-    supported(p)  ⇔  NegativeObservationCount ≥ ⌊p · (N − 1)⌋ + 1
+    supported(p)  ⇔  NegativeObservationCount ≥ ⌈p · (N − 1)⌉ + 1
 
 Exact, per confidence level, and derived from the percentile actually being computed. Measured on
 both fixtures at **day level**:
@@ -228,9 +230,33 @@ both fixtures at **day level**:
 | Dense span `N` | 3,860 | 3,804 |
 | Negative **days** | 164 (4.25%) | 172 (4.52%) |
 | Non-zero days | 318 (8.24%) | 320 (8.41%) |
-| `p = 0.05` requires | ≥ 193 | ≥ 191 |
+| `p = 0.05` requires | ≥ 194 | ≥ 192 |
 | Gate verdict | **withhold** | **withhold** |
 | Shipped daily VaR95 | `0.00` | `0.00` |
+
+**D4-C (correction, RELIABILITY-001) — the gate must defend the value that is PUBLISHED, not one
+index of it.** The relation above was first written as `≥ ⌊p(N−1)⌋ + 1`, from the premise that
+`Percentile` reads a single index. It does not. Exactly on that older threshold `sorted[⌈p(N−1)⌉]`
+is, by construction, the **first non-negative observation**, so the figure the gate authorised was
+partly determined by a zero-fill or a win. Measured on the slice's own committed constructions:
+
+| Construction | Old verdict | Published figure | Contamination |
+|---|---|---|---|
+| `Population(3860, 193)`, `p = 0.05` | report | `0.0500` | `sorted[193] = 0`, weight `0.95` |
+| `TailNegativeSeries(120, 5)`, monthly | report | `4,970.50` | `sorted[5] = +30` supplies `5,000.50` — **101%** of it |
+| 91 obs, 5 losses, `sorted[5] = +900` | report | `−447.50` | a **negative** loss magnitude in a field documented as positive |
+
+**Why `⌈·⌉ + 1` and not `⌊·⌋ + 2`.** They are the same number for every rank that is not a whole
+number, which is every case above and both committed fixtures. They differ when `p(N−1)` **is** a
+whole number: there `lo == hi`, `Percentile` returns `sorted[lo]` verbatim, no interpolation happens
+and there is no second endpoint to defend. `⌊·⌋ + 2` would withhold a figure that is entirely
+composed of a single genuine loss — the same error as the original, mirrored: reasoning about the
+published value as if its composition were fixed rather than reading it. The synthetic daily
+boundary at `N = 101` (`0.05 × 100 = 5` exactly) is that case, and its pivot is unchanged at 6.
+
+**No fixture-published figure moves.** IST monthly stays `400.19` (1,148 negative windows vs 193
+required), OOST monthly stays `378.62` (1,203 vs 190), and both daily VaR95 figures stay withheld.
+Only the boundary constructions move, by exactly one negative observation each.
 
 **Rejected — a non-zero-day share gate (e.g. "< 5% ⇒ withhold").** It is not conservative-but-crude,
 it is **wrong in the reporting direction on both motivating fixtures**: 8.24% and 8.41% both clear
@@ -245,8 +271,8 @@ and of the sorted list's negative count, it lives **beside `Percentile` in
 null when unsupported — not in a caller that would have to re-derive or hard-code the relation.
 `Percentile` itself is untouched, so no shipped number moves.
 
-**E1 — the proposal's VaR99 claim is wrong, measured.** For IST, `⌊0.01 × 3859⌋ = 38`, so VaR99
-needs ≥ 39 negative days and there are **164**. `VaR99` is therefore a real non-zero number while
+**E1 — the proposal's VaR99 claim is wrong, measured.** For IST, `⌈0.01 × 3859⌉ = 39`, so VaR99
+needs ≥ 40 negative days and there are **164**. `VaR99` is therefore a real non-zero number while
 `VaR95` is exactly `0.00`. The proposal states both are `0.00`. The gate reports VaR99 and
 withholds VaR95 on the same run — which is the whole argument for computing per level rather than
 declaring "daily VaR is unusable".

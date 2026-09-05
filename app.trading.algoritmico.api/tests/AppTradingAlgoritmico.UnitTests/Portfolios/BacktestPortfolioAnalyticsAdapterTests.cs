@@ -34,12 +34,13 @@ public class BacktestPortfolioAnalyticsAdapterTests
         risk.Density.TradeCount.Should().Be(329);
         risk.Density.ExcludedUnscalableCount.Should().Be(0);
 
-        // 164 < floor(0.05 * 3859) + 1 = 193 — the 5th-percentile index cannot reach a loss.
+        // 164 < ceil(0.05 * 3859) + 1 = 194 — neither index the figure interpolates between
+        // (sorted[192], sorted[193]) can reach a loss.
         risk.DailyVar95.Should().BeNull();
         risk.DailyVar95Percent.Should().BeNull();
         risk.DailyVar95Withheld.Should().Be(VarWithholdReason.InsufficientNegativeObservations);
 
-        // 164 >= floor(0.01 * 3859) + 1 = 39 — the MORE extreme percentile reads DEEPER into the
+        // 164 >= ceil(0.01 * 3859) + 1 = 40 — the MORE extreme percentile reads DEEPER into the
         // negative block, so one run legitimately yields two different verdicts.
         risk.DailyVar99Withheld.Should().Be(VarWithholdReason.None);
 
@@ -64,7 +65,7 @@ public class BacktestPortfolioAnalyticsAdapterTests
         risk.Density.NegativeDayCount.Should().Be(172);
         risk.Density.NonZeroDayCount.Should().Be(320);
 
-        // 172 < floor(0.05 * 3803) + 1 = 191.
+        // 172 < ceil(0.05 * 3803) + 1 = 192.
         risk.DailyVar95.Should().BeNull();
         risk.DailyVar95Withheld.Should().Be(VarWithholdReason.InsufficientNegativeObservations);
     }
@@ -137,8 +138,14 @@ public class BacktestPortfolioAnalyticsAdapterTests
     // both and the monthly gate reports on both, so each has one branch no real data reaches.
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// N = 101 is the WHOLE-RANK case: 0.05 * 100 = 5 exactly, so `Percentile` reads sorted[5] and
+    /// only sorted[5] — there is no second interpolation endpoint to defend, and the pivot is
+    /// therefore 6, unchanged by the RELIABILITY-001 correction. That is the point of pinning the
+    /// published VALUE here: the gate is exactly as strict as the number it authorises requires.
+    /// </summary>
     [Theory]
-    [InlineData(5, false)]   // exactly floor(0.05 * 100) = 5 negatives — one short
+    [InlineData(5, false)]   // exactly ceil(0.05 * 100) = 5 negatives — one short
     [InlineData(6, true)]    // one more — reports
     public void ComputeVaR_DailyGateBoundary_Synthetic(int negativeDays, bool shouldReport)
     {
@@ -155,7 +162,11 @@ public class BacktestPortfolioAnalyticsAdapterTests
         if (shouldReport)
         {
             risk.DailyVar95Withheld.Should().Be(VarWithholdReason.None);
-            risk.DailyVar95.Should().NotBeNull();
+            risk.DailyVar95.Should().Be(
+                100m,
+                "the published figure is sorted[5] verbatim, and sorted[5] is one of the {0} loss "
+                + "days: no zero-fill and no winning day is any part of it",
+                negativeDays);
         }
         else
         {
@@ -169,9 +180,27 @@ public class BacktestPortfolioAnalyticsAdapterTests
     /// <c>SupportedPercentile</c> with the daily one, but "shares a code path" is an inferential
     /// step, and this removes it: the relation is exercised over WINDOW sums, at the window count.
     /// </summary>
+    /// <summary>
+    /// The monthly VaR95 the M = 91 boundary publishes once BOTH interpolation endpoints are
+    /// losses. Pinned as a number, not as `NotBeNull()`: a boundary figure that is merely present
+    /// is exactly what RELIABILITY-001 was, and only the value can tell the two apart.
+    /// <para>
+    /// Measured: 14,971.50. The superseded relation published 4,970.50 at the SAME boundary, one
+    /// negative window earlier — a figure THREE TIMES SMALLER, because a +30 window sum supplied
+    /// half of it. The correction does not merely withhold more; where it does report, the number
+    /// is materially different.
+    /// </para>
+    /// </summary>
+    private const decimal MonthlyBoundaryVar95 = 14_971.50m;
+
     [Theory]
-    [InlineData(4, false)]   // exactly floor(0.05 * 90) = 4 negative windows of M = 91 — one short
-    [InlineData(5, true)]
+    // M = 91 windows: 0.05 * 90 = 4.5, so `Percentile` interpolates HALF AND HALF between
+    // sorted[4] and sorted[5]. At 5 negative windows sorted[5] is the first NON-NEGATIVE window
+    // sum — measured, sorted[4] = -9,971 and sorted[5] = +30, and the figure the superseded
+    // `floor + 1` relation published was 4,970.50, of which 5,000.50 (101% of it) came from that
+    // POSITIVE window. The pivot is therefore 6, and the reported figure is composed of losses only.
+    [InlineData(5, false)]
+    [InlineData(6, true)]
     public void ComputeVaR_MonthlyGateBoundary_Synthetic(int negativeWindows, bool shouldReport)
     {
         var risk = PortfolioAnalyticsCalculator.ComputeVaR(Capital, [TailNegativeSeries(denseDays: 120, negativeWindows)]);
@@ -183,7 +212,9 @@ public class BacktestPortfolioAnalyticsAdapterTests
         if (shouldReport)
         {
             risk.MonthlyVar95Withheld.Should().Be(VarWithholdReason.None);
-            risk.MonthlyVar95.Should().NotBeNull();
+            risk.MonthlyVar95.Should().BeApproximately(
+                MonthlyBoundaryVar95, 0.01m,
+                "both window sums the published figure interpolates between are losses");
         }
         else
         {
@@ -196,13 +227,14 @@ public class BacktestPortfolioAnalyticsAdapterTests
     /// 2.15 — the injected-defect check, at the only boundary the adapter exposes. The task's
     /// literal form ("zero out all but 191 of IST's negative window SUMS") is not reachable from
     /// outside the calculator: window sums are private and the adapter takes trades, not sums. The
-    /// equivalent it CAN state is IST's own window count with its negative mass cut to 191 — one
-    /// short of the 192 the relation needs at M = 3,831 — which flips the reported monthly figure
-    /// to withheld while the count is still disclosed.
+    /// equivalent it CAN state is IST's own window count with its negative mass cut to 192 — one
+    /// short of the 193 the relation needs at M = 3,831 — which flips the reported monthly figure
+    /// to withheld while the count is still disclosed. (0.05 * 3,830 = 191.5, so the figure
+    /// interpolates between sorted[191] and sorted[192] and BOTH must be losses: 193.)
     /// </summary>
     [Theory]
-    [InlineData(191, false)]
-    [InlineData(192, true)]
+    [InlineData(192, false)]
+    [InlineData(193, true)]
     public void ComputeVaR_IstWindowCountWithItsNegativeMassCutToTheThreshold_FlipsTheMonthlyVerdict(
         int negativeWindows, bool shouldReport)
     {
@@ -212,6 +244,40 @@ public class BacktestPortfolioAnalyticsAdapterTests
         risk.MonthlyVarOverlappingWindows.Should().Be(3831, "the same window count the real IST fixture has");
         risk.Density.NegativeWindowCount.Should().Be(negativeWindows, "the count is reported even when the figure is withheld");
         (risk.MonthlyVar95 is not null).Should().Be(shouldReport);
+    }
+
+    // -------------------------------------------------------------------------
+    // RELIABILITY-002 — one payload, ONE convention for a figure that cannot be computed.
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// `BacktestPortfolioRiskDto` states its own rule: a withheld figure is `null`, NEVER `0`. A
+    /// non-positive `InitialCapital` makes every PERCENTAGE incomputable while leaving the CURRENCY
+    /// figures intact, and the two paths used to disagree about how to say so — the daily one
+    /// returned `null` and the monthly one returned `0`, so one payload carried
+    /// `dailyVar95Percent: null` beside `monthlyVar95Percent: 0`, which reads as "zero percent of
+    /// capital at risk over a month" rather than "not computable".
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ComputeVaR_WithNonPositiveCapital_WithholdsEveryPercentageInsteadOfPublishingZero(
+        int capital)
+    {
+        // Six negative windows: the monthly figure IS supported, so the percentage is genuinely
+        // reached rather than skipped by an earlier withhold.
+        var risk = PortfolioAnalyticsCalculator.ComputeVaR(
+            capital, [TailNegativeSeries(denseDays: 120, negativeWindows: 6, service: "Darwinex")]);
+
+        risk.MonthlyVar95.Should().NotBeNull("the currency figure does not depend on the denominator");
+        risk.MonthlyVar95Percent.Should().BeNull("there is no denominator to express it against");
+        risk.DailyVar95Percent.Should().BeNull();
+        risk.DailyVar99Percent.Should().BeNull();
+
+        var service = risk.ByService.Should().ContainSingle().Subject;
+        service.MonthlyVar95.Should().NotBeNull();
+        service.MonthlyVar95Percent.Should().BeNull("the per-service breakdown follows the same rule");
+        service.DailyVar95Percent.Should().BeNull();
     }
 
     // -------------------------------------------------------------------------
@@ -229,9 +295,9 @@ public class BacktestPortfolioAnalyticsAdapterTests
         AssertSelfConsistent(PortfolioAnalyticsCalculator.ComputeVaR(Capital, [IstSeries()]));
         AssertSelfConsistent(PortfolioAnalyticsCalculator.ComputeVaR(Capital, [OostSeries()]));
         AssertSelfConsistent(PortfolioAnalyticsCalculator.ComputeVaR(
-            Capital, [TailNegativeSeries(denseDays: 120, negativeWindows: 4)]));
-        AssertSelfConsistent(PortfolioAnalyticsCalculator.ComputeVaR(
             Capital, [TailNegativeSeries(denseDays: 120, negativeWindows: 5)]));
+        AssertSelfConsistent(PortfolioAnalyticsCalculator.ComputeVaR(
+            Capital, [TailNegativeSeries(denseDays: 120, negativeWindows: 6)]));
     }
 
     [Fact]
@@ -256,7 +322,7 @@ public class BacktestPortfolioAnalyticsAdapterTests
         risk.ObservationDays.Should().Be(3860, "not 250 — the shipped default would discard ~93% of the sample");
         risk.Density.DenseDayCount.Should().Be(risk.ObservationDays);
 
-        // Trimmed to 250 the gate would need only 13 negatives and would see 5 — a materially
+        // Trimmed to 250 the gate would need only 14 negatives and would see 5 — a materially
         // different, and wrong, evaluation. Stated here so the number cannot drift back silently.
         var trimmed = DenseDailyNets(RawTradeListFixture.IstFileName).TakeLast(250).ToList();
         trimmed.Count(n => n < 0m).Should().Be(5);
@@ -507,8 +573,10 @@ public class BacktestPortfolioAnalyticsAdapterTests
 
         return;
 
+        // `Percentile` INTERPOLATES between sorted[floor(p(count-1))] and sorted[ceil(p(count-1))],
+        // so the count that supports the PUBLISHED figure is the higher index + 1, not the lower.
         static bool Supported(int negativeCount, int count, double p)
-            => count > 0 && negativeCount >= (int)Math.Floor(p * (count - 1)) + 1;
+            => count > 0 && negativeCount >= (int)Math.Ceiling(p * (count - 1)) + 1;
     }
 
     private static BacktestNetSeries IstSeries(string? service = null)
@@ -592,12 +660,13 @@ public class BacktestPortfolioAnalyticsAdapterTests
     /// EXACTLY k negative window sums — the only construction that can place a monthly gate on a
     /// chosen side of its threshold.
     /// </summary>
-    private static BacktestNetSeries TailNegativeSeries(int denseDays, int negativeWindows)
+    private static BacktestNetSeries TailNegativeSeries(
+        int denseDays, int negativeWindows, string? service = null)
     {
         var rows = Enumerable.Range(1, denseDays)
             .Select(d => (Day: d, Profit: d > denseDays - negativeWindows ? -10_000m : 1m))
             .ToList();
-        return SyntheticSeries(rows);
+        return SyntheticSeries(rows, service: service);
     }
 
     private static PortfolioMemberInput LiveMember(string name, IReadOnlyList<(int Day, decimal Profit)> rows)

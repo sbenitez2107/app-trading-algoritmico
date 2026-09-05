@@ -169,6 +169,11 @@ export enum GroupRiskAnalysisStatus {
   RiskNotEstimable = 9,
   NonUnitWeight = 10,
   HeterogeneousGroup = 11,
+  /**
+   * Last, not grouped with the other request-side refusals: the wire values of the statuses that
+   * shipped before it must not move.
+   */
+  InvalidInitialCapital = 12,
 }
 
 /**
@@ -328,6 +333,8 @@ export const GROUP_RISK_STATUS_LABELS: Record<GroupRiskAnalysisStatus, string> =
   [GroupRiskAnalysisStatus.RiskNotEstimable]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_RISK_NOT_ESTIMABLE',
   [GroupRiskAnalysisStatus.NonUnitWeight]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_NON_UNIT_WEIGHT',
   [GroupRiskAnalysisStatus.HeterogeneousGroup]: 'SQX.BACKTESTS.GROUP_RISK.STATUS_HETEROGENEOUS',
+  [GroupRiskAnalysisStatus.InvalidInitialCapital]:
+    'SQX.BACKTESTS.GROUP_RISK.STATUS_INVALID_INITIAL_CAPITAL',
 };
 
 export const GROUP_RISK_MEMBER_STATUS_LABELS: Record<GroupRiskMemberStatus, string> = {

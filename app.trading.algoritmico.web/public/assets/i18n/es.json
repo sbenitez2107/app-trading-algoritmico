@@ -308,6 +308,7 @@
         "STATUS_NO_STRATEGIES": "No se nombro ninguna estrategia.",
         "STATUS_STRATEGY_NOT_FOUND": "Alguna de las estrategias nombradas no existe.",
         "STATUS_INVALID_LOT_GRID": "La grilla de lotes no es valida, por lo que nada puede redimensionarse sobre ella.",
+        "STATUS_INVALID_INITIAL_CAPITAL": "El capital inicial debe ser mayor que cero: es el denominador de todo porcentaje de este analisis.",
         "STATUS_RUN_SEGMENTS_DISAGREE": "Una ejecucion contiene operaciones de mas de una muestra. Esas filas se editaron fuera del importador.",
         "STATUS_NO_EVIDENCE": "Ninguna ejecucion contiene la muestra solicitada, por lo que no hay evidencia para ella.",
         "STATUS_AMBIGUOUS_RUN": "Ambas ranuras contienen la muestra solicitada. Indique una ranura para desambiguar.",

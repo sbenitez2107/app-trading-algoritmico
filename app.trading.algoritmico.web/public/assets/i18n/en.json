@@ -308,6 +308,7 @@
         "STATUS_NO_STRATEGIES": "No strategies were named.",
         "STATUS_STRATEGY_NOT_FOUND": "One of the named strategies does not exist.",
         "STATUS_INVALID_LOT_GRID": "The lot grid is not valid, so nothing can be resized onto it.",
+        "STATUS_INVALID_INITIAL_CAPITAL": "The initial capital must be greater than zero: it is the denominator of every percentage in this analysis.",
         "STATUS_RUN_SEGMENTS_DISAGREE": "A run holds trades from more than one sample. Those rows were edited outside the importer.",
         "STATUS_NO_EVIDENCE": "No run carries the requested sample, so there is no evidence for it.",
         "STATUS_AMBIGUOUS_RUN": "Both run slots carry the requested sample. Name a run slot to disambiguate.",
