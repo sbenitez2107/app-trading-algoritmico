@@ -243,7 +243,28 @@ public class BacktestPortfolioAnalyticsAdapterTests
 
         risk.MonthlyVarOverlappingWindows.Should().Be(3831, "the same window count the real IST fixture has");
         risk.Density.NegativeWindowCount.Should().Be(negativeWindows, "the count is reported even when the figure is withheld");
-        (risk.MonthlyVar95 is not null).Should().Be(shouldReport);
+
+        // Assert the VALUE on the supported side, not merely its presence. A boundary test that
+        // checks null-or-not-null tests the VERDICT and never the NUMBER, which is precisely how a
+        // figure diluted by the zero block, or one carrying an inverted sign, passed three
+        // verification passes on the superseded relation.
+        //
+        // 14,971.50 is the same figure the M = 91 synthetic boundary publishes, and that is not a
+        // coincidence: the tail-loss construction always lands the interpolation between the two
+        // mixed windows -19,972 and -9,971, whatever M is. The published figure depends on the
+        // shape of the tail, not on the window count.
+        if (shouldReport)
+        {
+            risk.MonthlyVar95.Should().BeApproximately(
+                MonthlyBoundaryVar95, 0.01m,
+                "both window sums the published figure interpolates between are losses");
+            risk.MonthlyVar95Withheld.Should().Be(VarWithholdReason.None);
+        }
+        else
+        {
+            risk.MonthlyVar95.Should().BeNull();
+            risk.MonthlyVar95Withheld.Should().Be(VarWithholdReason.InsufficientNegativeObservations);
+        }
     }
 
     // -------------------------------------------------------------------------
