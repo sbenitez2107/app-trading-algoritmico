@@ -1,0 +1,75 @@
+{
+  "lineage_id": "backtest-portfolio-risk-analysis",
+  "generation": 1,
+  "mode": "ordinary",
+  "reviewed_commits": [
+    "55bc2a2",
+    "4c211e8",
+    "e516635"
+  ],
+  "head_at_close": "8238c09fc15494b796105a38aecd67655810432c",
+  "paths_digest": "sha256:6cef2761f117df646f58a3df4b84081d2c8ef825bf23a05a62e055725e6f245c",
+  "reviewed_file_count": 38,
+  "frozen": true,
+  "lens": "reliability",
+  "severe_count": 1,
+  "note": "The lens had no Bash and labelled every row INFERRED, stating its arithmetic in full so it could be refuted mechanically. The orchestrator then executed it. That is why the CRITICAL is recorded as corroborated rather than inferential.",
+  "findings": [
+    {
+      "id": "RELIABILITY-001",
+      "severity": "CRITICAL",
+      "evidence_class": "deterministic",
+      "location": "PortfolioAnalyticsCalculator.cs (SupportedPercentile / Percentile)",
+      "claim": "The density gate required negativeCount >= floor(p*(N-1)) + 1 \u2014 the lower index alone \u2014 while Percentile returns the linear interpolation between sorted[lo] and sorted[lo+1]. At that threshold sorted[lo+1] is by construction the first NON-negative observation, so a figure the gate called supported was partly composed of a zero-fill or a win.",
+      "proof_refs": "Executed on the slice own TailNegativeSeries(120,5): gate passes with 5 of 5 negative windows, publishes 4970.5, of which sorted[5]=+30 contributes 5000.5 \u2014 101% of the published value. Dilution: 3,860 obs with exactly 193 negatives publishes VaR95 = 0.0500. Sign inversion: sorted[4]=-5, sorted[5]=+900 publishes -447.50 in a field documented as a positive loss magnitude.",
+      "status": "fixed",
+      "fix": "Relation is now ceil(p*(N-1)) + 1. The orchestrator specified floor(p*(N-1)) + 2; the implementer used ceil+1, which is identical for fractional ranks and correct at whole ranks where Percentile returns sorted[lo] without interpolating. Verified: no fixture published figure changed."
+    },
+    {
+      "id": "RELIABILITY-002",
+      "severity": "WARNING",
+      "evidence_class": "inferential",
+      "claim": "With InitialCapital <= 0 the monthly path returned monthlyVar95Percent = 0m while the daily path returned null, contradicting the DTO own rule that a withheld figure is null and NEVER 0. InitialCapital was unvalidated and an omitted query param binds to 0.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-003",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "Every gate-boundary test asserted only NotBeNull()/BeNull(), never the published VALUE. This is why 001 survived three verify passes and a full-chain verification.",
+      "proof_refs": "Demonstrated at close: removing the negation in ComputeMonthlyVar leaves the verdict correct \u2014 the figure is still non-null so the presence-only assertion passes \u2014 while inverting the value. The replacement assertion fails with expected 14971.50 but found -14971.5.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-004",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "GetPortfolioRisk_EveryRefusalStatusHasItsOwnMapping could not fail for its stated reason: the controller default returns 422 and 422 was inside the assertion accepted set, so a new unmapped status passed.",
+      "status": "fixed"
+    },
+    {
+      "id": "RELIABILITY-005",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "The catchError unwrapping a 400/404/422 refusal body into per-member evidence had no test at any level; the panel spec mocks the service, so a refusal never traversed HTTP.",
+      "proof_refs": "Closed and proven: inverting typeof body.status === number to string turned exactly the three parametrised 400/404/422 tests red and no others.",
+      "status": "fixed"
+    },
+    {
+      "id": "SCOPED-FIX-VALIDATOR-001",
+      "severity": "CRITICAL",
+      "evidence_class": "deterministic",
+      "claim": "The correction updated the relation in code, specs and tests but left the superseded form standing in twelve places across design.md and tasks.md, where design.md:693 stated it verbatim as an assertion and 302/695 instructed building the synthetic boundary at the lower index. Anyone implementing to that document rebuilds the defect just fixed.",
+      "status": "fixed",
+      "fix": "Swept in be60f9f. A broader sweep then found five more the validator had not: the published monthly VaR still written as -400.19/-378.62 in the design, corrected in the spec two commits earlier and never propagated."
+    },
+    {
+      "id": "SCOPED-FIX-VALIDATOR-002",
+      "severity": "WARNING",
+      "evidence_class": "deterministic",
+      "claim": "RELIABILITY-003 was closed on three of four gate boundaries; the IST-window-count boundary still asserted presence, not value.",
+      "status": "fixed",
+      "fix": "Closed in 8238c09 and proven by an injected sign flip."
+    }
+  ]
+}

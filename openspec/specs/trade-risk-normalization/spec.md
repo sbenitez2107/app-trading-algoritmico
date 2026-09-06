@@ -152,20 +152,21 @@ MUST be rejected rather than answered.
 
 ### Requirement: Already-Sized Output Refuses A Non-Unit Weight
 
-`ResizedTradeSeries` carries its own `TargetRiskPerTrade` and MUST NOT be
-assignable to `PortfolioMemberInput.Trades`, and MUST expose no conversion
-to a shape that is. That structural guarantee is what this change delivers
-and what its tests assert.
+`ResizedTradeSeries` carries its own `TargetRiskPerTrade` and MUST NOT be assignable to
+`PortfolioMemberInput.Trades`, and MUST expose no conversion to a shape that is. That structural
+guarantee is what slice 2a delivers and what its tests assert.
 
-The companion obligation — that a consumer MUST refuse to combine the series
-with a `PortfolioStrategy.Weight != 1` rather than multiply it, which would
-double-size the position — belongs to **slice 2b**, which introduces the
-first such consumer. It is recorded here because the guarantee decays if it
-does not survive into that slice's spec; it is not verifiable in this one,
-where no consumer exists.
+The first such consumer is the `backtest-net-series-bridge` capability's `BacktestNetSeries.Bridge`,
+which owns the full obligation — the refusal rule, its three weight scenarios (`1.5`, `1`, `0`),
+and its tests — as a consumer-independent guarantee (it holds for any future consumer of an
+already-sized series, not only this slice's). That capability's "Already-Sized Output Refuses A
+Non-Unit Weight" requirement is the single source of truth for this obligation; it is not
+duplicated here, to avoid the two copies drifting apart.
 
-#### Scenario: Non-unit weight is refused, not applied
+(Previously: the obligation was recorded but not verifiable — no consumer existed in slice 2a.
+Now discharged by `backtest-net-series-bridge` and asserted by its tests.)
 
-- GIVEN a `ResizedTradeSeries` and a `Weight` of 1.5
-- WHEN a consumer attempts to combine them
-- THEN the combination is refused; `Weight` is never multiplied into already-sized trades
+#### Scenario: The obligation is discharged by the bridge capability
+- GIVEN a `ResizedTradeSeries` and a `PortfolioStrategy.Weight != 1`
+- WHEN `backtest-net-series-bridge`'s `Bridge` is asked to combine them
+- THEN the combination is refused per that capability's non-unit-weight requirement; `Weight` is never multiplied into an already-sized net

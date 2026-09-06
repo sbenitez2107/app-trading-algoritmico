@@ -1,0 +1,42 @@
+{
+  "lineage_id": "backtest-portfolio-risk-analysis",
+  "generation": 1,
+  "mode": "ordinary",
+  "reviewed_commits": [
+    "55bc2a2",
+    "4c211e8",
+    "e516635"
+  ],
+  "head_at_close": "8238c09fc15494b796105a38aecd67655810432c",
+  "paths_digest": "sha256:6cef2761f117df646f58a3df4b84081d2c8ef825bf23a05a62e055725e6f245c",
+  "reviewed_file_count": 38,
+  "state": "approved",
+  "counters": {
+    "initial_lens_sweeps": 1,
+    "refuter_batches": 0,
+    "correction_transactions": 1,
+    "scoped_validations": 1
+  },
+  "lenses_run": [
+    "review-reliability"
+  ],
+  "refuter_invoked": false,
+  "refuter_skipped_reason": "The single CRITICAL was proven by execution before correction, so it was corroborated rather than inferential. The contract routes only severe inferential findings to a refuter.",
+  "scoped_validation": {
+    "verdict": "escalate",
+    "reason": "Appended one CRITICAL (documentation drift) and one WARNING (a presence-only boundary assertion).",
+    "resolution": "Both corrected in be60f9f and 8238c09; the transaction then closes approved.",
+    "method": "Reverted each fix individually in place and re-ran: 001 fails 14 tests, 002a/002b/004 fail exactly 2 each, 004 fires on a genuinely new unmapped enum member, 005 reproduces the orchestrator result. Every finding fails on revert."
+  },
+  "independent_verification": {
+    "passes": 3,
+    "final_verdict": "PASS",
+    "critical": 0,
+    "warning": 0
+  },
+  "evidence": {
+    "backend": "560/560",
+    "frontend": "31 files green",
+    "build": "dotnet build AppTradingAlgoritmico.slnx -warnaserror: 0 warnings, 0 errors"
+  }
+}
