@@ -285,8 +285,8 @@ the day-level count is `164`. The one-sided bound is now measured twice (164 < 1
 
 | | windows `M` | negative windows | threshold | outcome | monthly VaR95 |
 |---|---|---|---|---|---|
-| IST | 3,831 | **1,148** (30.0%) | ≥ 192 | **reports** | **−400.19** |
-| OOST | 3,775 | **1,203** (31.9%) | ≥ 189 | **reports** | **−378.62** |
+| IST | 3,831 | **1,148** (30.0%) | ≥ 193 | **reports** | **400.19** |
+| OOST | 3,775 | **1,203** (31.9%) | ≥ 190 | **reports** | **378.62** |
 
 Both clear by roughly six times the required margin, so the Darwinex-relevant figure exists and the
 slice's headline output is not at risk. The proposal's "~2.6 trades per 30-day window, so it
@@ -299,9 +299,9 @@ report, which means neither exercises the monthly withholding branch at all. "Bo
 is evidence about the fixtures, not evidence the gate works. What makes it trustworthy:
 
 1. A **synthetic population** constructed to sit one window either side of the threshold — `M`
-   windows with exactly `⌊p(M−1)⌋` negative windows (withholds) and with one more (reports). This
+   windows with exactly `⌈p(M−1)⌉` negative windows (withholds) and with one more (reports). This
    pins the boundary, which no real fixture can.
-2. An **injected-defect** check: take the IST window sums and zero out all but 191 of the negative
+2. An **injected-defect** check: take the IST window sums and zero out all but 192 of the negative
    windows; the figure must flip to withheld with the count reported. It proves the gate is reading
    the quantity it claims to.
 
@@ -318,8 +318,8 @@ completely different:
 
 | | untrimmed | trimmed (shipped default 250) |
 |---|---|---|
-| IST | `N = 3,860`, neg = 164, needs 193 | `N = 250`, neg = **5**, needs **13** |
-| OOST | `N = 3,804`, neg = 172, needs 191 | `N = 250`, neg = **7**, needs **13** |
+| IST | `N = 3,860`, neg = 164, needs 194 | `N = 250`, neg = **5**, needs **14** |
+| OOST | `N = 3,804`, neg = 172, needs 192 | `N = 250`, neg = **7**, needs **14** |
 
 **Choice: `windowDays = 0` (no trim).** A trailing-250-day window answers *what is my risk now*,
 which is the right question for a live account and the wrong one for a backtest: every figure here
@@ -389,7 +389,7 @@ see the counts). A withheld figure is **never** `0m`.
 
 ### D4c — A currency figure is not a band position. The conversion has a cited dependency.
 
-`−400.19` and `−378.62` are **currency**. The 3.25%–6.5% band is a **percentage of a capital base**,
+`400.19` and `378.62` are **currency**. The 3.25%–6.5% band is a **percentage of a capital base**,
 and this design must not let the first become the second by division alone.
 
 **Two dependencies, both from the KB and neither satisfiable by this slice's arithmetic.**
@@ -411,7 +411,7 @@ estimator" rule).
 
 This is recorded because the project has already shipped three figures whose provenance could not
 be reproduced — the `Profit`-derived point value, 2a's assumed round-half rounding, and the daily
-VaR of `0.00`. A band position asserted from `−400.19` would be the fourth of the same kind.
+VaR of `0.00`. A band position asserted from `400.19` would be the fourth of the same kind.
 
 ### D5 — A new risk DTO, because the shipped one cannot express "withheld"
 
@@ -690,15 +690,15 @@ Strict TDD — every row is RED first.
 |---|---|---|
 | Unit — falsification | IST: dense series **3,860** elements, **164** negative days (4.25%), 318 non-zero (8.24%); shipped `Percentile(.,0.05)` path returns exactly `0.00`; the gate withholds it. OOST: 3,804 / **172** / 320, same verdict | Fixture-driven; the measurement *is* the assertion, so the defect can never return as a feature |
 | Unit — wrong predicate | A **non-zero-day** gate at 5% would REPORT both fixtures (8.24%, 8.41%) while the true figure is `0.00` | Pins why the predicate is negative-count, not share. Guards the exact error the parallel spec draft made |
-| Unit — E1 | Same fixture: `VaR99` **is reported** (164 ≥ ⌊0.01·3859⌋+1 = 39) while `VaR95` is withheld — one run, two verdicts | Pins the per-level gate and corrects the proposal's "both 0.00" |
-| Unit — monthly gate | IST: `M = 3,831`, **1,148** negative windows (30.0%) ≥ 192 ⇒ reports **−400.19**; OOST: `M = 3,775`, **1,203** (31.9%) ≥ 189 ⇒ reports **−378.62**; both clear `MinHistoryDays = 90` | Asserts the measured figures, not merely the path |
-| Unit — **gate boundary, synthetic** | A constructed population with exactly `⌊p(M−1)⌋` negative windows withholds; one more reports. Mirror case for the daily gate's *reporting* branch | **Both fixtures report monthly and both withhold daily, so neither fixture exercises the other branch.** No real fixture can pin a boundary |
-| Unit — **injected defect** | Zero out all but 191 of IST's negative window sums ⇒ the monthly figure flips to withheld with the count reported | Proves the gate reads the quantity it claims to, not something correlated with it |
+| Unit — E1 | Same fixture: `VaR99` **is reported** (164 ≥ ⌈0.01·3859⌉+1 = 40) while `VaR95` is withheld — one run, two verdicts | Pins the per-level gate and corrects the proposal's "both 0.00" |
+| Unit — monthly gate | IST: `M = 3,831`, **1,148** negative windows (30.0%) ≥ 193 ⇒ publishes **400.19**; OOST: `M = 3,775`, **1,203** (31.9%) ≥ 190 ⇒ publishes **378.62**; both clear `MinHistoryDays = 90` | Asserts the measured figures, not merely the path |
+| Unit — **gate boundary, synthetic** | A constructed population with exactly `⌈p(M−1)⌉` negative windows withholds; one more reports. Mirror case for the daily gate's *reporting* branch | **Both fixtures report monthly and both withhold daily, so neither fixture exercises the other branch.** No real fixture can pin a boundary |
+| Unit — **injected defect** | Zero out all but 192 of IST's negative window sums ⇒ the monthly figure flips to withheld with the count reported | Proves the gate reads the quantity it claims to, not something correlated with it |
 | Unit — no band position | The slice never derives a band position from a currency figure; `MonthlyVar95Percent` uses only the shipped `monthlyVar95 / initialCapital` basis and carries the denominator label | Pins D4c against the KB §2 determination-window dependency |
 | Unit — withheld ≠ 0 | Every withheld figure serialises as `null`; a JSON assertion, not a C# one | The exact failure mode being guarded |
 | Unit — bridge pairing | A resized `RowIndex` with no source match throws naming it; a duplicated source `RowIndex` throws naming it | Pins D1's lookup semantics |
 | Unit — **defensive guard, hand-built** | A **hand-constructed** `ResizedTradeSeries` with a non-contiguous strict-subset `RowIndex` set pairs correctly. **Must not be fixture-driven**: every real series has equal counts (P1), so a fixture version would be green under a positional zip and would prove nothing | Pins D1 against C2. Labelled defensive — there is no production producer of a subset today |
-| Unit — no trim | The backtest adapter passes `windowDays = 0`: `ObservationDays == 3,860` on IST, not 250, and the gate needs 193 rather than 13 | Pins D4a. A reader inheriting the shipped default would compute the wrong threshold |
+| Unit — no trim | The backtest adapter passes `windowDays = 0`: `ObservationDays == 3,860` on IST, not 250, and the gate needs 194 rather than 14 | Pins D4a. A reader inheriting the shipped default would compute the wrong threshold |
 | Unit — one derivation, **scoped to the four gating counts** | `DenseDayCount`, `NonZeroDayCount`, `NegativeDayCount`, `NegativeWindowCount` in the payload are the same values the gates consumed (assert on the same `SeriesDensity` / `ComputeMonthlyVar` result, not on recomputed numbers). **Do NOT extend this to `TradeCount`/`ExcludedUnscalableCount`** — `Measure` never sees them (0.1) | Pins D4/D4b's single-derivation rule; without it the payload can disagree with its own verdict |
 | Regression — `PercentilePolicy` | The live path passes `Unconditional` and every shipped monthly and daily VaR is **bit-identical**; a live series that WOULD fail the support test still returns its number | Pins D4b. This is the assertion that proves the shared helpers were parameterised, not re-behaved |
 | Unit — segment | A group whose members' runs disagree on `Segment` is **refused**, naming them; the payload states the segment it was computed over | Pins D8. Also assert `OosWindow` is not referenced by this slice |
@@ -759,7 +759,7 @@ the filtering pipeline.
   approximation disclaimer applies unchanged, plus "simulated closes".
 - **Not that the 3.25%–6.5% band (KB §2) applies to a backtest capital base.** KB §5 trap 3; the
   denominator label requirement is inherited, not relaxed.
-- **Not that `−400.19` is a band position.** It is a whole-sample currency percentile. KB §2's
+- **Not that `400.19` is a band position.** It is a whole-sample currency percentile. KB §2's
   target-VaR determination walks up to 6 months of historical VaR most-recent-to-oldest until the
   max/min ratio reaches 2:1, and its calculation window is the last 45 days of **open** positions —
   neither is implemented here (D4c). The percentage this slice reports is
@@ -871,6 +871,6 @@ the receiving type now asserts that it cannot support.
 - [ ] Is the band **point estimate** enough without dispersion? (Proposal Q4. It is what a
       deterministic slice can produce; confirm deliberately.)
 - [x] ~~Does the monthly VaR95 survive the D4 gate?~~ **Measured: yes, on both fixtures, by ~6×
-      the required margin** (IST 1,148/192 ⇒ −400.19; OOST 1,203/189 ⇒ −378.62). No longer a
+      the required margin** (IST 1,148/193 ⇒ 400.19; OOST 1,203/190 ⇒ 378.62). No longer a
       failure mode. It became a *testing* problem instead — the withholding branch is unexercised
       by both fixtures, hence the synthetic and injected-defect rows in the test plan.

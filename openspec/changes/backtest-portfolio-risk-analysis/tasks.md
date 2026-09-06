@@ -101,7 +101,7 @@ each reverted:
 
 - [x] 2.10 Create `Application/DTOs/Backtests/SeriesDensityDto.cs`: `TradeCount`, `DenseDayCount`, `NegativeDayCount`, `NonZeroDayCount`, `NegativeWindowCount`, `ExcludedUnscalableCount`.
 - [x] 2.11 RED: IST dense series 3,860 elements, 164 negative days (4.25%), 318 non-zero (8.24%); daily VaR95 withheld (164 < 194) while **VaR99 reports** (164 ≥ 40) — one run, two verdicts, the gate evaluated per confidence level. OOST 3,804 / 172 / 320, same VaR95 verdict.
-- [x] 2.12 RED: monthly VaR95 reports **−400.19** on IST (1,148 negative windows of M=3,831, needs ≥193) and **−378.62** on OOST (1,203 of 3,775, needs ≥190); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
+- [x] 2.12 RED: monthly VaR95 publishes **400.19** on IST (1,148 negative windows of M=3,831, needs ≥193) and **378.62** on OOST (1,203 of 3,775, needs ≥190); both clear `MinHistoryDays = 90`. Assert the figures, not just the path.
 - [x] 2.13 RED: the wrong predicate — a non-zero-day gate at 5% would REPORT both fixtures (8.24%, 8.41%) while the true daily VaR95 is `0.00`.
 - [x] 2.14 RED: **synthetic boundary, both gates** — a constructed population with exactly `ceil(p(M-1))` negative observations withholds and one more reports, and the PUBLISHED VALUE is pinned on both sides (5.2); mirror case for the daily gate's *reporting* branch (Note B).
 - [x] 2.15 RED: **injected defect** — zero out all but 192 of IST's negative window sums; the monthly figure flips to withheld with the count reported.
@@ -172,14 +172,14 @@ and IST trimmed to 250 has exactly 5 negative days.
   overload makes an EMPTY collection expression ambiguous (CS0121)** — a source-compatibility
   consequence worth recording. No pinned figure was touched.
 
-**2.15 could not be implemented literally.** "Zero out all but 191 of IST's negative window sums"
+**2.15 could not be implemented literally.** "Zero out all but 192 of IST's negative window sums"
 is not reachable from outside the calculator: window sums are private and the adapter takes trades.
 The implemented equivalent is IST's own window count (M = 3,831) with its negative mass built to
-exactly 191 and 192 — one either side of the threshold — via a tail-loss construction, asserting
+exactly 192 and 193 — one either side of the threshold — via a tail-loss construction, asserting
 the verdict flips while the count stays disclosed.
 
 **PR1's verification suggestion is discharged**: `ComputeVaR_MonthlyGateBoundary_Synthetic` is a
-monthly-LABELLED boundary pair (M = 91, 4 withholds / 5 reports), removing the shared-code-path
+monthly-LABELLED boundary pair (M = 91, 5 withholds / 6 reports), removing the shared-code-path
 inferential step.
 
 ## Phase 3 (PR 3): Run selection, endpoint, UI
