@@ -38,3 +38,69 @@ button {
 input {
   font-family: inherit;
 }
+
+// -----------------------------------------------------------------------------
+// Buttons
+//
+// Fourteen components already apply `.btn`, `.btn--primary` and `.btn--secondary`
+// in their markup; none of the three was ever defined, so every one of them
+// rendered with the browser default flattened by the bare `button` rule above.
+// The classes were the contract — this is the missing half of it.
+// -----------------------------------------------------------------------------
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+
+  // Keyboard focus stays visible; a pointer click does not draw the ring.
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  // A disabled action must read as unavailable rather than merely inert: the
+  // import button is disabled until a file is chosen, and a button that looks
+  // clickable but is not is the same lie as a figure that looks measured.
+  &:disabled,
+  &[disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.btn--primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-primary-dark);
+    border-color: var(--color-primary-dark);
+  }
+}
+
+.btn--secondary {
+  background-color: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-main);
+
+  &:hover:not(:disabled) {
+    background-color: var(--bg-surface-2);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+}

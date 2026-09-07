@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.26.6] - 2026-09-07
+
+### Fixed
+- **Buttons across the app rendered with no styling.** Fourteen components already applied `btn`, `btn--primary` and `btn--secondary` in their markup and none of the three was ever defined, so the global rule that strips a button's border and background was the only thing acting on them. The classes were the contract; this is the missing half. Primary and secondary now read as distinct actions, a disabled action reads as unavailable rather than merely inert, and keyboard focus stays visible.
+
+---
+
 ## [0.26.0] - 2026-09-05
 
 ### Added
