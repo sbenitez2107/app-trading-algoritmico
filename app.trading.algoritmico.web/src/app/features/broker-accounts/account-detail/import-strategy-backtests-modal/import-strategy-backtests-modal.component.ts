@@ -72,24 +72,28 @@ export class ImportStrategyBacktestsModalComponent {
     inputId: string;
     labelKey: string;
     hintKey: string;
+    namingKey: string;
   }[] = [
     {
       key: 'deploy',
       inputId: 'slot-deploy',
       labelKey: 'SQX.BACKTESTS.SLOT_DEPLOY',
       hintKey: 'SQX.BACKTESTS.SLOT_DEPLOY_HINT',
+      namingKey: 'SQX.BACKTESTS.SLOT_DEPLOY_NAMING',
     },
     {
       key: 'evaluation',
       inputId: 'slot-evaluation',
       labelKey: 'SQX.BACKTESTS.SLOT_EVALUATION',
       hintKey: 'SQX.BACKTESTS.SLOT_EVALUATION_HINT',
+      namingKey: 'SQX.BACKTESTS.SLOT_EVALUATION_NAMING',
     },
     {
       key: 'walkForward',
       inputId: 'slot-walk-forward',
       labelKey: 'SQX.BACKTESTS.SLOT_WALK_FORWARD',
       hintKey: 'SQX.BACKTESTS.SLOT_WALK_FORWARD_HINT',
+      namingKey: 'SQX.BACKTESTS.SLOT_WALK_FORWARD_NAMING',
     },
   ];
 

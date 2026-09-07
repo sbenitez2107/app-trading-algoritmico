@@ -110,6 +110,37 @@
     color: var(--color-profit);
   }
 
+  &__naming-note {
+    margin: 0 0 var(--spacing-md);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  &__slot-naming {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--spacing-xs) var(--spacing-sm);
+    margin: var(--spacing-xs) 0 0;
+    font-size: 0.75rem;
+
+    code {
+      font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+      color: var(--text-main);
+      background-color: var(--bg-surface-2);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.1rem 0.35rem;
+      word-break: break-all;
+    }
+  }
+
+  &__slot-naming-label {
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
   &__footer {
     display: flex;
     justify-content: flex-end;

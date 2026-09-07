@@ -315,7 +315,12 @@
         "STATUS_RISK_NOT_ESTIMABLE": "The run's own risk per trade could not be estimated from its stop-loss closes.",
         "STATUS_NON_UNIT_WEIGHT": "A member carries an allocation weight other than one, which would double-size an already-sized series.",
         "STATUS_HETEROGENEOUS": "The members' runs do not share one sample, so no figure carries a true label."
-      }
+      },
+      "SLOT_NAMING_TITLE": "Suggested file name",
+      "SLOT_DEPLOY_NAMING": "1-DEPLOY__<walk-forward>__<strategy>__<version>__AW-TradeList.csv",
+      "SLOT_EVALUATION_NAMING": "2-EVAL__<walk-forward>__<strategy>__<version>__AW-TradeList.csv",
+      "SLOT_WALK_FORWARD_NAMING": "3-WFEXPORT__<walk-forward>__<strategy>__<version>__WF-ParamsExport.csv",
+      "SLOT_NAMING_HINT": "A convention for you, not for the app: the file name is stored for audit and never read to decide anything. Double underscore separates fields, single hyphen joins words inside one. Both trade lists come from AlgoWizard — the Optimizer’s own walk-forward trade list mixes in-sample and out-of-sample rows and is refused."
     }
   }
 }

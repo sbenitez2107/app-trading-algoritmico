@@ -16,6 +16,9 @@
     </header>
 
     <div class="import-backtests-modal__body">
+      <p class="import-backtests-modal__naming-note">
+        {{ 'SQX.BACKTESTS.SLOT_NAMING_HINT' | translate }}
+      </p>
       <p class="import-backtests-modal__intro">
         {{ 'SQX.BACKTESTS.IMPORT_INTRO' | translate }}
       </p>
@@ -26,6 +29,12 @@
             {{ slot.labelKey | translate }}
           </label>
           <p class="import-backtests-modal__slot-hint">{{ slot.hintKey | translate }}</p>
+          <p class="import-backtests-modal__slot-naming">
+            <span class="import-backtests-modal__slot-naming-label">
+              {{ 'SQX.BACKTESTS.SLOT_NAMING_TITLE' | translate }}
+            </span>
+            <code>{{ slot.namingKey | translate }}</code>
+          </p>
 
           <input
             class="import-backtests-modal__slot-input"

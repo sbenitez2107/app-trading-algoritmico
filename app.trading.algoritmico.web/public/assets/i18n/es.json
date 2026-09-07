@@ -315,7 +315,12 @@
         "STATUS_RISK_NOT_ESTIMABLE": "No se pudo estimar el riesgo por operacion propio de la ejecucion a partir de sus cierres por stop loss.",
         "STATUS_NON_UNIT_WEIGHT": "Un miembro tiene un peso de asignacion distinto de uno, lo que duplicaria el tamano de una serie ya dimensionada.",
         "STATUS_HETEROGENEOUS": "Las ejecuciones de los miembros no comparten una unica muestra, por lo que ninguna cifra llevaria una etiqueta verdadera."
-      }
+      },
+      "SLOT_NAMING_TITLE": "Nombre de archivo sugerido",
+      "SLOT_DEPLOY_NAMING": "1-DEPLOY__<walk-forward>__<estrategia>__<versión>__AW-TradeList.csv",
+      "SLOT_EVALUATION_NAMING": "2-EVAL__<walk-forward>__<estrategia>__<versión>__AW-TradeList.csv",
+      "SLOT_WALK_FORWARD_NAMING": "3-WFEXPORT__<walk-forward>__<estrategia>__<versión>__WF-ParamsExport.csv",
+      "SLOT_NAMING_HINT": "Es una convención para vos, no para la aplicación: el nombre del archivo se guarda como auditoría y nunca se lee para decidir nada. El doble guión bajo separa campos y el guión simple une palabras dentro de uno. Las dos listas de operaciones salen de AlgoWizard — la lista walk-forward del propio Optimizer mezcla filas dentro y fuera de muestra, y se rechaza."
     }
   }
 }
