@@ -35,8 +35,72 @@ button {
   font-family: inherit;
 }
 
-input {
+// -----------------------------------------------------------------------------
+// Form controls
+//
+// Ten components use a native `select`, twenty-one a native `input` and four a
+// `textarea`; none of the three had a rule beyond inheriting the font, so every
+// form in the app fell back to the browser's own widget. Same shape as the
+// button gap: the markup was already there, the styles were not.
+// -----------------------------------------------------------------------------
+
+input,
+select,
+textarea {
   font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: var(--text-muted);
+  }
+
+  // One ring, on the accent, so a focused field is unmistakable in either theme.
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    background-color: var(--bg-surface-2);
+  }
+}
+
+select {
+  // The native arrow is the one part of a select CSS cannot recolour, so it is
+  // replaced rather than left to clash with the theme.
+  appearance: none;
+  padding-right: calc(var(--spacing-md) + var(--spacing-sm));
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-sm) center;
+  background-size: 0.75rem;
+  cursor: pointer;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 // -----------------------------------------------------------------------------

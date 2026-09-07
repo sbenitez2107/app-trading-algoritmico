@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.26.8] - 2026-09-07
+
+### Fixed
+- **Form controls fell back to the browser's own widgets.** Ten screens use a native `select`, twenty-one an `input` and four a `textarea`, and none of the three had a rule beyond inheriting the font — the same gap the buttons had one release earlier. They now share the app's surfaces, borders and focus ring in both themes, a disabled field reads as unavailable, and the select's arrow is replaced with one that follows the theme rather than the operating system.
+
+---
+
 ## [0.26.6] - 2026-09-07
 
 ### Fixed
