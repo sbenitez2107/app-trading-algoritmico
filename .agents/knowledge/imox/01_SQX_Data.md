@@ -128,6 +128,12 @@ de izquierda a derecha.
 - **WS30**: precision 0 → size 1; step 1. **No difieren** → lo que aparece es el valor real: si dice
   2, son 2 pips, no 0,2.
 
+> ⚠️ **La especificación del instrumento y la serie de precios son dos bindings separados** en el Data
+> Manager de SQX, y pueden venir de brokers distintos: nada impide dejar la especificación en
+> Darwinex y que el dato de precio efectivamente cargado sea de otro proveedor (p. ej. Dukascopy). Ver
+> [MEASURED_Demo_vs_Backtest_Divergence.md](MEASURED_Demo_vs_Backtest_Divergence.md) para un caso
+> medido: especificación Darwinex, datos Dukascopy, offset de precio sistemático de 22 a 41 puntos.
+
 ---
 
 ## 📋 Tabla de instrumentos — configuración Darwinex

@@ -35,6 +35,18 @@ divergen mucho sobre la misma estrategia, el problema está en el modelado, no e
 
 Coherente con el módulo 1, donde **Darwinex es la configuración de instrumentos de referencia**.
 
+**¿Se descarga con la licencia full de SQX?** ✅ **Respondido por el usuario (2026-09-09): sí** — las
+fuentes de datos de Darwinex solo se pueden descargar con la versión full/de pago de SQX. Corrobora
+[01_SQX_Data.md:72](01_SQX_Data.md) — *"Tick data: Darwinex desde 2017; requiere SQX de pago"*.
+
+⚠️ **Por qué importa en la práctica**: cuando no se tiene esa licencia (o simplemente se elige el
+fallback), la instrucción de arriba dice ir a Dukascopy — y ese fallback tiene un costo medido, no
+teórico. [MEASURED_Demo_vs_Backtest_Divergence.md](MEASURED_Demo_vs_Backtest_Divergence.md) documenta
+un caso real donde la especificación del instrumento quedó en Darwinex (`NDX_DARWINEX`) pero la serie
+de precios efectivamente usada era Dukascopy (`USATECHIDXUSD_M1_UTC02`): un offset de precio
+sistemático y creciente (22 a 41 puntos) entre demo y backtest, sobre las 24 operaciones pareadas por
+minuto de apertura.
+
 ### Exportar tick data de SQX a MT4
 
 *(El procedimiento paso a paso está en el material original en formato visual y no quedó transcrito.
@@ -139,7 +151,6 @@ predice**. Es exactamente la comparación **demo vs backtest** que ya está en e
 
 | Estado | Ítem |
 |---|---|
-| ❓ **Sin responder** | ¿La tick data para backtestear en MT4 **se descarga con la licencia full de SQX**? |
 | 📌 **Pendiente de revisar** | Los **últimos minutos de la mentoría 01/04/2026** explican **muchas formas de hacer backtest** para determinar si la estrategia es similar a la de SQX. **Verlo de nuevo.** |
 | 📌 **Pendiente de transcribir** | El procedimiento visual de **exportar tick data de SQX a MT4** |
 | 🔧 **TODO de la plataforma** | **Actualizar la vista de WFM con los campos que se muestran** |
@@ -154,3 +165,4 @@ predice**. Es exactamente la comparación **demo vs backtest** que ya está en e
 | La decisión de llevar a Demo (7 pasos) | [05_Analisis_de_Resultados.md](05_Analisis_de_Resultados.md) |
 | Los decimales del MM y por qué cambian por fase | [06_Gestion_de_Riesgo.md](06_Gestion_de_Riesgo.md) |
 | Cuántas estrategias correr con poco capital (1-2) | [06_Gestion_de_Riesgo.md](06_Gestion_de_Riesgo.md) |
+| Costo medido de usar Dukascopy en vez de tick data de Darwinex | [MEASURED_Demo_vs_Backtest_Divergence.md](MEASURED_Demo_vs_Backtest_Divergence.md) |

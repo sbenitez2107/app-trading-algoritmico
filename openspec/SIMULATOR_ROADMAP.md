@@ -266,6 +266,61 @@ Total cost is **4.2% of gross**, and **swap is more than half of it while touchi
 trades**. Since the backtest does not model swap by academy decision, uncorrected divergence between
 the two series would be dominated by it — now measured rather than assumed.
 
+## Planned change of inputs — October 2026
+
+Stated by the user 2026-09-09. Not immediate, but it changes the simulator's inputs, so it is
+recorded before it lands rather than discovered afterwards.
+
+After the 1-a-1 mentoring in **October 2026** the user will:
+1. Move to **SQX v144**, and
+2. Build **all new strategies for MetaTrader 5**.
+
+The existing 123 strategies on SBDEMO2 are MT4. Nothing says the old ones are rebuilt, so **plan for
+a mixed MT4/MT5 population**, not a clean cutover.
+
+### Consequences the simulator must absorb
+
+**The swap doctrine may be reopened.** `01_SQX_Data.md:181-191` gives two reasons swap is not
+configured: a **v136-specific bug** (it is added with a positive sign) and the methodological
+objection to applying today's swaps to past data. The first reason is a version defect and **may be
+fixed in v144**; the second stands regardless. If v144 fixes it, that is a doctrine decision for the
+academy, not a code change — but the layer-0 swap component would then have a modelled counterpart
+on the backtest side for new strategies and none for old ones.
+
+**MT4 and MT5 book commission differently, and the codebase already records it.** `MT4 => Roundtrip
+(100% applied at the entry)` versus `MT5 => 50% applied at the entry and 50% at the exit`. Same
+round-trip cost, different timing. Any daily-resolution measurement — the FTMO daily-loss
+simulation, the divergence decomposition — will attribute cost to different days depending on the
+platform. A mixed population means the evidence layer must know which platform produced each run.
+
+**MT5 unlocks destinations that are currently impossible.** On Darwinex Zero, crypto, futures and US
+stocks/ETFs are **MT5-only**. The user's deferred second Darwinex account with BTC becomes possible
+only on MT5. So the October migration is a prerequisite for part of the plan already recorded.
+
+**Other platform differences already documented**: MT5 offers 21 timeframes against MT4's 9, and 6
+pending-order types against 4. Hedging mode is forced on both — netting is unavailable — so that axis
+does not change.
+
+### What this does NOT change
+
+The layer ordering stands. Layer 0 measures divergence between whatever evidence exists, and a
+platform column is an attribute of a run rather than a new layer. The correct response is to **carry
+the platform on the evidence** from the start, so a mixed population is expressible on the day it
+appears rather than retrofitted.
+
+### Immediate need, separate from October
+
+The user needs **Darwinex price data for backtests now**. The measurement in
+`.agents/knowledge/imox/MEASURED_Demo_vs_Backtest_Divergence.md` shows what the current Dukascopy
+fallback costs: a systematic 22-41 point offset that drifts, enough to turn a take-profit into a
+stop-loss on the same signal. `01_SQX_Data.md:72` records that Darwinex tick data requires the paid
+SQX version, and `07:34` records the academy's own preference — *"Mayor precisión: tick data de
+Darwinex. Si no, Dukascopy."*
+
+This is not a blocker for layer 0 — measuring the offset is precisely what layer 0 does, and it works
+on the data already loaded. It is a blocker for **trusting** any backtest-derived number about an
+instrument the strategy will actually trade.
+
 ## Open items needing a human answer
 
 1. **Which lot grid produced the 120 AlgoWizard exports** — 1 or 2 decimals. The KB is internally
