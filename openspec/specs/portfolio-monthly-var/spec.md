@@ -20,7 +20,14 @@ The estimator MUST aggregate the dense daily net series into rolling
 30-calendar-day window sums. It MUST NOT scale the daily VaR by √t, and MUST
 NOT use 21-trading-day windows — the series is calendar-day dense
 (zero-filled on no-trade days), so a 30-element window already spans 30
-calendar days, matching Darwinex's stated monthly horizon (KB §2, §5 trap 1).
+calendar days, matching Darwinex's stated monthly horizon (KB §2).
+
+> Citation note: KB §5 trap 1 rejects √t scaling and recommends "rolling ~21-trading-day
+> windows" — do not read it as support for the 21-day figure being rejected here. That advice
+> assumes a series indexed by *trading* days, where 21 elements span a calendar month. This
+> estimator's series is calendar-dense and zero-filled, so 21 elements would span only three
+> calendar weeks. Both rules target the same month-long horizon; the element count differs
+> because the indexing does. The √t prohibition is taken from §5 trap 1 unchanged.
 
 #### Scenario: Rolling sums computed over calendar days
 - GIVEN a dense daily net series covering 100 calendar days including weekends

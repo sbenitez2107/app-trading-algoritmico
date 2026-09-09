@@ -23,9 +23,16 @@ internal static class AnalyticsSeries
     /// <summary>
     /// Darwinex Zero's stated monthly VaR horizon (KB §2 — "el % de VaR mensual") — 30 calendar
     /// days. A vendor constant, NOT a user input, so it is never persisted: two `VarTarget` rows
-    /// with different horizons would produce VaR percentages that are no longer comparable against
-    /// the shared 3.25-6.5% band. Changing it is a code change, matching how the KB records vendor
-    /// drift, not a data migration (see design's reconciliation note).
+    /// with different horizons would produce VaR percentages that are no longer comparable *with
+    /// each other*. Changing it is a code change, matching how the KB records vendor drift, not a
+    /// data migration (see design's reconciliation note).
+    ///
+    /// A matched horizon buys internal consistency across rows and NOTHING MORE. It does not make
+    /// this number comparable to the vendor's own 3.25-6.5% band: per KB §5 the two metrics still
+    /// differ on the estimation window (250d vs 45d), the input (realized close-to-close net P&amp;L vs
+    /// open-position risk), the direction (backward-looking percentile vs forward-looking historical
+    /// + Monte Carlo) and the capital base. Aligning the horizon closes one of those five gaps. The
+    /// app can approximate the platform's figure; it can never reproduce it.
     /// </summary>
     public const int MonthlyVarHorizonDays = 30;
 
