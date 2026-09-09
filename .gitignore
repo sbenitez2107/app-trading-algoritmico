@@ -98,3 +98,6 @@ TEST*.xml
 
 # Database backups - never commit, they carry credentials and user hashes
 *.bak
+
+# MSYS/Cygwin crash dumps — junk, never source
+*.stackdump

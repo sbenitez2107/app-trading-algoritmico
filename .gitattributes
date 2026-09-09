@@ -1,0 +1,38 @@
+# Line endings
+#
+# The index is already canonically LF — verified: `git add --renormalize .` on a
+# clean tree produces no change. The problem was never the committed content, it
+# was the checkout: `core.autocrlf=true` writes CRLF into the working copy, while
+# Prettier defaults to `endOfLine: "lf"` and `.prettierrc` sets no override. The
+# result was that `prettier --check` failed on nearly every file in any Windows
+# working copy even though the repository content was correct — a CI failure with
+# no visible cause in the diff.
+#
+# `eol=lf` settles it per-repository and outranks whatever `core.autocrlf` each
+# machine happens to have, so the working copy, the index and Prettier all agree.
+# Adding this file changes no blob; existing working copies converge as files are
+# next checked out.
+#
+# There are no CRLF-dependent files here: no `.bat` or `.cmd` scripts exist, and
+# the two `.ps1` scripts run fine with LF.
+
+* text=auto eol=lf
+
+# Binary — never normalize, never diff as text.
+# Git already detects these by content; declaring them makes the intent explicit
+# and removes the dependency on that detection.
+*.odt       binary
+*.pdf       binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.zip       binary
+*.dll       binary
+*.exe       binary
+*.snk       binary
