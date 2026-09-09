@@ -1,3 +1,24 @@
+> ## ⚠️ SUPERSEDED — no leer para decidir
+>
+> Este documento es la **versión condensada anterior** de los módulos 2, 3 y 4. Quedó reemplazado
+> por las transcripciones granulares, que son más completas y llevan fecha de mentoría:
+>
+> | Sección de este archivo | Reemplazada por |
+> |---|---|
+> | Módulo 2: Builder | [02_SQX_Builder.md](02_SQX_Builder.md) |
+> | Módulo 3: Retester | [03_SQX_Retester.md](03_SQX_Retester.md) |
+> | Módulo 4: Optimizer | [04_SQX_Optimizer.md](04_SQX_Optimizer.md) |
+>
+> Se conserva **solo por trazabilidad**: el design archivado
+> `openspec/changes/archive/2026-09-01-strategy-portfolio-simulator/design.md:283` lo cita como
+> fundamento de dominio, y ese artefacto es inmutable.
+>
+> **Discrepancia conocida, corregida en el módulo 4**: la tabla de métricas de abajo lista
+> `WF Score > 80%` como umbral. El gate real de PASSED es el **Robustness Score > 80%**; el
+> `WF Score` es un índice compuesto interno de SQX, distinto y menos transparente.
+
+---
+
 # Módulo 2: Builder - Generación de Estrategias (Metodología IMOX)
 
 Este documento centraliza la configuración técnica y lógica del Builder en StrategyQuant X, basada en la metodología de Aritz para la creación de estrategias robustas.

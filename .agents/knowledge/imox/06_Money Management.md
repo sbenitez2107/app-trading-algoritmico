@@ -1,3 +1,22 @@
+# 06_Money Management.md — ⚠️ SUPERSEDED
+
+> **No leer para decidir.** Reemplazado por
+> **[06_Gestion_de_Riesgo.md](06_Gestion_de_Riesgo.md)** (módulo 6 completo + mentoría 18/03/2026).
+>
+> Este resumen cubría **solo la columna de cuentas grandes** y omitía por completo la configuración
+> de cuentas chicas (`Risked Money 10`, `Size decimals 2`, `Size if no MM 0,01`), que es donde está
+> el único error de configuración que el módulo señala explícitamente.
+>
+> El nombre de archivo se conserva porque lo citan
+> `openspec/changes/archive/2026-09-01-strategy-portfolio-simulator/design.md:305`,
+> `openspec/changes/archive/2026-09-03-trade-risk-normalization/design.md:138` y
+> `Darwinex_Zero_Risk_Model.md`. Sus afirmaciones **siguen siendo correctas** para cuentas grandes
+> — el problema era el alcance, no el contenido.
+
+---
+
+## Contenido original (conservado por trazabilidad)
+
 \# 💰 IMOX Academy - Protocolo de Money Management
 
 
