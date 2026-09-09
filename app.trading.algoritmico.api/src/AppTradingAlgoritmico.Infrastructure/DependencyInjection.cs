@@ -100,6 +100,9 @@ public static class DependencyInjection
         services.AddScoped<IWalkForwardImportService, WalkForwardImportService>();
         services.AddScoped<IBacktestReadService, BacktestReadService>();
 
+        // Slice A (cost-reconciliation-divergence) — demo-vs-backtest price-series comparability.
+        services.AddScoped<IDemoBacktestComparabilityReadService, DemoBacktestComparabilityReadService>();
+
         return services;
     }
 }

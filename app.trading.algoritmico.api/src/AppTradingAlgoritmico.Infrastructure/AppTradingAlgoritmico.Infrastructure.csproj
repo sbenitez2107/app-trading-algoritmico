@@ -10,6 +10,16 @@
     <ProjectReference Include="..\AppTradingAlgoritmico.Application\AppTradingAlgoritmico.Application.csproj" />
   </ItemGroup>
 
+  <!--
+    Slice: cost-reconciliation-divergence (Phase 2). The comparability calculator and its read
+    service's query builders are `internal static` on purpose (design.md D6) — this grants ONLY
+    the unit test assembly the same visibility a same-project factory would have had, without
+    widening the type to Application/WebAPI.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="AppTradingAlgoritmico.UnitTests" />
+  </ItemGroup>
+
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>

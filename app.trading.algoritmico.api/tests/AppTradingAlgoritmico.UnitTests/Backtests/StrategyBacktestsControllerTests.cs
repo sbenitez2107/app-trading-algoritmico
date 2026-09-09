@@ -1,4 +1,5 @@
 using AppTradingAlgoritmico.Application.DTOs.Backtests;
+using AppTradingAlgoritmico.Application.DTOs.Divergence;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.WebAPI.Controllers;
@@ -24,9 +25,10 @@ public class StrategyBacktestsControllerTests
     private readonly Mock<IBacktestImportService> _importMock = new();
     private readonly Mock<IWalkForwardImportService> _wfMock = new();
     private readonly Mock<IBacktestReadService> _readMock = new();
+    private readonly Mock<IDemoBacktestComparabilityReadService> _comparabilityMock = new();
 
     private StrategyBacktestsController CreateSut()
-        => new(_importMock.Object, _wfMock.Object, _readMock.Object);
+        => new(_importMock.Object, _wfMock.Object, _readMock.Object, _comparabilityMock.Object);
 
     private static Mock<IFormFile> MockFile(string name, string content = "x")
     {
@@ -199,5 +201,36 @@ public class StrategyBacktestsControllerTests
         body.Evaluation.Should().BeNull("the evaluation slot is genuinely empty, not an empty run");
         body.WalkForwardExport!.OosFromDate.Should().Be(new DateTime(2025, 5, 26));
         body.WalkForwardExport.WindowCount.Should().Be(6);
+    }
+
+    // ---- Comparability endpoint (cost-reconciliation-divergence, slice A) ----
+
+    [Fact]
+    public async Task GetComparability_MissingKind_Returns400()
+    {
+        var result = await CreateSut().GetComparability(Guid.NewGuid(), kind: null, default);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        _comparabilityMock.Verify(
+            s => s.GetAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetComparability_ValidRequest_Returns200WithBasis()
+    {
+        var strategyId = Guid.NewGuid();
+        var dto = new PriceOffsetComparabilityDto(
+            strategyId, BacktestRunKind.Deploy, ComparabilityReadoutStatus.Measured,
+            24, 23, 18, 0, 0, []);
+        _comparabilityMock
+            .Setup(s => s.GetAsync(strategyId, BacktestRunKind.Deploy, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateSut().GetComparability(strategyId, BacktestRunKind.Deploy, default);
+
+        var body = (result.Result as OkObjectResult)!.Value as PriceOffsetComparabilityDto;
+        body!.Basis.Should().Be(ComparabilityBasis.PairedOpensOnly);
+        body.PairedCount.Should().Be(24);
     }
 }

@@ -1,4 +1,5 @@
 using AppTradingAlgoritmico.Application.DTOs.Backtests;
+using AppTradingAlgoritmico.Application.DTOs.Divergence;
 using AppTradingAlgoritmico.Application.Interfaces;
 using AppTradingAlgoritmico.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +25,8 @@ namespace AppTradingAlgoritmico.WebAPI.Controllers;
 public class StrategyBacktestsController(
     IBacktestImportService importService,
     IWalkForwardImportService walkForwardImportService,
-    IBacktestReadService readService) : ControllerBase
+    IBacktestReadService readService,
+    IDemoBacktestComparabilityReadService comparabilityReadService) : ControllerBase
 {
     private const string AllowedExtension = ".csv";
 
@@ -87,6 +89,39 @@ public class StrategyBacktestsController(
     public async Task<ActionResult<StrategyBacktestsDto>> GetBacktests(
         [FromRoute] Guid strategyId, CancellationToken ct)
         => Ok(await readService.GetByStrategyAsync(strategyId, ct));
+
+    /// <summary>
+    /// The demo-vs-backtest entry-price comparability for one <see cref="BacktestRunKind"/> slot
+    /// (`demo-backtest-comparability` spec, design.md D3/D9).
+    /// <para>
+    /// <c>kind</c> is a REQUIRED query parameter with NO default. Unlike the route-segment kind on
+    /// <see cref="ImportTradeList"/>, this project has no automated integration-test harness
+    /// (<c>config.yaml: integration_tool_installed: false</c>), so ASP.NET's own implicit
+    /// required-value-type model-state validation — which only runs inside the real HTTP
+    /// pipeline — cannot be exercised by this project's direct-instantiation unit tests. The
+    /// nullable parameter plus this explicit check reproduces the exact same observable contract
+    /// (missing kind refuses with 400, never falls back to a default slot) in a way a unit test can
+    /// actually drive.
+    /// </para>
+    /// </summary>
+    [HttpGet("comparability")]
+    [ProducesResponseType(typeof(PriceOffsetComparabilityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PriceOffsetComparabilityDto>> GetComparability(
+        [FromRoute] Guid strategyId,
+        [FromQuery] BacktestRunKind? kind,
+        CancellationToken ct)
+    {
+        if (kind is null)
+        {
+            return BadRequest(new
+            {
+                message = "The 'kind' query parameter is required. There is no default run slot.",
+            });
+        }
+
+        return Ok(await comparabilityReadService.GetAsync(strategyId, kind.Value, ct));
+    }
 
     /// <summary>
     /// Accepts ONLY the two declared names, case-insensitively. Deliberately not

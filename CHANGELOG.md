@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.28.0] - 2026-09-09
+
+### Added
+- **A strategy's demo results and its backtest can now be checked for whether they describe the same instrument at all.** Trades that open at the exact same minute and in the same direction are paired, and the entry-price difference is reported per calendar month. On the first strategy measured this surfaced a systematic offset averaging 22 points in April and May and 41 in June — always in the same direction, never near zero, and drifting. The cause was a price series taken from one broker while the point value and costs came from another, which turned the same signal into a take-profit in the live account and a stop-loss in the backtest. Cost decomposition without this check would have been separating commission from swap across two different assets.
+- **Each disjoint subset of trades reports its own net profit and loss.** The paired trades, the ones only the demo took, the ones only the backtest took, and the ones refused for opening in the same minute as another are counted and valued separately, so a reader can see what share of the money the comparison actually covers. The two sides are never summed or subtracted: the demo figure adds the commission, swap and tax columns to a pure price move, while the backtest figure already carries commission and spread and models no swap at all, and each figure names its own basis.
+- **The readout ranks and never grades.** No score, no pass or fail, no threshold — the knowledge base documents that a large divergence indicates a modelling problem but publishes no number, and none was invented. Daylight-saving divergence between the two calendars is disclosed rather than corrected, because an hour's shift moves the pairing key and simply stops trades from pairing, which shows up as a drop in the paired count next to every figure.
+
 ## [0.27.0] - 2026-09-09
 
 ### Added
