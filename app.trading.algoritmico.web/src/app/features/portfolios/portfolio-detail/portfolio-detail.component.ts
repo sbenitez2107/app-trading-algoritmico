@@ -36,6 +36,7 @@ import {
   FundingService,
   DrawdownModel,
   GuardrailKind,
+  BreachBasis,
 } from '../../../core/services/portfolio.service';
 import {
   EQUITY_OVERLAY_PALETTE,
@@ -152,6 +153,7 @@ export class PortfolioDetailComponent implements OnInit {
   readonly FundingService = FundingService;
   readonly DrawdownModel = DrawdownModel;
   readonly GuardrailKind = GuardrailKind;
+  readonly BreachBasis = BreachBasis;
   readonly candidates = signal<StrategyCandidateDto[]>([]);
   /** Per-strategy SQX + live KPIs (keyed by strategyId) for the composition comparison grid. */
   readonly memberKpis = signal<Map<string, StrategyCandidateDto>>(new Map());
@@ -685,6 +687,13 @@ export class PortfolioDetailComponent implements OnInit {
     }
     if (vt.monthlyVar95Percent > vt.targetVarPct) return 'Por encima del target';
     return 'Dentro de la banda';
+  }
+
+  /** Discloses that a breach readout is a LOWER BOUND (closed trades only), never the vendor's verdict. */
+  breachBasisLabel(basis: BreachBasis | null | undefined): string {
+    return basis === BreachBasis.ClosedTradeLowerBound
+      ? 'Cota inferior (solo trades cerrados) — no es el veredicto del broker'
+      : '';
   }
 
   fundingLabel(fs: FundingService): string {

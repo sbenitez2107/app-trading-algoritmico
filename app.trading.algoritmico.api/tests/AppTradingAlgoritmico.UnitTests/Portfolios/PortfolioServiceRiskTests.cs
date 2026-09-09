@@ -118,6 +118,77 @@ public class PortfolioServiceRiskTests
         guard.DailyHeadroomPct.Should().Be(expectedHeadroom, "unchanged formula: dailyLimit - Var95Percent");
         guard.DailyBreached.Should().Be(guard.ServiceVar95Percent > 0.05m);
         guard.VarTarget.Should().BeNull("VarTarget block is null for a LossLimits guardrail");
+        guard.BreachBasis.Should().Be(BreachBasis.ClosedTradeLowerBound);
+    }
+
+    [Fact]
+    public async Task GetRiskAsync_StagedLossLimitsGuardrail_EmitsNoDailyHeadroomOrBreach()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        var portfolioId = Guid.NewGuid();
+        var d = new DateTime(2026, 1, 1);
+
+        await using var db = InMemoryDbContextFactory.Create();
+        db.TradingAccounts.Add(MakeAccount(accountId, "Axi"));
+        db.Strategies.Add(MakeStrategy(strategyId, "A", accountId));
+        db.StrategyTrades.AddRange(DailyTrades(strategyId, d, 10, -1000m));
+        db.Portfolios.Add(MakePortfolio(portfolioId, 100_000m, strategyId));
+        var limits = new BrokerRiskLimits
+        {
+            Broker = "Axi",
+            FundingService = FundingService.Axi,
+            Kind = GuardrailKind.StagedLossLimits,
+            Verified = true,
+        };
+        limits.Stages.Add(new FundingStageLimit { StageOrdinal = 1, StageName = "Stage 1", MaxLossLimitPct = 0.06m, ProfitTargetPct = 0.08m });
+        db.BrokerRiskLimits.Add(limits);
+        await db.SaveChangesAsync();
+
+        var sut = new PortfolioService(db);
+        var risk = await sut.GetRiskAsync(portfolioId);
+
+        var guard = risk.Guardrails.Single();
+        guard.Kind.Should().Be(GuardrailKind.StagedLossLimits);
+        guard.DailyHeadroomPct.Should().BeNull("no per-stage attribution exists yet");
+        guard.DailyBreached.Should().BeFalse();
+        guard.DailyLossLimitPct.Should().BeNull();
+        guard.MaxLossLimitPct.Should().BeNull();
+        guard.ProfitTargetPct.Should().BeNull();
+        guard.DrawdownModel.Should().BeNull();
+        guard.VarTarget.Should().BeNull();
+        guard.BreachBasis.Should().Be(BreachBasis.ClosedTradeLowerBound);
+    }
+
+    [Fact]
+    public async Task GetRiskAsync_VarTargetGuardrail_BreachBasisIsNull()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        var portfolioId = Guid.NewGuid();
+        var d = new DateTime(2026, 1, 1);
+
+        await using var db = InMemoryDbContextFactory.Create();
+        db.TradingAccounts.Add(MakeAccount(accountId, "Darwinex"));
+        db.Strategies.Add(MakeStrategy(strategyId, "A", accountId));
+        db.StrategyTrades.AddRange(DailyTrades(strategyId, d, 100, -10m));
+        db.Portfolios.Add(MakePortfolio(portfolioId, 100_000m, strategyId));
+        db.BrokerRiskLimits.Add(new BrokerRiskLimits
+        {
+            Broker = "Darwinex",
+            FundingService = FundingService.DarwinexZero,
+            Kind = GuardrailKind.VarTarget,
+            TargetVarPct = 0.065m,
+            VarFloorPct = 0.0325m,
+            Verified = true,
+        });
+        await db.SaveChangesAsync();
+
+        var sut = new PortfolioService(db);
+        var risk = await sut.GetRiskAsync(portfolioId);
+
+        var guard = risk.Guardrails.Single();
+        guard.BreachBasis.Should().BeNull("VarTarget has no breach semantics");
     }
 
     [Fact]

@@ -618,4 +618,62 @@ describe('PortfolioDetailComponent — Risk tab by GuardrailKind', () => {
     expect(text.toLowerCase()).toContain('no puede resolver');
     expect(text.toLowerCase()).toContain('duración de posición');
   });
+
+  it('StagedLossLimitsGuardrail_RendersStageRowsWithNoBreachOrHeadroom', () => {
+    const fixture = renderWithRisk(
+      baseRisk({
+        guardrails: [
+          {
+            service: 'Axi',
+            fundingService: FundingService.Axi,
+            kind: GuardrailKind.StagedLossLimits,
+            configured: true,
+            verified: true,
+            dailyLossLimitPct: null,
+            maxLossLimitPct: null,
+            profitTargetPct: null,
+            drawdownModel: null,
+            serviceVar95Percent: 0.02,
+            dailyHeadroomPct: null,
+            dailyBreached: false,
+            varTarget: null,
+            breachBasis: 0,
+          },
+        ],
+      }),
+    );
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).not.toContain('Headroom');
+    expect(fixture.nativeElement.querySelector('.guard__bar')).toBeNull();
+    expect(text.toLowerCase()).toContain('cota inferior');
+  });
+
+  it('LossLimitsGuardrail_BreachBasisSet_ShowsLowerBoundLabel', () => {
+    const fixture = renderWithRisk(
+      baseRisk({
+        guardrails: [
+          {
+            service: 'FTMO',
+            fundingService: FundingService.Ftmo,
+            kind: GuardrailKind.LossLimits,
+            configured: true,
+            verified: true,
+            dailyLossLimitPct: 0.05,
+            maxLossLimitPct: 0.1,
+            profitTargetPct: 0.1,
+            drawdownModel: 0,
+            serviceVar95Percent: 0.02,
+            dailyHeadroomPct: 0.03,
+            dailyBreached: false,
+            varTarget: null,
+            breachBasis: 0,
+          },
+        ],
+      }),
+    );
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text.toLowerCase()).toContain('cota inferior');
+  });
 });

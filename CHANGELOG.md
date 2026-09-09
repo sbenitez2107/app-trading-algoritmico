@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.27.0] - 2026-09-09
+
+### Added
+- **Funding guardrails now follow each service's own rulebook instead of one shared shape.** A single set of loss-limit fields was standing in for three services whose rules do not agree: Axi Select publishes no daily loss limit at all and caps loss **per stage** on that stage's own allocation, breaching into a quarantine with demotion rather than termination, while FTMO ships two products whose drawdown behaves differently and nothing recorded which product a row was. `StagedLossLimits` and a `FundingStageLimit` table now carry Axi's per-stage limits, and an `FtmoProduct` discriminator pins FTMO's product with the invariant its rulebook states — a one-step account is trailing, a two-step account is static.
+- **A guardrail row can no longer claim a rulebook that does not match its service.** Saving a Darwinex Zero row as a loss-limit service was accepted and then handed back a breach flag and a headroom figure — for a service that has no breach rule and rescales leverage instead. The write path now rejects the mismatch outright, while reads stay tolerant and return a flag, so a row saved before this release still opens its Risk tab instead of failing.
+- **Every FTMO and Axi breach readout now states that it is a lower bound.** Both services evaluate a breach against equity that includes open, unrealised profit and loss; the app holds closed trades only, so its figure is necessarily optimistic. `BreachBasis` travels with the readout as a computed value rather than a field a caller could forget to set, which is what makes the caveat impossible to drop on the way out.
+
+### Changed
+- **`DrawdownModel` no longer carries a meaningless value.** It was required on every row and stored as `Static` even for Darwinex Zero, where the concept does not apply. It is now optional: required for a loss-limit service, rejected for a staged one, and stored as empty for a VaR-target one. The migration only relaxes the column — it writes no data, which is what keeps its rollback exact.
+
+---
+
 ## [0.26.8] - 2026-09-07
 
 ### Fixed

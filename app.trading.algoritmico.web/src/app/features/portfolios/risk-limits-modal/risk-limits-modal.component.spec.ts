@@ -5,6 +5,7 @@ import {
   PortfolioService,
   FundingService,
   DrawdownModel,
+  FtmoProduct,
   GuardrailKind,
   ServiceGuardrailDto,
 } from '../../../core/services/portfolio.service';
@@ -161,6 +162,104 @@ describe('RiskLimitsModalComponent', () => {
         targetVarPct: undefined,
         varFloorPct: undefined,
       }),
+    );
+  });
+
+  const axiGuardrail: ServiceGuardrailDto = {
+    service: 'Axi',
+    fundingService: FundingService.Axi,
+    kind: GuardrailKind.StagedLossLimits,
+    configured: true,
+    verified: true,
+    dailyLossLimitPct: null,
+    maxLossLimitPct: null,
+    profitTargetPct: null,
+    drawdownModel: null,
+    serviceVar95Percent: 0.02,
+    dailyHeadroomPct: null,
+    dailyBreached: false,
+    varTarget: null,
+  };
+
+  it('create_AxiBroker_ShowsStagedLossLimitsFieldSetWithStageRows', () => {
+    const fixture = create(axiGuardrail);
+    const comp = fixture.componentInstance;
+
+    expect(comp.isStagedLossLimits()).toBe(true);
+    expect(comp.stageRows.length).toBeGreaterThan(0);
+  });
+
+  it('save_StagedLossLimitsPayload_CallsUpsertWithStageCollection', () => {
+    const fixture = create(axiGuardrail);
+    const comp = fixture.componentInstance;
+    comp.stageRows.at(0).patchValue({ stageOrdinal: 1, stageName: 'Stage 1', maxLossLimitPct: 6 });
+
+    comp.save();
+
+    expect(serviceMock.upsertRiskLimits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        broker: 'Axi',
+        kind: GuardrailKind.StagedLossLimits,
+        dailyLossLimitPct: undefined,
+        maxLossLimitPct: undefined,
+        stages: expect.arrayContaining([
+          expect.objectContaining({ stageOrdinal: 1, stageName: 'Stage 1', maxLossLimitPct: 0.06 }),
+        ]),
+      }),
+    );
+  });
+
+  it('save_StagedLossLimitsPayload_SendsNullDrawdownModel', () => {
+    // The API rejects a DrawdownModel on a StagedLossLimits payload ("Kind Determines Valid Field
+    // Set"). Sending `Static` here would make Axi unconfigurable from the UI.
+    const fixture = create(axiGuardrail);
+    const comp = fixture.componentInstance;
+    comp.stageRows.at(0).patchValue({ stageOrdinal: 1, stageName: 'Stage 1', maxLossLimitPct: 6 });
+
+    comp.save();
+
+    expect(serviceMock.upsertRiskLimits).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: GuardrailKind.StagedLossLimits,
+        drawdownModel: null,
+      }),
+    );
+  });
+
+  it('create_FtmoBroker_ShowsProductSelect', () => {
+    const fixture = create(lossLimitsGuardrail);
+    const comp = fixture.componentInstance;
+
+    expect(comp.isFtmo()).toBe(true);
+    expect(comp.form.controls.ftmoProduct).toBeTruthy();
+  });
+
+  it('save_FtmoOneStepWithStaticDrawdown_ShowsErrorWithoutCallingService', () => {
+    const fixture = create(lossLimitsGuardrail);
+    const comp = fixture.componentInstance;
+    comp.form.controls.ftmoProduct.setValue(FtmoProduct.OneStep);
+    comp.form.controls.drawdownModel.setValue(DrawdownModel.Static);
+    comp.form.controls.dailyLossPct.setValue(5);
+    comp.form.controls.maxLossPct.setValue(10);
+
+    comp.save();
+
+    expect(comp.errorMessage()).toBeTruthy();
+    expect(serviceMock.upsertRiskLimits).not.toHaveBeenCalled();
+  });
+
+  it('save_FtmoTwoStepWithStaticDrawdown_CallsUpsertWithProduct', () => {
+    const fixture = create(lossLimitsGuardrail);
+    const comp = fixture.componentInstance;
+    comp.form.controls.ftmoProduct.setValue(FtmoProduct.TwoStep);
+    comp.form.controls.drawdownModel.setValue(DrawdownModel.Static);
+    comp.form.controls.dailyLossPct.setValue(5);
+    comp.form.controls.maxLossPct.setValue(10);
+
+    comp.save();
+
+    expect(serviceMock.upsertRiskLimits).toHaveBeenCalledWith(
+      expect.objectContaining({ ftmoProduct: FtmoProduct.TwoStep }),
     );
   });
 });

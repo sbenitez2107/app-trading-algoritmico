@@ -193,8 +193,18 @@ public sealed record ServiceRiskDto(
 /// <see cref="DailyBreached"/>) are populated and <see cref="VarTarget"/> is null; for
 /// <see cref="Domain.Enums.GuardrailKind.VarTarget"/> the breach-style fields are null/false and
 /// <see cref="VarTarget"/> carries the monthly-VaR-target readout instead (`funding-guardrails`
-/// spec — "No Breach or Headroom Semantics for VarTarget").
+/// spec — "No Breach or Headroom Semantics for VarTarget"). <see cref="Domain.Enums.GuardrailKind.StagedLossLimits"/>
+/// (Axi) emits no daily headroom/breach either — the app has no stage-membership tracking yet, so a
+/// single portfolio-level daily figure cannot be attributed to a specific stage's limit.
 /// </summary>
+/// <param name="BreachBasis">
+/// COMPUTED, a pure function of <see cref="Kind"/> — <see cref="Domain.Enums.BreachBasis.ClosedTradeLowerBound"/>
+/// for <see cref="Domain.Enums.GuardrailKind.LossLimits"/> and
+/// <see cref="Domain.Enums.GuardrailKind.StagedLossLimits"/>, <c>null</c> for
+/// <see cref="Domain.Enums.GuardrailKind.VarTarget"/>. Discloses that any breach readout here is a
+/// LOWER BOUND (closed trades only), never the vendor's verdict (`funding-guardrails` spec —
+/// "Closed-Trade Lower-Bound Disclosure").
+/// </param>
 public sealed record ServiceGuardrailDto(
     string Service,
     Domain.Enums.FundingService FundingService,
@@ -208,7 +218,15 @@ public sealed record ServiceGuardrailDto(
     decimal ServiceVar95Percent,
     decimal? DailyHeadroomPct,
     bool DailyBreached,
-    VarTargetReadoutDto? VarTarget);
+    VarTargetReadoutDto? VarTarget)
+{
+    public Domain.Enums.BreachBasis? BreachBasis => Kind switch
+    {
+        Domain.Enums.GuardrailKind.LossLimits or Domain.Enums.GuardrailKind.StagedLossLimits
+            => Domain.Enums.BreachBasis.ClosedTradeLowerBound,
+        _ => null,
+    };
+}
 
 /// <summary>
 /// Monthly VaR-target readout for a <see cref="Domain.Enums.GuardrailKind.VarTarget"/> guardrail

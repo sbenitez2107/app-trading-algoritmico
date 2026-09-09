@@ -375,6 +375,7 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
         var brokers = risk.ByService.Select(s => s.Service).Distinct().ToList();
         var limitsByBroker = (await db.BrokerRiskLimits
                 .AsNoTracking()
+                .Include(l => l.Stages)
                 .Where(l => brokers.Contains(l.Broker))
                 .ToListAsync(ct))
             .ToDictionary(l => l.Broker);
@@ -419,6 +420,26 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
                     DailyHeadroomPct: null,
                     DailyBreached: false,
                     VarTarget: varTarget);
+            }
+
+            // StagedLossLimits (Axi) — no stage-membership tracking yet, so no daily headroom/breach
+            // can be attributed to a specific stage's limit (funding-guardrails spec).
+            if (kind == GuardrailKind.StagedLossLimits)
+            {
+                return new ServiceGuardrailDto(
+                    Service: s.Service,
+                    FundingService: lim?.FundingService ?? FundingService.Other,
+                    Kind: kind,
+                    Configured: lim is not null,
+                    Verified: lim?.Verified ?? false,
+                    DailyLossLimitPct: null,
+                    MaxLossLimitPct: null,
+                    ProfitTargetPct: null,
+                    DrawdownModel: null,
+                    ServiceVar95Percent: s.Var95Percent,
+                    DailyHeadroomPct: null,
+                    DailyBreached: false,
+                    VarTarget: null);
             }
 
             // LossLimits — byte-identical to the pre-existing behaviour.

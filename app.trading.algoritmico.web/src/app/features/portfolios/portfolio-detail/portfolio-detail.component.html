@@ -326,10 +326,29 @@
                         >Max DD actual: <strong>{{ pct(r.maxDrawdownPercent) }}</strong></span
                       >
                     </div>
+                    @if (g.breachBasis != null) {
+                      <p class="caveat caveat--muted">{{ breachBasisLabel(g.breachBasis) }}</p>
+                    }
                   } @else {
                     <p class="guard__hint">
                       Configurá los límites de este servicio para ver el headroom vs el VaR. Los
                       números los cargás vos (no vienen precargados).
+                    </p>
+                  }
+                }
+                @case (GuardrailKind.StagedLossLimits) {
+                  @if (g.configured) {
+                    <p class="guard__hint">
+                      Axi es un rulebook por stages — breach implica democión de stage, no cierre de
+                      cuenta. La app aún no rastrea la membresía de stage, así que no hay headroom
+                      ni breach diario a nivel portfolio para este servicio.
+                    </p>
+                    @if (g.breachBasis != null) {
+                      <p class="caveat caveat--muted">{{ breachBasisLabel(g.breachBasis) }}</p>
+                    }
+                  } @else {
+                    <p class="guard__hint">
+                      Configurá los stages de Axi (límite de pérdida por stage) para este servicio.
                     </p>
                   }
                 }

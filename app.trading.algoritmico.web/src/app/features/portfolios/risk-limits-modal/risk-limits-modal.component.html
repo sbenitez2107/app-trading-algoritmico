@@ -21,7 +21,61 @@
         </select>
       </div>
 
-      @if (isVarTarget()) {
+      @if (isStagedLossLimits()) {
+        <p class="modal-hint">
+          Axi es un breach por stage con democión, no cierre de cuenta. Cargá el límite de pérdida
+          máximo de cada stage — la membresía/transición de stages no se gestiona acá.
+        </p>
+        <div class="modal-stage-rows">
+          @for (row of stageRows.controls; track $index) {
+            <div class="modal-field-row" [formGroup]="row">
+              <div class="modal-field">
+                <label class="modal-field__label">Stage</label>
+                <input
+                  class="modal-field__input"
+                  type="number"
+                  min="1"
+                  formControlName="stageOrdinal"
+                />
+              </div>
+              <div class="modal-field">
+                <label class="modal-field__label">Nombre</label>
+                <input class="modal-field__input" type="text" formControlName="stageName" />
+              </div>
+              <div class="modal-field">
+                <label class="modal-field__label">Pérdida máx. (%)</label>
+                <input
+                  class="modal-field__input"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  formControlName="maxLossLimitPct"
+                />
+              </div>
+              <div class="modal-field">
+                <label class="modal-field__label">Profit target (%)</label>
+                <input
+                  class="modal-field__input"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  formControlName="profitTargetPct"
+                />
+              </div>
+              <button
+                type="button"
+                class="modal-btn modal-btn--ghost"
+                (click)="removeStageRow($index)"
+              >
+                Quitar
+              </button>
+            </div>
+          }
+        </div>
+        <button type="button" class="modal-btn modal-btn--ghost" (click)="addStageRow()">
+          + Agregar stage
+        </button>
+      } @else if (isVarTarget()) {
         <p class="modal-hint">
           Darwinex Zero no tiene límites de pérdida — el motor de riesgo reescala el apalancamiento
           hacia un VaR objetivo mensual (no es un breach). Cargá la banda [floor, target] confirmada
@@ -56,6 +110,16 @@
           </div>
         </div>
       } @else {
+        @if (isFtmo()) {
+          <div class="modal-field">
+            <label class="modal-field__label" for="rl-ftmo-product">Producto FTMO (opcional)</label>
+            <select id="rl-ftmo-product" class="modal-field__select" formControlName="ftmoProduct">
+              <option [ngValue]="null">Sin especificar</option>
+              <option [ngValue]="FtmoProduct.OneStep">One Step (Trailing)</option>
+              <option [ngValue]="FtmoProduct.TwoStep">Two Step (Static)</option>
+            </select>
+          </div>
+        }
         <div class="modal-field-row">
           <div class="modal-field">
             <label class="modal-field__label" for="rl-daily-loss">Pérdida diaria máx. (%)</label>

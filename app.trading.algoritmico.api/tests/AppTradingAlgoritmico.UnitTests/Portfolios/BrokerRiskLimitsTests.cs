@@ -36,4 +36,22 @@ public class BrokerRiskLimitsTests
         entity.TargetVarPct.Should().Be(0.065m);
         entity.VarFloorPct.Should().Be(0.0325m);
     }
+
+    [Fact]
+    public void New_StagedLossLimitsKind_CanCarryStagesAndNoFtmoProduct()
+    {
+        var entity = new BrokerRiskLimits
+        {
+            Broker = "Axi",
+            FundingService = FundingService.Axi,
+            Kind = GuardrailKind.StagedLossLimits,
+            DrawdownModel = null,
+        };
+        entity.Stages.Add(new FundingStageLimit { StageOrdinal = 1, StageName = "Stage 1", MaxLossLimitPct = 0.06m });
+
+        entity.Kind.Should().Be(GuardrailKind.StagedLossLimits);
+        entity.DrawdownModel.Should().BeNull();
+        entity.FtmoProduct.Should().BeNull();
+        entity.Stages.Should().ContainSingle(s => s.MaxLossLimitPct == 0.06m);
+    }
 }

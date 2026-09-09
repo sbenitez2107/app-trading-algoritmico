@@ -20,14 +20,30 @@ export enum DrawdownModel {
   Trailing = 1,
 }
 
+/** FTMO's challenge product. Optional — a row may persist with no product (see `rulebookMismatch`). */
+export enum FtmoProduct {
+  OneStep = 0,
+  TwoStep = 1,
+}
+
 /**
- * Discriminates how a broker's risk limits are modeled. `LossLimits` (FTMO/Axi/Other) keeps
- * today's breach-style fields; `VarTarget` (Darwinex Zero) models a monthly VaR-target rulebook
- * with NO breach semantics — missing the target rescales leverage, it does not breach the account.
+ * Discloses that a breach readout is a LOWER BOUND (closed trades only), never the vendor's
+ * verdict. `null` for `VarTarget`, which has no breach semantics at all.
+ */
+export enum BreachBasis {
+  ClosedTradeLowerBound = 0,
+}
+
+/**
+ * Discriminates how a broker's risk limits are modeled. `LossLimits` (FTMO/Other) keeps today's
+ * breach-style fields; `VarTarget` (Darwinex Zero) models a monthly VaR-target rulebook with NO
+ * breach semantics — missing the target rescales leverage, it does not breach the account.
+ * `StagedLossLimits` (Axi) holds a stage collection instead of parent-row scalars.
  */
 export enum GuardrailKind {
   LossLimits = 0,
   VarTarget = 1,
+  StagedLossLimits = 2,
 }
 
 export interface PortfolioMemberDto {
@@ -229,11 +245,13 @@ export interface LossLimitsGuardrailDto {
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
-  drawdownModel?: DrawdownModel;
+  drawdownModel?: DrawdownModel | null;
   serviceVar95Percent: number;
   dailyHeadroomPct?: number;
   dailyBreached: boolean;
   varTarget: null;
+  /** COMPUTED — `ClosedTradeLowerBound` for LossLimits (`funding-guardrails` spec). */
+  breachBasis?: BreachBasis | null;
 }
 
 export interface VarTargetGuardrailDto {
@@ -250,10 +268,36 @@ export interface VarTargetGuardrailDto {
   dailyHeadroomPct: null;
   dailyBreached: boolean;
   varTarget: VarTargetReadoutDto;
+  /** COMPUTED — always `null` for VarTarget (no breach semantics). */
+  breachBasis?: null;
+}
+
+/**
+ * Axi's staged rulebook — no daily headroom/breach (no stage-membership tracking yet), just the
+ * `ClosedTradeLowerBound` disclosure (`funding-guardrails` spec — "StagedLossLimits Stage Rulebook").
+ */
+export interface StagedLossLimitsGuardrailDto {
+  service: string;
+  fundingService: FundingService;
+  kind: GuardrailKind.StagedLossLimits;
+  configured: boolean;
+  verified: boolean;
+  dailyLossLimitPct: null;
+  maxLossLimitPct: null;
+  profitTargetPct: null;
+  drawdownModel: null;
+  serviceVar95Percent: number;
+  dailyHeadroomPct: null;
+  dailyBreached: boolean;
+  varTarget: null;
+  breachBasis?: BreachBasis | null;
 }
 
 /** Discriminated union on `kind` — the field set is only valid for its own kind (backend-enforced). */
-export type ServiceGuardrailDto = LossLimitsGuardrailDto | VarTargetGuardrailDto;
+export type ServiceGuardrailDto =
+  | LossLimitsGuardrailDto
+  | VarTargetGuardrailDto
+  | StagedLossLimitsGuardrailDto;
 
 export interface PortfolioRiskDto {
   initialCapital: number;
@@ -278,6 +322,22 @@ export interface PortfolioCorrelationDto {
   averageCorrelation: number;
 }
 
+/** One stage of an Axi StagedLossLimits rulebook. */
+export interface FundingStageLimitDto {
+  stageOrdinal: number;
+  stageName: string;
+  maxLossLimitPct: number;
+  profitTargetPct?: number;
+}
+
+/** Write payload for one stage — the whole collection is replace-upserted per parent row. */
+export interface UpsertFundingStageLimitDto {
+  stageOrdinal: number;
+  stageName: string;
+  maxLossLimitPct: number;
+  profitTargetPct?: number;
+}
+
 export interface BrokerRiskLimitsDto {
   id: string;
   broker: string;
@@ -286,10 +346,14 @@ export interface BrokerRiskLimitsDto {
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
-  drawdownModel: DrawdownModel;
+  drawdownModel?: DrawdownModel | null;
   targetVarPct?: number;
   varFloorPct?: number;
   verified: boolean;
+  ftmoProduct?: FtmoProduct | null;
+  stages?: FundingStageLimitDto[];
+  /** COMPUTED on the API side — never sent on write (`funding-guardrails` spec — "Kind Bound to FundingService"). */
+  rulebookMismatch?: boolean;
 }
 
 export interface UpsertBrokerRiskLimitsDto {
@@ -299,10 +363,13 @@ export interface UpsertBrokerRiskLimitsDto {
   dailyLossLimitPct?: number;
   maxLossLimitPct?: number;
   profitTargetPct?: number;
-  drawdownModel: DrawdownModel;
+  /** Required for `LossLimits`; MUST be `null` for `StagedLossLimits` (API-enforced). */
+  drawdownModel: DrawdownModel | null;
   targetVarPct?: number;
   varFloorPct?: number;
   verified: boolean;
+  ftmoProduct?: FtmoProduct;
+  stages?: UpsertFundingStageLimitDto[];
 }
 
 export interface StrategyCandidateDto {

@@ -25,7 +25,12 @@ public class BrokerRiskLimits : BaseEntity
     /// <summary>Profit target as a fraction of capital (e.g. 0.10 = 10%). Null = not set.</summary>
     public decimal? ProfitTargetPct { get; set; }
 
-    public DrawdownModel DrawdownModel { get; set; } = DrawdownModel.Static;
+    /// <summary>
+    /// Required for <see cref="GuardrailKind.LossLimits"/>, null for <see cref="GuardrailKind.VarTarget"/>
+    /// and <see cref="GuardrailKind.StagedLossLimits"/> (normalized on write — see
+    /// <see cref="AppTradingAlgoritmico.Infrastructure.Services.RiskLimitsService"/>).
+    /// </summary>
+    public DrawdownModel? DrawdownModel { get; set; }
 
     /// <summary>
     /// Discriminates the rulebook this row follows. Defaults to <see cref="GuardrailKind.LossLimits"/>
@@ -33,6 +38,19 @@ public class BrokerRiskLimits : BaseEntity
     /// breach-style behaviour unchanged.
     /// </summary>
     public GuardrailKind Kind { get; set; } = GuardrailKind.LossLimits;
+
+    /// <summary>
+    /// FTMO's challenge product. Optional — a <see cref="FundingService.Ftmo"/> row may persist with
+    /// no product; it surfaces <c>RulebookMismatch = true</c> on read instead of being rejected.
+    /// Null for every other <see cref="FundingService"/>.
+    /// </summary>
+    public FtmoProduct? FtmoProduct { get; set; }
+
+    /// <summary>
+    /// Axi's per-stage breach limits (<see cref="GuardrailKind.StagedLossLimits"/> only). Empty for
+    /// every other kind.
+    /// </summary>
+    public ICollection<FundingStageLimit> Stages { get; set; } = new List<FundingStageLimit>();
 
     /// <summary>
     /// VarTarget only: monthly VaR-target ceiling as a fraction (e.g. 0.065 = 6.5%, Darwinex Zero's
