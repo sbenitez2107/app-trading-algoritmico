@@ -112,16 +112,43 @@ noise — `SERVICE_FTMO.md:112-120` records that swap sits inside the equity bot
 read, with triple swap Wednesday to Thursday, and that overnight financing "can push you toward a
 breach directly."
 
-Crossing the series without separating swap first measures **our own missing column**, not the
-market. The decomposition has three parts, each separately measurable:
+Two more causes are measured, in `MEASURED_Demo_vs_Backtest_Divergence.md`:
+
+- **The price-series offset** — the Data Manager binds a Dukascopy data symbol to a Darwinex
+  instrument, producing a systematic, drifting 22-41 point entry-price offset on NQ.
+- **The M1-versus-tick intrabar ambiguity** — AlgoWizard runs at "1 minute data tick" precision, so
+  when SL and TP are both reachable inside one bar, the order they are touched in is an assumption,
+  not an observation.
+- **Gaps in the backtest source data — a third cause, and for some instruments larger than the other
+  two.** The first two change a trade's *outcome*; this one **deletes trades entirely**. Measured on
+  DAX (symbol `DEUIDXEUR_M1_UTC02`, instrument `GDAXI_DARWINEX`): **9.647% gaps** (6,980 of 3,867,271
+  records) over 2013.09.30 → 2026.09.04, with a full **August 2026** outage — the backtest trade list
+  jumps from 2026.07.22 straight to 2026.09.04 while demo took 5 DAX trades that month. The same
+  pattern shows in NQ (`WF_7_30_NQ_H_CW_H_O_H1_2.34.172`): 8 demo trades in August 2026 against **2**
+  on the backtest side, empty from the 1st to the 27th.
+
+Crossing the series without separating these first measures **our own missing column or missing
+period**, not the market. The decomposition now has four parts. **Data coverage must be isolated
+first, before swap, before embedded cost, before any residual** — a residual computed while whole
+weeks are missing from one side is measuring absence, not execution:
 
 | Component | Origin | How it is isolated |
 |---|---|---|
+| **Data coverage** (isolate first) | gaps in the backtest source data — the strategy could not trade at all during the missing period | compare backtest calendar coverage against demo per period; a period with no backtest trades and available demo trades is a coverage gap, not a divergence |
 | Swap | not modelled by the backtest, by decision | `StrategyTrade.Swap`, already held |
 | Commission | applied internally by the backtest | compare against `StrategyTrade.Commission` |
-| Execution | slippage, real spread, latency | **the residual** after the two above |
+| Execution | slippage, real spread, latency | **the residual** after the three above |
 
-The residual is the signal worth having.
+The residual is the signal worth having — but only once coverage is out of it.
+
+**Consequence for slice A.** The archived `demo-backtest-comparability` capability already reports
+`PairedCount`, `DemoOnlyCount` and `BacktestOnlyCount` as a disjoint partition, and that is the right
+shape — it **already detects** the symptom this section describes. But it **cannot distinguish the
+cause**: a high `DemoOnlyCount` for a period is consistent with two opposite diagnoses — the strategy
+diverged (a real signal fired on demo and not in the backtest), or the data was not there (the
+backtest could not have opened a trade regardless of signal). The first questions the strategy; the
+second questions the source. Slice A stops at the count; **separating the two is slice B work**, and
+per the decomposition above, it is the *first* slice B component, ahead of swap and embedded cost.
 
 ## The real bottleneck is data loading, not code
 
@@ -155,11 +182,26 @@ measurement matters. Design constraint if it is built: the current importer vali
 (single sample type per file, whole-file rejection on a missing column). A bulk path MUST preserve
 per-file refusal and report it, never silently skip a failure.
 
+### Guidance for the in-progress data load
+
+The user is loading ~40 strategies' backtest exports, over a pool of three instruments: **XAUUSD**
+(48 H1 + 28 H4), **USATECHIDXUSD/NQ** (14 H1 + 25 H4) and **DEUIDXEUR/DAX** (6 H1 + 2 H4).
+
+DAX strategies will show a large `DemoOnlyCount` once loaded — per the data-coverage finding above,
+that measures the **source**, not the strategies. Loading them is still worthwhile: it measures the
+damage per instrument, so the user knows which instrument to trust least while the price data comes
+from Dukascopy.
+
+There is also a cheap check available **without loading anything**: SQX's Data Manager reports a gap
+percentage per symbol directly. Reading it for all three instruments in advance tells the user how
+much of each instrument's demo-vs-backtest divergence will turn out to be missing data rather than
+strategy behaviour, before spending the time to load the exports.
+
 ## Layers, in dependency order
 
 | # | Layer | Contents | Blocks |
 |---|---|---|---|
-| **0** | **Cost reconciliation and divergence** | Separate swap / commission / execution residual per strategy. Emit a per-strategy divergence decomposition. Immediately usable as a **strategy filter** per `07:16`. | 1, and every later crossing |
+| **0** | **Cost reconciliation and divergence** | Separate **data coverage** (first) / swap / commission / execution residual per strategy. Emit a per-strategy divergence decomposition. Immediately usable as a **strategy filter** per `07:16`. | 1, and every later crossing |
 | **1** | **FTMO 2-Step Swing breach simulation** | Daily realized loss vs 5%, cumulative vs 10% static, on the rescaled series. Buildable on the current one-row-per-broker model thanks to Swing's stage-invariance. Claim boundary: *"would not have breached on closed-trade daily aggregates"*, **never** *"would have passed"* — FTMO reads equity including unrealised P&L continuously. | — |
 | **2** | **Analytics parity + the missing quantity** | `BacktestNetSeries` overloads for max drawdown, monthly returns and equity curve. Worst-case simultaneous risk and max concurrent positions via a sweep line over `(OpenTime, CloseTime)`. | 4, 6 |
 | **3** | **The target key** | `(service, mode/stage, capital)` replacing one-row-per-broker; real per-stage tables. Axi's six stages with their consequence axis. **Deadline: before Axi entry, ~November 2026.** | Axi, 4 |

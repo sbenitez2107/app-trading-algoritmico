@@ -140,6 +140,78 @@ Size if no MM 0.1, Maximum lots 10.
 
 ---
 
+## 8. A third, independent cause — gaps in the backtest source data delete trades, they don't distort them
+
+Sections 3 and 4 both change the **outcome** of a trade that exists on both sides: a different entry
+price, or an assumed intrabar path. This cause is categorically different: **when the backtest source
+data has a gap, the strategy could not trade at all during the missing period.** No entry price to
+compare, no intrabar order to assume — the trade is simply absent from the backtest.
+
+> **Causes 1 and 2 distort a trade. This one deletes it.**
+
+### Measured evidence — DAX, from the user's SQX Data Manager
+
+Symbol `DEUIDXEUR_M1_UTC02`, instrument `GDAXI_DARWINEX`, range 2013.09.30 → 2026.09.04,
+**3,867,271 imported records**:
+
+| Issue | Count | % of data |
+|---|---|---|
+| **Gaps** | **6,980** | **9.647%** |
+| Spikes | 497 | 0.686% |
+| Bad OHLC | 0 | 0 |
+
+The graphical quality view shows a solid red block across **August 2026**, and the detailed list
+names `2026.08.10 09:00` and `10:00` as missing — open, high, low, close and volume all absent.
+
+**Consequence in the backtest trade list**: it jumps from **2026.07.22 straight to 2026.09.04** — **no
+August trade exists**. Meanwhile the demo account took **five DAX trades in August**: 06/08, 18/08,
+26/08 (twice) and 27/08.
+
+### The same pattern, measured in NQ from the project database
+
+Strategy `WF_7_30_NQ_H_CW_H_O_H1_2.34.172` — the same strategy this document is built around — trades
+opened per month in 2026:
+
+| Month | Demo | Backtest Deploy |
+|---|---|---|
+| April | 9 | 10 |
+| May | 17 | 19 |
+| June | 9 | 7 |
+| July | 4 | 6 |
+| **August** | **8** | **2** |
+
+The two August backtest trades open on the **28th and 31st** — so **1 to 27 August is empty** on the
+backtest side.
+
+> This lines up with the demo-only period already recorded in §2 (**29/06 → 27/08**, −$43.79, no
+> Deploy counterpart) and with row **28/08**, where both series resume trading together. §2 did not
+> assign a cause to that gap; this section supplies one for its final five weeks. It does not explain
+> the earlier part of that period (29/06 → 31/07), which remains unattributed here.
+
+### The implication
+
+With roughly **one bar in ten missing across thirteen years** on DAX, this is not an incident — it is
+a **property of this data source**. It bounds how much any DAX backtest figure can be trusted while
+the price series comes from this provider, independently of the offset in §3 and the intrabar
+assumption in §4.
+
+### Correction check
+
+§2 lists a demo-only period (29/06 → 27/08, −$43.79) without stating a cause, and its surrounding text
+(the "same signals at the same time" remark) refers only to the **shared-days** period, not this one.
+**No attribution of the demo-only period to "different signals firing" or to strategy divergence was
+found in this document** — so no correction to §2's wording is needed. The cross-reference above adds
+the missing cause for the tail of that period without changing §2's own text.
+
+### What must NOT be claimed
+
+This does not mean the DAX or NQ strategies are worse than measured — it means the **backtest side of
+the comparison is incomplete** for the missing windows. A gap-affected backtest figure understates
+what the strategy would have done, it does not indicate the strategy performed poorly during that
+window.
+
+---
+
 ## 🎯 What to do with this
 
 | Finding | Action |
@@ -150,3 +222,5 @@ Size if no MM 0.1, Maximum lots 10.
 | DST mismatch (Jerusalem vs US rules) | ⏳ **Not the cause here** — track separately as a seasonal risk at the March / Oct-Nov transitions |
 | Backtest cost is embedded and measurable from price arithmetic | ✅ Confirms the cost model is correctly configured; useful as a cross-check method for other strategies |
 | Sample is 24 paired trades | 🚫 **Cannot support a demo-outperforms-backtest claim** — only that the paths diverge systematically |
+| DAX source data has 9.647% gaps (6,980 of 3,867,271 records), a full August 2026 outage | 🔴 **Trades are missing, not distorted** — bounds trust in any DAX backtest figure while the data comes from this provider; check the gap % for any instrument before trusting a backtest-vs-demo comparison on it |
+| NQ August 2026: 2 backtest trades vs 8 demo trades, backtest empty 01-27/08 | ⚠️ Confirms the same source-data-gap pattern outside DAX — a high `DemoOnlyCount` for a period can mean missing data, not strategy divergence |
