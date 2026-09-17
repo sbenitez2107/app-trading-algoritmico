@@ -288,6 +288,50 @@ The DAX shortfall is **coverage** (§8), not price disagreement. The two instrum
 ways: on DAX the prices agree but the data is absent; on NQ the data is present but the prices are
 shifted.
 
+### ⚠️ Correction 4 — gold refutes the common-cause reading: this is an INDEX phenomenon
+
+Adding **8 XAUUSD strategies** (3 H1, 5 H4) answers both open questions, and the answer is not the
+one Correction 3 anticipated.
+
+Compared in relative terms — the only comparison that means anything across instruments quoted at
+4,469 against 28,471:
+
+| Instrument | Pairs | Mean price | Mean offset | **Offset as % of price** | Positive |
+|---|---|---|---|---|---|
+| **NQ** | 160 | 28,470.6 | +25.436 | **0.0893%** | **159/160** |
+| DAX | 22 | 24,836.6 | +3.014 | 0.0121% | 14/22 |
+| **XAUUSD** | 35 | 4,468.8 | **+0.101** | **0.0023%** | 26/35 |
+
+Gold's offset is **≈39× smaller than NQ's** in relative terms — 0.0023% of price, inside the spread.
+Its signs split 26/35 with magnitudes in hundredths, and unlike DAX **no structure appears when the
+figures are split by month**. This one genuinely is noise.
+
+And June does not touch it:
+
+| Month | NQ | DAX | **XAUUSD** |
+|---|---|---|---|
+| 2026-04 | +22.95 | −10.00 | +0.16 |
+| 2026-05 | +23.46 | −12.94 | +0.05 |
+| **2026-06** | **+43.55** | **+14.64** | **+0.01** |
+| 2026-07 | +19.58 | +3.26 | +0.03 |
+
+June is in fact gold's **smallest** month. No spike, no flip.
+
+**So the June event is not a global change in the data source.** It moves both index CFDs and leaves
+the metal untouched. Correction 3 said the cause was "not instrument-specific"; with a third
+instrument measured, that is **wrong** — it is specific to a *class* of instrument.
+
+The structural reading, offered as interpretation rather than measurement: an index CFD carries a
+**basis** — derived from futures, with dividend and carry adjustments each provider computes its own
+way — while spot gold is arbitraged far more directly between providers. A basis can widen, narrow
+or invert; a spot metal quote has far less room to. That is consistent with everything measured, but
+it is an explanation for the pattern, not an observation of one. Cause **NOT FOUND** in the vendor
+sense.
+
+**Practical consequence, and it is the useful one:** the Dukascopy source is **not uniformly
+contaminated**. Gold backtests are price-comparable to the live account today. Index backtests are
+not.
+
 ### What this validates in the design
 
 The delta spec for the comparability capability requires the offset to be reported **per month,
@@ -321,5 +365,6 @@ the same correlation-by-design concern recorded in
 | **§9** — 160 NQ pairs across 12 strategies, 159 positive, means 22.55-28.07 | 🔴 **Settled: the offset is a property of the instrument, not of any strategy.** Every NQ backtest carries it; treat optimised SL/TP levels as calibrated against a series the account does not trade |
 | **§9** — DAX offset is sign-consistent per month and **flips** in June (−13 → +15) | ⚠️ **Supersedes the "DAX is noise" reading.** Averaging across months flattened it — always read this figure per month, never aggregated |
 | **§9** — NQ spikes to +43.55 in June, then reverts to ≈20 | ⚠️ **Supersedes the "drifting" reading.** An episode, not a trend: a drift worsens with time, an excursion reverts |
-| **§9** — June 2026 moves both instruments at once | ❓ **Cause NOT FOUND.** Recorded as an observation. Worth checking against any Dukascopy or Darwinex feed change in that month before trusting June figures on any instrument |
+| **§9** — June 2026 moves both instruments at once | ❓ **Cause NOT FOUND**, and **narrowed by Correction 4** — it moves the two index CFDs and not gold, so it is specific to a class of instrument rather than global to the source |
+| **§9 Correction 4** — gold's offset is 0.0023% of price against NQ's 0.0893%, and June leaves it flat | ✅ **The source is NOT uniformly contaminated.** Gold backtests are price-comparable to the live account **today**; index backtests are not. Prioritise Darwinex data for the indices, not for gold |
 | **§9** — the aggregate concealed the DAX sign flip | ✅ **Validates the per-month requirement** in the comparability spec as load-bearing rather than stylistic |
