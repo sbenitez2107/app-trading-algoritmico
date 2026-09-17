@@ -212,6 +212,100 @@ window.
 
 ---
 
+## 9. Widened to 15 strategies — and three earlier readings corrected
+
+> Measured 2026-09-16 against `AppTA`, account SBDEMO2, once **12 NQ** and **4 DAX** strategies had
+> their backtest runs loaded. Sections 1-8 rested on a single NQ strategy. The wider sample confirms
+> the central finding and **refutes three secondary readings taken from that one case.**
+
+### The core finding is confirmed, decisively
+
+Exact-minute, same-direction pairing against each strategy's Deploy run, on `USATECHIDXUSD_M1_UTC02`:
+
+**160 paired trades across 12 independent strategies. 159 positive. 99.4%.**
+
+The single negative is **−0.90** — effectively zero, not a counterexample. Per-strategy means cluster
+between **22.55 and 28.07**, averaging **≈25.1**.
+
+Twelve strategies built on different indicator families — ATR, BB, ADX, OSMA, LIR, KCH, HIR, CW, SH,
+LSL — with different parameters, all carrying the same positive offset. **That cannot be a strategy
+artifact. It is a property of the instrument.**
+
+### ⚠️ Correction 1 — the DAX offset is NOT noise
+
+§3 and the first widening both read DAX as ordinary execution noise, on the basis that its
+per-strategy means sat near zero (+1.61, +5.46) with signs split. **That was a methodological error:
+averaging across months flattened a structure that lives on the time axis.**
+
+Per month, DAX is sign-consistent and **flips**:
+
+| Month | Pairs | Positive | Mean |
+|---|---|---|---|
+| 2026-04 | 2 | **0** | **−10.00** |
+| 2026-05 | 5 | **0** | **−12.94** |
+| 2026-06 | 8 | **8** | **+14.64** |
+| 2026-07 | 5 | 4 | +3.26 |
+| 2026-08 | 2 | 2 | +8.80 |
+
+Seven consecutive negatives, then eight consecutive positives. DAX carries a systematic offset too —
+it simply **changed sign in June 2026**, and averaging −13 against +15 produced a figure that looked
+like noise.
+
+### ⚠️ Correction 2 — NQ does not "drift"; it spikes and reverts
+
+§3 described the offset as *drifting*, reading 22 → 41 across three months of one strategy as a
+trend. Aggregated over all 12 NQ strategies the shape is different:
+
+| Month | Pairs | Positive | Mean | Min | Max |
+|---|---|---|---|---|---|
+| 2026-04 | 43 | 43 | +22.95 | 16.20 | 28.90 |
+| 2026-05 | 72 | 72 | +23.46 | 11.40 | 35.10 |
+| **2026-06** | 23 | 23 | **+43.55** | 36.30 | 70.10 |
+| 2026-07 | 13 | 13 | +19.58 | 11.50 | 31.90 |
+| 2026-08 | 4 | 3 | +9.18 | −0.90 | 13.80 |
+| 2026-09 | 5 | 5 | +20.10 | 17.90 | 23.40 |
+
+A stable baseline near **+23**, a **June excursion to +43.55**, then a return to ≈20. That is an
+episode, not a trend — and the distinction matters for what to expect next: a drift worsens with
+time, an excursion reverts.
+
+### ⚠️ Correction 3 — June 2026 is a common event across both instruments
+
+The two corrections above share a month. In **June 2026** NQ nearly doubles its offset while DAX
+**inverts its sign**, and both settle afterwards.
+
+Whatever changed — the Dukascopy source, the Darwinex feed, or the alignment between them — it is
+**not instrument-specific**. Cause **NOT FOUND**; recorded as an observation, not explained.
+
+### Pairing rates, for scale
+
+| Instrument | Paired / demo trades |
+|---|---|
+| NQ | 8/23 to 24/47 — roughly **35-51%** |
+| DAX | 7/37, 7/37, 8/38 — roughly **19-21%** |
+
+The DAX shortfall is **coverage** (§8), not price disagreement. The two instruments fail in opposite
+ways: on DAX the prices agree but the data is absent; on NQ the data is present but the prices are
+shifted.
+
+### What this validates in the design
+
+The delta spec for the comparability capability requires the offset to be reported **per month,
+never as a single aggregated score**. This section is the evidence for why that requirement is
+load-bearing rather than stylistic: **the aggregate concealed the DAX sign flip entirely**, and the
+structure only appeared once the figures were split by month.
+
+`WF_6_36_GDAXY_H4_SC_M_O_2.52.288` is the other design case — 12 demo trades, **1** backtest trade in
+window, **0 pairs**. It is precisely the readout that must report "insufficient paired trades"
+rather than publishing a number.
+
+One more observation worth carrying: `WF_6_22_GDAXI_H1_HIR_ADX_StdDEV_3.57.295` and `..._3.59.176`
+return **identical** pair counts and identical offset statistics — near-duplicates of one family,
+the same correlation-by-design concern recorded in
+[MEASURED_Concurrent_BTC_Margin_Exhaustion.md](MEASURED_Concurrent_BTC_Margin_Exhaustion.md).
+
+---
+
 ## 🎯 What to do with this
 
 | Finding | Action |
@@ -224,3 +318,8 @@ window.
 | Sample is 24 paired trades | 🚫 **Cannot support a demo-outperforms-backtest claim** — only that the paths diverge systematically |
 | DAX source data has 9.647% gaps (6,980 of 3,867,271 records), a full August 2026 outage | 🔴 **Trades are missing, not distorted** — bounds trust in any DAX backtest figure while the data comes from this provider; check the gap % for any instrument before trusting a backtest-vs-demo comparison on it |
 | NQ August 2026: 2 backtest trades vs 8 demo trades, backtest empty 01-27/08 | ⚠️ Confirms the same source-data-gap pattern outside DAX — a high `DemoOnlyCount` for a period can mean missing data, not strategy divergence |
+| **§9** — 160 NQ pairs across 12 strategies, 159 positive, means 22.55-28.07 | 🔴 **Settled: the offset is a property of the instrument, not of any strategy.** Every NQ backtest carries it; treat optimised SL/TP levels as calibrated against a series the account does not trade |
+| **§9** — DAX offset is sign-consistent per month and **flips** in June (−13 → +15) | ⚠️ **Supersedes the "DAX is noise" reading.** Averaging across months flattened it — always read this figure per month, never aggregated |
+| **§9** — NQ spikes to +43.55 in June, then reverts to ≈20 | ⚠️ **Supersedes the "drifting" reading.** An episode, not a trend: a drift worsens with time, an excursion reverts |
+| **§9** — June 2026 moves both instruments at once | ❓ **Cause NOT FOUND.** Recorded as an observation. Worth checking against any Dukascopy or Darwinex feed change in that month before trusting June figures on any instrument |
+| **§9** — the aggregate concealed the DAX sign flip | ✅ **Validates the per-month requirement** in the comparability spec as load-bearing rather than stylistic |
