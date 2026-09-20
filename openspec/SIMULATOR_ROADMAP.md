@@ -92,8 +92,13 @@ An earlier framing offered three options: OOS tail only (defensible but ~30 acti
 - **The overlap is used to MEASURE, not to merge.** A weighted average of a real and a simulated
   series describes neither. Where the two cover the same period, the comparison *is* the calibration
   of how much the backtest overstates; that measurement is then applied to the unobservable part.
-- **Divergence is a strategy filter, not only a correction.** `07:16` — *"divergen mucho sobre la
-  misma estrategia, el problema está en el modelado, no en la lógica."*
+- **Divergence is a diagnostic, not only a correction.** `07:16` — *"divergen mucho sobre la
+  misma estrategia, el problema está en el modelado, no en la lógica."* Read this as a heuristic
+  addressed to a human: it names a direction to look, and it publishes **no cutoff**. There is no
+  measured or vendor number anywhere that separates "diverges acceptably" from "diverges too much",
+  so the decomposition ranks strategies and discloses its own basis — a person decides. Do not read
+  the word "filter" into this and add a threshold; that is exactly the fabrication `INDEX.md` §5
+  forbids.
 
 ### Why cost reconciliation must come first
 
@@ -201,7 +206,7 @@ strategy behaviour, before spending the time to load the exports.
 
 | # | Layer | Contents | Blocks |
 |---|---|---|---|
-| **0** | **Cost reconciliation and divergence** | Separate **data coverage** (first) / swap / commission / execution residual per strategy. Emit a per-strategy divergence decomposition. Immediately usable as a **strategy filter** per `07:16`. | 1, and every later crossing |
+| **0** | **Cost reconciliation and divergence** | Separate **data coverage** (first) / swap / commission / execution residual per strategy. Emit a per-strategy divergence decomposition. Immediately usable as a **ranked diagnostic** per `07:16` — no threshold; a human decides. | 1, and every later crossing |
 | **1** | **FTMO 2-Step Swing breach simulation** | Daily realized loss vs 5%, cumulative vs 10% static, on the rescaled series. Buildable on the current one-row-per-broker model thanks to Swing's stage-invariance. Claim boundary: *"would not have breached on closed-trade daily aggregates"*, **never** *"would have passed"* — FTMO reads equity including unrealised P&L continuously. | — |
 | **2** | **Analytics parity + the missing quantity** | `BacktestNetSeries` overloads for max drawdown, monthly returns and equity curve. Worst-case simultaneous risk and max concurrent positions via a sweep line over `(OpenTime, CloseTime)`. | 4, 6 |
 | **3** | **The target key** | `(service, mode/stage, capital)` replacing one-row-per-broker; real per-stage tables. Axi's six stages with their consequence axis. **Deadline: before Axi entry, ~November 2026.** | Axi, 4 |
