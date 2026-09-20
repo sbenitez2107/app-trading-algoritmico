@@ -103,6 +103,9 @@ public static class DependencyInjection
         // Slice A (cost-reconciliation-divergence) — demo-vs-backtest price-series comparability.
         services.AddScoped<IDemoBacktestComparabilityReadService, DemoBacktestComparabilityReadService>();
 
+        // Slice B (divergence-cost-decomposition), PR B1 — data coverage component.
+        services.AddScoped<ICostDecompositionReadService, CostDecompositionReadService>();
+
         return services;
     }
 }

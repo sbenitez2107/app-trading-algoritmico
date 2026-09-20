@@ -26,7 +26,8 @@ public class StrategyBacktestsController(
     IBacktestImportService importService,
     IWalkForwardImportService walkForwardImportService,
     IBacktestReadService readService,
-    IDemoBacktestComparabilityReadService comparabilityReadService) : ControllerBase
+    IDemoBacktestComparabilityReadService comparabilityReadService,
+    ICostDecompositionReadService costDecompositionReadService) : ControllerBase
 {
     private const string AllowedExtension = ".csv";
 
@@ -121,6 +122,30 @@ public class StrategyBacktestsController(
         }
 
         return Ok(await comparabilityReadService.GetAsync(strategyId, kind.Value, ct));
+    }
+
+    /// <summary>
+    /// The cost decomposition for one <see cref="BacktestRunKind"/> slot
+    /// (`demo-backtest-cost-decomposition` spec, PR B1 — coverage only). <c>kind</c> is a REQUIRED
+    /// query parameter with NO default, mirroring <see cref="GetComparability"/>.
+    /// </summary>
+    [HttpGet("cost-decomposition")]
+    [ProducesResponseType(typeof(CostDecompositionDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<CostDecompositionDto>> GetCostDecomposition(
+        [FromRoute] Guid strategyId,
+        [FromQuery] BacktestRunKind? kind,
+        CancellationToken ct)
+    {
+        if (kind is null)
+        {
+            return BadRequest(new
+            {
+                message = "The 'kind' query parameter is required. There is no default run slot.",
+            });
+        }
+
+        return Ok(await costDecompositionReadService.GetAsync(strategyId, kind.Value, ct));
     }
 
     /// <summary>

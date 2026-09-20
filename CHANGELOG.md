@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.29.0] - 2026-09-20
+
+### Added
+
+- Cost decomposition readout for a strategy's demo-versus-backtest divergence, first component: data coverage. New `GET` endpoint on strategy backtests returning a per-month coverage classification over the window spanned by the strategy's trades.
+- Coverage is reported as a presumption from the absence of backtest trades, never as a proven data gap, and discloses that basis on the readout itself. The independent corroboration — SQX's Data Manager gap figures — is GUI-only and has no ingestion path.
+- The readout is a ranked diagnostic for a human to judge. It applies no threshold, score or pass/fail, because no measured or vendor source publishes one.
+
 ## [0.28.0] - 2026-09-09
 
 ### Added

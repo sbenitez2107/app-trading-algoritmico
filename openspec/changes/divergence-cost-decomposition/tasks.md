@@ -15,28 +15,28 @@ Pattern to copy throughout: `DemoBacktestComparabilityCalculator.cs`,
 
 ### Phase 1 — Domain enums
 
-- [ ] **1.1** RED: `CoverageBasisTests` — a test asserting `CoverageBasis` is an enum with exactly one
+- [x] **1.1** RED: `CoverageBasisTests` — a test asserting `CoverageBasis` is an enum with exactly one
   member, `PresumedFromBacktestTradeAbsence = 0`.
   _Satisfies: "Data Coverage Discloses Itself As A Presumption From Absence, Never As A Proof" —
   design D2, D11._
-- [ ] **1.2** GREEN: create `Domain/Enums/CoverageBasis.cs` — `PresumedFromBacktestTradeAbsence = 0`,
+- [x] **1.2** GREEN: create `Domain/Enums/CoverageBasis.cs` — `PresumedFromBacktestTradeAbsence = 0`,
   single member, with XML remarks stating it is a presumption, not a proof.
-- [ ] **1.3** RED: `PeriodCoverageTests` — a test asserting `PeriodCoverage` has exactly four members in
+- [x] **1.3** RED: `PeriodCoverageTests` — a test asserting `PeriodCoverage` has exactly four members in
   this order: `NoTradesEitherSide = 0`, `BothSidesTraded`, `DemoOnlyNoBacktestTrades`,
   `BacktestOnlyNoDemoTrades`.
   _Satisfies: "Data Coverage Discloses Itself As A Presumption..." — coverage classification list;
   design D2._
-- [ ] **1.4** GREEN: create `Domain/Enums/PeriodCoverage.cs` matching 1.3's member order exactly.
-- [ ] **1.5** RED: `CostDecompositionStatusTests` — a test asserting `CostDecompositionStatus` has
+- [x] **1.4** GREEN: create `Domain/Enums/PeriodCoverage.cs` matching 1.3's member order exactly.
+- [x] **1.5** RED: `CostDecompositionStatusTests` — a test asserting `CostDecompositionStatus` has
   `CoverageComponentOnly = 0` as its first member (plus `Decomposed`, `NoDemoTrades`, `NoRunForKind`
   declared but not yet produced by any code in this PR).
   _Satisfies: design D9 (partialness disclosure); no direct spec scenario — flagged below._
-- [ ] **1.6** GREEN: create `Domain/Enums/CostDecompositionStatus.cs` — `CoverageComponentOnly = 0`,
+- [x] **1.6** GREEN: create `Domain/Enums/CostDecompositionStatus.cs` — `CoverageComponentOnly = 0`,
   `Decomposed`, `NoDemoTrades`, `NoRunForKind`.
 
 ### Phase 2 — Slice B's own projection type (design D2 — unbudgeted in proposal/explore)
 
-- [ ] **2.1** RED: a test on the eventual `CostObservation` shape — assert it is an `internal readonly
+- [x] **2.1** RED: a test on the eventual `CostObservation` shape — assert it is an `internal readonly
   record struct` with members `DateTime OpenTime, decimal OpenPrice, decimal? ClosePrice, decimal
   Size, string Type, decimal? NetPl, decimal? Swap` (`Size` is non-nullable — verified against
   `StrategyTrade.Size` and `BacktestTrade.Size`, both non-nullable `decimal`; corrected from an earlier
@@ -44,63 +44,63 @@ Pattern to copy throughout: `DemoBacktestComparabilityCalculator.cs`,
   slice A's `OpenObservation` cannot carry — design D2 explicitly rejects extending `OpenObservation`).
   _Satisfies: no single spec scenario directly — this is the projection prerequisite every later
   component (coverage, swap, embedded cost, residual) depends on. Flagged below._
-- [ ] **2.2** GREEN: create `Infrastructure/Services/CostObservation.cs` with exactly that shape.
-- [ ] **2.3** RED: `CostObservationMappingTests` — a test asserting an in-memory mapping helper from
+- [x] **2.2** GREEN: create `Infrastructure/Services/CostObservation.cs` with exactly that shape.
+- [x] **2.3** RED: `CostObservationMappingTests` — a test asserting an in-memory mapping helper from
   `CostObservation` to slice A's `OpenObservation` (OpenTime, OpenPrice, Type, NetPl) preserves those
   four fields verbatim, dropping `ClosePrice`/`Size`/`Swap` only for that call, never mutating them.
   _Satisfies: prerequisite for reusing `DemoBacktestComparabilityCalculator.Measure` unchanged
   (design D3)._
-- [ ] **2.4** GREEN: implement the mapping helper (a private/internal static method beside the
+- [x] **2.4** GREEN: implement the mapping helper (a private/internal static method beside the
   coverage calculator or the read service — do not modify `OpenObservation` or slice A's calculator).
 
 ### Phase 3 — Coverage calculator (`DemoBacktestCoverageCalculator`, `internal static`, pure)
 
-- [ ] **3.1** RED: `DemoBacktestCoverageCalculatorTests.BothSidesTraded_WhenMonthHasDemoAndBacktestTrades`
+- [x] **3.1** RED: `DemoBacktestCoverageCalculatorTests.BothSidesTraded_WhenMonthHasDemoAndBacktestTrades`
   — a month with ≥1 demo trade and ≥1 backtest trade classifies `BothSidesTraded`.
   _Satisfies: "Data Coverage Discloses Itself..." — classification list._
-- [ ] **3.2** RED: `..._DemoOnlyNoBacktestTrades_WhenMonthHasDemoTradesAndNoBacktestTrades` — asserts
+- [x] **3.2** RED: `..._DemoOnlyNoBacktestTrades_WhenMonthHasDemoTradesAndNoBacktestTrades` — asserts
   the label AND that the readout's `CoverageBasis` is `PresumedFromBacktestTradeAbsence`.
   _Satisfies: Scenario "A month with demo trades and no backtest trades is labelled, not proven"._
-- [ ] **3.3** RED: `..._BacktestOnlyNoDemoTrades_WhenMonthHasBacktestTradesAndNoDemoTrades`.
+- [x] **3.3** RED: `..._BacktestOnlyNoDemoTrades_WhenMonthHasBacktestTradesAndNoDemoTrades`.
   _Satisfies: classification list (symmetric case)._
-- [ ] **3.4** RED: `..._NoTradesEitherSide_WhenMonthHasNeitherSideTrading` — a fixture with a trading
+- [x] **3.4** RED: `..._NoTradesEitherSide_WhenMonthHasNeitherSideTrading` — a fixture with a trading
   month, a gap month with zero trades on both sides, and a later trading month (the window's dense span
   derives from the union of demo/backtest trade months per design D11); asserts the gap month appears
   as its own row classified `NoTradesEitherSide` rather than being omitted from the output.
   _Satisfies: spec "Data Coverage..." Scenario "An interior month with no trades on either side is
   classified, not omitted"; design D11 window derivation._
-- [ ] **3.4a** RED: `..._Window_SpansFromEarliestToLatestOpenTimestampAcrossTheUnionOfBothSides` —
+- [x] **3.4a** RED: `..._Window_SpansFromEarliestToLatestOpenTimestampAcrossTheUnionOfBothSides` —
   asserts the calculator derives `(firstYearMonth, lastYearMonth)` from the union of demo and backtest
   open timestamps, not from a `Dictionary` keyed only by months that contain a trade (the "observed
   months only" shape design D11 explicitly rejects, citing slice A's own precedent).
   _Satisfies: design D11 window derivation; spec Definitions section._
-- [ ] **3.4b** RED: `..._Window_WithExactlyOneTradeOverall_ProducesASingleMonthRow` — a fixture with
+- [x] **3.4b** RED: `..._Window_WithExactlyOneTradeOverall_ProducesASingleMonthRow` — a fixture with
   exactly one trade across the union of both sides produces exactly one month row, for the calendar
   month containing that trade's open timestamp.
   _Satisfies: spec Definitions edge case "Exactly one trade overall"; Scenario "Exactly one trade
   overall produces a single-month window"._
-- [ ] **3.4c** RED: `..._Window_WithOneSideEntirelyEmpty_StillDerivesFromTheNonEmptySide` — zero
+- [x] **3.4c** RED: `..._Window_WithOneSideEntirelyEmpty_StillDerivesFromTheNonEmptySide` — zero
   backtest trades, non-empty demo trade set spanning several months; asserts the window spans the demo
   set's own earliest-to-latest month, each classified `DemoOnlyNoBacktestTrades`, with no row outside
   that span.
   _Satisfies: spec Definitions edge case "One side entirely empty"; Scenario "One side entirely empty
   still derives the window from the non-empty side"._
-- [ ] **3.4d** RED: `..._EmptyMonthRow_ReportsEmptyTimestampListsNotNull` — a `NoTradesEitherSide` month
+- [x] **3.4d** RED: `..._EmptyMonthRow_ReportsEmptyTimestampListsNotNull` — a `NoTradesEitherSide` month
   row exposes empty (not `null`) `DemoOpenTimes`/`BacktestOpenTimes` lists.
   _Satisfies: spec "Data Coverage..." requirement text ("reports empty timestamp lists ... not `null`
   lists")._
-- [ ] **3.5** RED: `..._MonthRows_ExposeOpenTimestampsVerbatimWithDateTimeKindUntouched` — asserts
+- [x] **3.5** RED: `..._MonthRows_ExposeOpenTimestampsVerbatimWithDateTimeKindUntouched` — asserts
   `DemoOpenTimes`/`BacktestOpenTimes` on a month row carry the exact input `DateTime` values including
   `DateTimeKind`, with no conversion applied.
   _Satisfies: Scenario "Open timestamps are exposed verbatim without timezone conversion"; design D3,
   D11._
-- [ ] **3.6** RED: `..._MonthRows_AreOrderedAscendingByYearThenMonthRegardlessOfInputOrder` — shuffled
+- [x] **3.6** RED: `..._MonthRows_AreOrderedAscendingByYearThenMonthRegardlessOfInputOrder` — shuffled
   input trade order still produces ascending `(Year, Month)` rows.
   _Satisfies: Scenario "Month rows are ordered by set membership, not input order"._
-- [ ] **3.7** RED: `..._CoverageBasis_IsNonNullOnEveryReadoutIncludingNoGapMonths` — a fixture with only
+- [x] **3.7** RED: `..._CoverageBasis_IsNonNullOnEveryReadoutIncludingNoGapMonths` — a fixture with only
   `BothSidesTraded` months still returns a non-null `CoverageBasis`.
   _Satisfies: Scenario "CoverageBasis is present and non-null on every readout"._
-- [ ] **3.8** GREEN: implement `Infrastructure/Services/DemoBacktestCoverageCalculator.cs` —
+- [x] **3.8** GREEN: implement `Infrastructure/Services/DemoBacktestCoverageCalculator.cs` —
   `internal static`, pure, no I/O — satisfying 3.1–3.7 and 3.4a–3.4d. Derives `(firstYearMonth,
   lastYearMonth)` from the union of demo/backtest open timestamps (design D11 — dense span, not a
   `Dictionary` keyed only by months with trades), emits one row per calendar month in that inclusive
@@ -108,56 +108,56 @@ Pattern to copy throughout: `DemoBacktestComparabilityCalculator.cs`,
 
 ### Phase 4 — Application DTOs (B1 slice: coverage only — swap/embedded/residual members MUST NOT exist yet)
 
-- [ ] **4.1** RED: `CostDecompositionDtoShapeTests.RootDto_DoesNotDeclareSwapEmbeddedOrResidualMembers`
+- [x] **4.1** RED: `CostDecompositionDtoShapeTests.RootDto_DoesNotDeclareSwapEmbeddedOrResidualMembers`
   — reflection test asserting the B1 `CostDecompositionDto`/`CoverageComponentDto` public surface has
   no property named or typed as swap, embedded cost, or residual (this is the seam contract, not a
   null check — design D9: "a field that does not exist cannot silently report an incomplete
   residual").
   _Satisfies: design D9 directly; no spec scenario names this — flagged below as the seam guard._
-- [ ] **4.2** RED: `..._RootDto_ExposesStatusAsCoverageComponentOnlyWhenOnlyCoverageIsProduced`.
+- [x] **4.2** RED: `..._RootDto_ExposesStatusAsCoverageComponentOnlyWhenOnlyCoverageIsProduced`.
   _Satisfies: design D9 (B1 emits `CoverageComponentOnly`)._
-- [ ] **4.3** GREEN: create `Application/DTOs/Divergence/CostDecompositionDto.cs` containing, for this
+- [x] **4.3** GREEN: create `Application/DTOs/Divergence/CostDecompositionDto.cs` containing, for this
   PR: the root `CostDecompositionDto` (StrategyId, Kind, `CostDecompositionStatus Status`,
   `PriceOffsetComparabilityDto Comparability`, `CoverageComponentDto Coverage` — no swap/embedded/
   residual members), `CoverageComponentDto` (CoverageBasis, IReadOnlyList<CoverageMonthDto>), and
   `CoverageMonthDto` (Year, Month, PeriodCoverage, DemoOpenTimes, BacktestOpenTimes, DemoTradeCount,
   BacktestTradeCount).
-- [ ] **4.4** RED: `..._Comparability_CarriesSliceAFiguresVerbatim` — asserts the root DTO's
+- [x] **4.4** RED: `..._Comparability_CarriesSliceAFiguresVerbatim` — asserts the root DTO's
   `Comparability` member is exactly the `PriceOffsetComparabilityDto` instance/values passed in,
   unmodified.
   _Satisfies: Scenario "Slice A's comparability figures travel with the decomposition"; design D1._
-- [ ] **4.5** GREEN: no additional production code expected beyond 4.3 (constructor already carries
+- [x] **4.5** GREEN: no additional production code expected beyond 4.3 (constructor already carries
   the parameter) — confirm 4.4 passes; note in the task if it does not.
 
 ### Phase 5 — Read service and interface
 
-- [ ] **5.1** RED: `ICostDecompositionReadServiceTests` (or a compile-time contract test) — asserts the
+- [x] **5.1** RED: `ICostDecompositionReadServiceTests` (or a compile-time contract test) — asserts the
   interface's method requires `BacktestRunKind kind` as a non-optional, non-defaulted parameter.
   _Satisfies: design "BacktestRunKind required (slice A D3)"._
-- [ ] **5.2** GREEN: create `Application/Interfaces/ICostDecompositionReadService.cs` — one method,
+- [x] **5.2** GREEN: create `Application/Interfaces/ICostDecompositionReadService.cs` — one method,
   `Task<CostDecompositionDto> GetAsync(Guid strategyId, BacktestRunKind kind, CancellationToken ct)`
   (or equivalent), `kind` required.
-- [ ] **5.3** RED: `CostDecompositionReadServiceTests.GetAsync_WhenNoRunExistsForKind_ReturnsNoRunForKindStatus`
+- [x] **5.3** RED: `CostDecompositionReadServiceTests.GetAsync_WhenNoRunExistsForKind_ReturnsNoRunForKindStatus`
   (SQLite-backed, matching slice A's test infra) — asserts `Status == NoRunForKind` and that no
   window, coverage row, or cost figure is produced, and that this check runs before any window
   derivation is attempted.
   _Satisfies: spec "The Decomposition Status Discloses Which Component Was Producible At All" —
   Scenario "No backtest run of the requested kind reports NoRunForKind with no figures"; design D9._
-- [ ] **5.4** RED: `..._GetAsync_WhenRunExistsButNoDemoTrades_ReturnsNoDemoTradesStatus` — asserts
+- [x] **5.4** RED: `..._GetAsync_WhenRunExistsButNoDemoTrades_ReturnsNoDemoTradesStatus` — asserts
   `Status == NoDemoTrades` and that no window, coverage row, or cost figure is produced.
   _Satisfies: spec "The Decomposition Status Discloses Which Component Was Producible At All" —
   Scenario "Zero demo trades reports NoDemoTrades with no figures"; design D9._
-- [ ] **5.5** RED: `..._GetAsync_WhenDataPresent_ReturnsCoverageComponentOnlyStatusWithComparabilityAndCoverage`
+- [x] **5.5** RED: `..._GetAsync_WhenDataPresent_ReturnsCoverageComponentOnlyStatusWithComparabilityAndCoverage`
   — end-to-end fixture producing a populated `CostDecompositionDto` with `Status ==
   CoverageComponentOnly`.
   _Satisfies: composition of the above scenarios; design "Technical Approach"._
-- [ ] **5.6** RED: `CostDecompositionQueryCostTests` — pins the DB command budget for this PR (run
+- [x] **5.6** RED: `CostDecompositionQueryCostTests` — pins the DB command budget for this PR (run
   lookup + demo `CostObservation` query + backtest `CostObservation` query; no calibration query is
   needed for coverage alone, but design D2 says "one demo query and one backtest query serve all
   components" — pin whatever count B1 actually issues, and assert it does not grow with strategy
   trade count), mirroring `DemoBacktestComparabilityQueryCostTests`.
   _Satisfies: design D3 ("6 DB commands where 4 suffice")._
-- [ ] **5.7** GREEN: create `Infrastructure/Services/CostDecompositionReadService.cs` — `public
+- [x] **5.7** GREEN: create `Infrastructure/Services/CostDecompositionReadService.cs` — `public
   sealed`, narrow `.Select(...)` projections into `CostObservation` (own queries per design D2, do not
   reuse `DemoBacktestComparabilityReadService.DemoOpensQuery`), maps to `OpenObservation` for the
   slice A calculator call, invokes `DemoBacktestCoverageCalculator`, composes the root DTO with
@@ -165,37 +165,37 @@ Pattern to copy throughout: `DemoBacktestComparabilityCalculator.cs`,
 
 ### Phase 6 — DI and controller wiring
 
-- [ ] **6.1** RED: `DependencyInjectionTests` (or extend the existing one) — asserts
+- [x] **6.1** RED: `DependencyInjectionTests` (or extend the existing one) — asserts
   `ICostDecompositionReadService` resolves to `CostDecompositionReadService` from the container.
   _Satisfies: proposal "DI registration"; design File Changes table._
-- [ ] **6.2** GREEN: add one `AddScoped<ICostDecompositionReadService, CostDecompositionReadService>()`
+- [x] **6.2** GREEN: add one `AddScoped<ICostDecompositionReadService, CostDecompositionReadService>()`
   registration in `Infrastructure/DependencyInjection.cs` beside the existing comparability
   registration (~line 104 per design).
-- [ ] **6.3** RED: `StrategyBacktestsControllerTests.GetCostDecomposition_WhenKindMissing_Returns400`
+- [x] **6.3** RED: `StrategyBacktestsControllerTests.GetCostDecomposition_WhenKindMissing_Returns400`
   — mirrors slice A's D3 "never defaulted" rule.
   _Satisfies: spec's endpoint requirement inherited from slice A pattern (proposal Testing approach:
   "missing `kind` → 400")._
-- [ ] **6.4** RED: `..._GetCostDecomposition_WhenValid_Returns200WithCoverageComponentOnlyStatus`.
+- [x] **6.4** RED: `..._GetCostDecomposition_WhenValid_Returns200WithCoverageComponentOnlyStatus`.
   _Satisfies: proposal Testing approach: "valid request → 200 carrying both bases" (B1 portion:
   `CoverageBasis` + `CostDecompositionStatus.CoverageComponentOnly`)._
-- [ ] **6.5** GREEN: add `[HttpGet("cost-decomposition")]` action to
+- [x] **6.5** GREEN: add `[HttpGet("cost-decomposition")]` action to
   `WebAPI/Controllers/StrategyBacktestsController.cs` beside the existing comparability action;
   existing actions byte-identical (verify by re-running `StrategyBacktestsControllerTests`'
   pre-existing cases, not editing them).
 
 ### Phase 7 — Contract / tripwire tests (B1's own file list — separate from slice A's)
 
-- [ ] **7.1** RED: `CostDecompositionContractTests.Dto_CoverageBasis_IsComputedNonNullableAndHasNoSetter`
+- [x] **7.1** RED: `CostDecompositionContractTests.Dto_CoverageBasis_IsComputedNonNullableAndHasNoSetter`
   — mirrors `ComparabilityContractTests.Dto_ComparabilityBasis_...`: `CoverageBasis` property is
   non-nullable, setter-less, and absent from every constructor parameter list.
   _Satisfies: Scenario "CoverageBasis is present and non-null on every readout"; spec's structural
   intent that it "cannot be dropped at any call site"._
-- [ ] **7.2** RED: `..._Dto_ExposesNoThresholdScoreGradeOrRecommendationMember` — reflection over every
+- [x] **7.2** RED: `..._Dto_ExposesNoThresholdScoreGradeOrRecommendationMember` — reflection over every
   B1 DTO type; asserts no public property name contains `IsComparable`, `Score`, `Grade`, `Rank`,
   `Pass`, `Fail`, `Threshold`, `Acceptable`.
   _Satisfies: "The Decomposition Is Diagnostic Only..." — all three scenarios; "The Comparability
   Gate Is A Structural Ordering Dependency..." — "No comparability boolean is ever computed"._
-- [ ] **7.3** RED: `..._Tripwire_NoSliceFileUsesARandomNumberGeneratorOrSeed` — B1's own `SliceFiles`
+- [x] **7.3** RED: `..._Tripwire_NoSliceFileUsesARandomNumberGeneratorOrSeed` — B1's own `SliceFiles`
   array (its own hardcoded list — do NOT extend slice A's `ComparabilityContractTests.SliceFiles`,
   per design "Tripwire test" note: "slice A's is a hardcoded list and does not see these files").
   List for B1: `Domain/Enums/CoverageBasis.cs`, `PeriodCoverage.cs`, `CostDecompositionStatus.cs`,
@@ -205,42 +205,42 @@ Pattern to copy throughout: `DemoBacktestComparabilityCalculator.cs`,
   CostDecompositionReadService.cs`.
   _Satisfies: "The Calculator Is Deterministic" — no direct RNG scenario but the required standard;
   design D7._
-- [ ] **7.4** RED: `..._Tripwire_NoSliceFileContainsANumericThresholdOrCutoff` — uses the **named
+- [x] **7.4** RED: `..._Tripwire_NoSliceFileContainsANumericThresholdOrCutoff` — uses the **named
   identifier list** `\b(Threshold|Cutoff|Acceptable|Tolerance|Band|MinTrades|MinPaired|MinMonths|
   MinSamples)\b`, never a generic `Min…` regex (design "Tripwire test" item 2 — a generic pattern
   would false-positive on B2's `MinObserved`/`MaxObserved`; B1 has no such legitimate echo yet, but
   use the same named list now so B2 only adds files, never changes the pattern).
   _Satisfies: "The Decomposition Is Diagnostic Only..." — "No threshold or cutoff exists anywhere"._
-- [ ] **7.5** RED: `..._Tripwire_NoSliceFileContainsAnInstrumentLiteral` — greps B1's `SliceFiles` for
+- [x] **7.5** RED: `..._Tripwire_NoSliceFileContainsAnInstrumentLiteral` — greps B1's `SliceFiles` for
   `XAUUSD|GDAXI|USATECH|NDX|"NQ"|"DAX"`.
   _Satisfies: "No Instrument Is Named In Code" — "No instrument literal appears in any production code
   path"._
-- [ ] **7.6** GREEN: create `Infrastructure/Services/CostDecompositionContractTests.cs` (or
+- [x] **7.6** GREEN: create `Infrastructure/Services/CostDecompositionContractTests.cs` (or
   `tests/.../Divergence/CostDecompositionContractTests.cs`) satisfying 7.1–7.5. No production code
   change expected from this phase — these are pure tripwires; if any fails, fix the production file
   it targets, not the test.
 
 ### Phase 8 — Determinism (B1 scope)
 
-- [ ] **8.1** RED: `DemoBacktestCoverageCalculatorTests.RepeatedCalls_AreByteIdentical` — same demo and
+- [x] **8.1** RED: `DemoBacktestCoverageCalculatorTests.RepeatedCalls_AreByteIdentical` — same demo and
   backtest `CostObservation` lists supplied twice produce a byte-identical `CoverageComponentDto`.
   _Satisfies: Scenario "Repeated calls are byte-identical" (coverage slice)._
-- [ ] **8.2** GREEN: no production change expected if 3.8 is already pure; confirm and close.
+- [x] **8.2** GREEN: no production change expected if 3.8 is already pure; confirm and close.
 
 ### Phase 9 — Static gates and full suite (B1)
 
-- [ ] **9.1** Run `dotnet build app.trading.algoritmico.api -warnaserror` (per
+- [x] **9.1** Run `dotnet build app.trading.algoritmico.api -warnaserror` (per
   `openspec/config.yaml`: `linter_backend: warnings-as-errors`) — zero warnings.
-- [ ] **9.2** Run `dotnet format app.trading.algoritmico.api --verify-no-changes` (per
+- [x] **9.2** Run `dotnet format app.trading.algoritmico.api --verify-no-changes` (per
   `formatter_backend: dotnet format`) — no formatting diffs.
-- [ ] **9.3** Run `dotnet test app.trading.algoritmico.api` for the full backend suite. Confirm
+- [x] **9.3** Run `dotnet test app.trading.algoritmico.api` for the full backend suite. Confirm
   **638/638 pre-existing tests still pass**, plus every new B1 test from Phases 1–8, with **0
   warnings**. Confirm every slice A test in `tests/AppTradingAlgoritmico.UnitTests/Divergence/`
   (`DemoBacktestComparabilityCalculatorTests`, `ComparabilityContractTests`,
   `DemoBacktestComparabilityReadServiceTests`, `DemoBacktestComparabilityQueryCostTests`,
   `DisjointSubsetNetPlTests`) is byte-identical, and `StrategyBacktestsControllerTests`' pre-existing
   cases are byte-identical (it gains cases from 6.3/6.4, nothing else changes).
-- [ ] **9.4** If any pre-existing test fails or a warning appears, stop: investigate before patching —
+- [x] **9.4** If any pre-existing test fails or a warning appears, stop: investigate before patching —
   this PR touches no existing production file's logic (only `DependencyInjection.cs` and the
   controller gain additive lines).
 
