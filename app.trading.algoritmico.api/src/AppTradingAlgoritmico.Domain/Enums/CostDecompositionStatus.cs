@@ -11,7 +11,21 @@ namespace AppTradingAlgoritmico.Domain.Enums;
 /// </summary>
 public enum CostDecompositionStatus
 {
-    /// <summary>Only the coverage component was produced; swap, embedded cost and residual do not exist on this readout.</summary>
+    /// <summary>
+    /// Only the coverage component was produced; swap, embedded cost and residual do not exist on
+    /// this readout.
+    /// <para>
+    /// As of PR B2, this member is UNREACHABLE from production code: <c>GetAsync</c>'s three exit
+    /// paths are <see cref="NoRunForKind"/>, <see cref="NoDemoTrades"/>, and a hardcoded
+    /// <see cref="Decomposed"/> — none of them return <c>CoverageComponentOnly</c> anymore. It is
+    /// deliberately RETAINED anyway, purely to hold the zero slot with the value that asserts the
+    /// LEAST about a decomposition's completeness. It MUST NOT be deleted as dead code: removing it
+    /// would promote <see cref="Decomposed"/> to value 0, making a default-initialized
+    /// <see cref="CostDecompositionStatus"/> silently assert a COMPLETE decomposition — the most
+    /// dangerous possible default, and the same optimistic-enum-zero hazard this repo has already
+    /// been bitten by twice (<c>PlatformType.MT4 = 0</c>, <c>FundingService.Other = 0</c>).
+    /// </para>
+    /// </summary>
     CoverageComponentOnly = 0,
 
     /// <summary>All four components — coverage, swap, embedded cost, and the execution residual — were produced. Produced by PR B2.</summary>

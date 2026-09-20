@@ -253,71 +253,71 @@ and the `Decomposed` state purely additively").
 
 ### Phase 10 — Domain enums
 
-- [ ] **10.1** RED: `EmbeddedCostAvailabilityTests` — asserts exactly four members in this order:
+- [x] **10.1** RED: `EmbeddedCostAvailabilityTests` — asserts exactly four members in this order:
   `NoCalibrationRow = 0`, `InsufficientSamples`, `Inconsistent`, `Calibrated`.
   _Satisfies: "Embedded Backtest Cost Surfaces Four Calibration States Distinctly..." — states list;
   design D4, D8._
-- [ ] **10.2** GREEN: create `Domain/Enums/EmbeddedCostAvailability.cs` matching 10.1's order exactly,
+- [x] **10.2** GREEN: create `Domain/Enums/EmbeddedCostAvailability.cs` matching 10.1's order exactly,
   with XML remarks explaining why `CalibrationStatus` is not reused (design D8: it has three members
   and `Calibrated = 0` is the unsafe zero here).
-- [ ] **10.3** RED: `ResidualBasisTests` — asserts `ResidualBasis` has a single member,
+- [x] **10.3** RED: `ResidualBasisTests` — asserts `ResidualBasis` has a single member,
   `PairedSubsetAfterSwapAndEmbeddedCost = 0`.
   _Satisfies: "The Execution Residual Is Computed Over The Paired Subset Only" — "ResidualBasis states
   the claim boundary on the type"; design D6, D10._
-- [ ] **10.4** GREEN: create `Domain/Enums/ResidualBasis.cs` — single member, with XML remarks stating
+- [x] **10.4** GREEN: create `Domain/Enums/ResidualBasis.cs` — single member, with XML remarks stating
   what the residual may and may not claim (not slippage, not a strategy-quality score, does not
   account for the intrabar path assumption).
 
 ### Phase 11 — Swap component
 
-- [ ] **11.1** RED: `CostDecompositionCalculatorTests.Swap_ReportsSumOfDemoSwapAcrossTheWindow` — a
+- [x] **11.1** RED: `CostDecompositionCalculatorTests.Swap_ReportsSumOfDemoSwapAcrossTheWindow` — a
   non-empty demo trade set with mixed swap values reports `Σ Swap` as a figure distinct from any net
   P/L figure, plus swap-paying trade count and total trade count.
   _Satisfies: Scenario "Swap is reported as its own figure"._
-- [ ] **11.2** RED: `..._Swap_WhenNoTradePaysSwap_ReportsZeroSumAndZeroCount` — not null.
+- [x] **11.2** RED: `..._Swap_WhenNoTradePaysSwap_ReportsZeroSumAndZeroCount` — not null.
   _Satisfies: Scenario "Zero swap-paying trades reports a zero sum, not null"._
-- [ ] **11.3** RED: `..._Swap_WhenDemoTradeSetIsEmpty_ReportsNullSum` — distinguishing this from 11.2.
+- [x] **11.3** RED: `..._Swap_WhenDemoTradeSetIsEmpty_ReportsNullSum` — distinguishing this from 11.2.
   _Satisfies: Scenario "An empty trade set reports null, not zero"._
-- [ ] **11.4** RED: `CostDecompositionDtoShapeTests.SwapComponentDto_MemberShape` — asserts
+- [x] **11.4** RED: `CostDecompositionDtoShapeTests.SwapComponentDto_MemberShape` — asserts
   `SwapComponentDto` has `decimal? TotalSwap`, `int SwapPayingTradeCount`, `int TotalTradeCount` (or
   equivalent), and is additive to the B1 root DTO (root DTO gains a `SwapComponentDto? Swap` member,
   non-null only when `Status == Decomposed`).
   _Satisfies: design D9 (additive B2 shape)._
-- [ ] **11.5** GREEN: create `SwapComponentDto` in `CostDecompositionDto.cs` and implement the swap
+- [x] **11.5** GREEN: create `SwapComponentDto` in `CostDecompositionDto.cs` and implement the swap
   aggregation inside `CostDecompositionCalculator` (new file, Phase 13) satisfying 11.1–11.4.
 
 ### Phase 12 — Embedded cost component
 
-- [ ] **12.1** RED: `..._EmbeddedCost_WhenNoCalibrationRowExists_ReportsNoCalibrationRowWithNullFigures`
+- [x] **12.1** RED: `..._EmbeddedCost_WhenNoCalibrationRowExists_ReportsNoCalibrationRowWithNullFigures`
   — `PointValue`, estimate, and dependent residual figure all `null`.
   _Satisfies: Scenario "No calibration row reports NoCalibrationRow, not a default point value"._
-- [ ] **12.2** RED: `..._EmbeddedCost_WhenCalibrationStatusIsInsufficientSamples_ReportsThatStateWithNullFigures`.
+- [x] **12.2** RED: `..._EmbeddedCost_WhenCalibrationStatusIsInsufficientSamples_ReportsThatStateWithNullFigures`.
   _Satisfies: Scenario "A calibration row with insufficient samples reports its own state"._
-- [ ] **12.3** RED: `..._EmbeddedCost_WhenCalibrationStatusIsInconsistent_ReportsThatStateWithNullFigures`.
+- [x] **12.3** RED: `..._EmbeddedCost_WhenCalibrationStatusIsInconsistent_ReportsThatStateWithNullFigures`.
   _Satisfies: Scenario "An inconsistent calibration reports its own state"._
-- [ ] **12.4** RED: `..._EmbeddedCost_WhenCalibrated_PublishesPointValueEstimateAndCalibratedAtVerbatim`
+- [x] **12.4** RED: `..._EmbeddedCost_WhenCalibrated_PublishesPointValueEstimateAndCalibratedAtVerbatim`
   — fixture: `XAUUSD_M1_UTC02`, `PointValue` 100.0, 776 samples, a recorded `CalibratedAt`; asserts the
   estimate formula (`Σ gross − Σ Profit`, signed gross = `(Type is buy ? Close − Open : Open − Close)
   × Size × PointValue`) and `CalibratedAt` echoed verbatim, compared to nothing.
   _Satisfies: Scenario "A calibrated symbol publishes its figure and CalibratedAt verbatim";
   Interfaces / Contracts formula._
-- [ ] **12.5** RED: `..._EmbeddedCost_ForEveryNonCalibratedState_NeverSubstitutesAnAssumedPointValue` —
+- [x] **12.5** RED: `..._EmbeddedCost_ForEveryNonCalibratedState_NeverSubstitutesAnAssumedPointValue` —
   parameterized over all three non-`Calibrated` states, asserting no fallback value appears.
   _Satisfies: Scenario "No state ever falls back to an assumed point value"._
-- [ ] **12.6** RED: `..._EmbeddedCost_WhenBacktestRowIsDegenerate_ReportsNullEstimateNotAPartialTotal`
+- [x] **12.6** RED: `..._EmbeddedCost_WhenBacktestRowIsDegenerate_ReportsNullEstimateNotAPartialTotal`
   — `Size == 0` or `ClosePrice == OpenPrice` on a backtest row makes the estimate null for the whole
   subset (slice A's `NetPlAccumulator` rule, design D8).
   _Satisfies: design D8 (no direct spec scenario for the degenerate-row rule — flagged below)._
-- [ ] **12.7** RED: `..._EmbeddedCost_KeysOnVerbatimSqxSymbolNoMapping` — two calibration rows with
+- [x] **12.7** RED: `..._EmbeddedCost_KeysOnVerbatimSqxSymbolNoMapping` — two calibration rows with
   different symbols; asserts the lookup matches the `BacktestRun.Symbol` string exactly, no
   normalization or mapping applied.
   _Satisfies: "Embedded Backtest Cost Surfaces Four Calibration States Distinctly..." — keying clause;
   design D7._
-- [ ] **12.8** RED: `..._EmbeddedCostComponentDto_MemberShape` — reflection: `EmbeddedCostAvailability
+- [x] **12.8** RED: `..._EmbeddedCostComponentDto_MemberShape` — reflection: `EmbeddedCostAvailability
   State`, `decimal? PointValue`, `int? SampleCount`, `decimal? EmbeddedCostEstimate`, `DateTime?
   CalibratedAt` — all nullable except `State`.
   _Satisfies: design D9 (additive shape); "no fallback" scenarios above._
-- [ ] **12.9** GREEN: create `EmbeddedCostComponentDto`; implement embedded-cost logic inside
+- [x] **12.9** GREEN: create `EmbeddedCostComponentDto`; implement embedded-cost logic inside
   `CostDecompositionCalculator` satisfying 12.1–12.8. Create `SymbolCalibrationSnapshot` exactly per
   design D5's now-defined shape (`Symbol`, `Status`, `PointValue`, `SampleCount`, `MinObserved`,
   `MaxObserved`, `CalibratedAt` — a 1:1 projection of `SymbolCalibration`, `CalibratedAt` carried
@@ -325,59 +325,59 @@ and the `Decomposed` state purely additively").
 
 ### Phase 13 — Composing calculator and the comparability-gate signature (design D5)
 
-- [ ] **13.1** RED: `..._Decompose_RequiresComparabilityDtoAsAMandatoryNonOptionalParameter` — a
+- [x] **13.1** RED: `..._Decompose_RequiresComparabilityDtoAsAMandatoryNonOptionalParameter` — a
   compile-time/reflection test asserting `CostDecompositionCalculator.Decompose`'s
   `PriceOffsetComparabilityDto comparability` parameter is not optional and not nullable.
   _Satisfies: Scenario "The calculator refuses to run without slice A's comparability DTO"; spec
   requirement "The Comparability Gate Is A Structural Ordering Dependency..."; design D5 signature._
-- [ ] **13.2** RED: `..._Decompose_NeverRecomputesComparabilityInternally` — asserts no internal call
+- [x] **13.2** RED: `..._Decompose_NeverRecomputesComparabilityInternally` — asserts no internal call
   to `DemoBacktestComparabilityCalculator.Measure` exists inside `CostDecompositionCalculator`
   (source-text or dependency inspection) — `comparability` must come from the caller only.
   _Satisfies: same requirement, "never-internally-recomputed" clause._
-- [ ] **13.3** RED: `..._RootDto_CarriesComparabilityFiguresVerbatimAlongsideSwapEmbeddedAndResidual` —
+- [x] **13.3** RED: `..._RootDto_CarriesComparabilityFiguresVerbatimAlongsideSwapEmbeddedAndResidual` —
   the fully composed B2 `CostDecompositionDto.Comparability` still equals the input DTO verbatim
   (extends 4.4 to the composed path).
   _Satisfies: Scenario "Slice A's comparability figures travel with the decomposition" (composed
   path)._
-- [ ] **13.4** GREEN: create `Infrastructure/Services/CostDecompositionCalculator.cs` — `internal
+- [x] **13.4** GREEN: create `Infrastructure/Services/CostDecompositionCalculator.cs` — `internal
   static`, signature exactly per design D5 (`comparability`, `coverage`, `demo`, `backtest`,
   `calibration`), one pass computing swap then embedded cost then residual, returning the composed
   `CostDecompositionDto` with `Status = Decomposed`.
-- [ ] **13.5** GREEN: update `CostDecompositionReadService` to call the new calculator (in addition to
+- [x] **13.5** GREEN: update `CostDecompositionReadService` to call the new calculator (in addition to
   the coverage calculator from B1) and project the calibration row and swap-bearing fields via
   `CostObservation` (Phase 2's type already carries `Swap`, `ClosePrice`, `Size`).
 
 ### Phase 14 — Execution residual
 
-- [ ] **14.1** RED: `..._Residual_IsComputedOnlyOverThePairedSubset` — a fixture with non-empty paired,
+- [x] **14.1** RED: `..._Residual_IsComputedOnlyOverThePairedSubset` — a fixture with non-empty paired,
   demo-only, and backtest-only subsets; asserts the residual value derives only from the paired
   subset's demo-versus-backtest difference after swap and embedded cost are removed.
   _Satisfies: Scenario "The residual is computed only over paired trades"._
-- [ ] **14.2** RED: `..._Residual_UnpairedSubsetsAreReportedButAreNotSummands` — **R1 regression
+- [x] **14.2** RED: `..._Residual_UnpairedSubsetsAreReportedButAreNotSummands` — **R1 regression
   guard**: mutate the demo-only and backtest-only P/L figures in the fixture; assert the residual does
   not move.
   _Satisfies: Scenario "Unpaired subsets are reported separately and are not summands"; proposal R1;
   design D10._
-- [ ] **14.3** RED: `..._ResidualBasis_IsNonNullableAndStatesTheClaimBoundary` — reflection: the
+- [x] **14.3** RED: `..._ResidualBasis_IsNonNullableAndStatesTheClaimBoundary` — reflection: the
   `ResidualBasis` property on `ExecutionResidualDto` is non-nullable, setter-less; XML remarks (or a
   documented constant) assert the residual is not slippage, not a strategy-quality score, and does
   not account for the intrabar path assumption.
   _Satisfies: Scenario "ResidualBasis states the claim boundary on the type"._
-- [ ] **14.4** RED: `..._ExecutionResidualDto_MemberShape` — `ResidualBasis Basis`, `decimal?
+- [x] **14.4** RED: `..._ExecutionResidualDto_MemberShape` — `ResidualBasis Basis`, `decimal?
   Residual`, `decimal? DemoOnlyNetPl`, `decimal? BacktestOnlyNetPl` (carried from/alongside slice A's
   disjoint-partition figures per the spec), `decimal? PairedDemoNetPl`, `decimal? PairedBacktestNetPl`.
   _Satisfies: design D9 (additive shape); Interfaces / Contracts formula._
-- [ ] **14.5** RED: `..._Residual_IsNullIfAnyTermIsNull` — swap or embedded-cost estimate null (e.g.
+- [x] **14.5** RED: `..._Residual_IsNullIfAnyTermIsNull` — swap or embedded-cost estimate null (e.g.
   `NoCalibrationRow`) propagates to a null residual, per the Interfaces / Contracts formula.
   _Satisfies: Interfaces / Contracts ("null if any term is null"); consistent with D8's
   no-partial-total rule extended to the residual._
-- [ ] **14.6** GREEN: create `ExecutionResidualDto`; implement the residual formula inside
+- [x] **14.6** GREEN: create `ExecutionResidualDto`; implement the residual formula inside
   `CostDecompositionCalculator` (`PairedDemoNetPl − PairedBacktestNetPl − PairedSwap +
   EmbeddedCostEstimate`, over the paired subset only, null if any term is null) satisfying 14.1–14.5.
 
 ### Phase 15 — Contract / tripwire tests extended for B2
 
-- [ ] **15.1** RED: extend `CostDecompositionContractTests.SliceFiles` (B1's own array — add, do not
+- [x] **15.1** RED: extend `CostDecompositionContractTests.SliceFiles` (B1's own array — add, do not
   duplicate the array) with `Domain/Enums/EmbeddedCostAvailability.cs`, `ResidualBasis.cs`,
   `Infrastructure/Services/CostDecompositionCalculator.cs`; re-run
   `Tripwire_NoSliceFileUsesARandomNumberGeneratorOrSeed`,
@@ -387,51 +387,51 @@ and the `Decomposed` state purely additively").
   `Tripwire_NoSliceFileContainsAnInstrumentLiteral` against the full B2 file set.
   _Satisfies: same requirements as Phase 7, now covering B2's files; design "Tripwire test" item 2
   explicitly._
-- [ ] **15.2** RED: `..._Dto_ExposesNoThresholdScoreGradeOrRecommendationMember_ExtendedToB2Dtos` —
+- [x] **15.2** RED: `..._Dto_ExposesNoThresholdScoreGradeOrRecommendationMember_ExtendedToB2Dtos` —
   reflection over `SwapComponentDto`, `EmbeddedCostComponentDto`, `ExecutionResidualDto` for
   `IsComparable`, `Score`, `Grade`, `Rank`, `Pass`, `Fail`, `Threshold`, `Acceptable`.
   _Satisfies: "The Decomposition Is Diagnostic Only..." — all scenarios, now over B2's surface._
-- [ ] **15.3** RED: `..._ResidualBasis_And_EmbeddedCostFields_AreNeverConstructorParameters` — extends
+- [x] **15.3** RED: `..._ResidualBasis_And_EmbeddedCostFields_AreNeverConstructorParameters` — extends
   7.1's pattern: `ResidualBasis` non-nullable/setter-less/absent-from-constructors (parallel to
   `CoverageBasis` in 7.1).
   _Satisfies: same structural pattern as "CoverageBasis Is A Non-Nullable, Non-Droppable Disclosure"
   applied to `ResidualBasis`._
-- [ ] **15.4** GREEN: extend `CostDecompositionContractTests.cs` for 15.1–15.3. No production change
+- [x] **15.4** GREEN: extend `CostDecompositionContractTests.cs` for 15.1–15.3. No production change
   expected unless a tripwire fails.
 
 ### Phase 16 — Determinism (full B2 composition)
 
-- [ ] **16.1** RED: `CostDecompositionCalculatorTests.Decompose_RepeatedCalls_AreByteIdentical` — same
+- [x] **16.1** RED: `CostDecompositionCalculatorTests.Decompose_RepeatedCalls_AreByteIdentical` — same
   demo trades, backtest trades, calibration row, and comparability DTO supplied twice produce a
   byte-identical `CostDecompositionDto`.
   _Satisfies: Scenario "Repeated calls are byte-identical" (full composition)._
-- [ ] **16.2** RED: `..._Decompose_MonthAndSubsetOrdering_IsUnaffectedByShuffledInput` — extends 8.1 to
+- [x] **16.2** RED: `..._Decompose_MonthAndSubsetOrdering_IsUnaffectedByShuffledInput` — extends 8.1 to
   the full B2 path (swap/embedded/residual figures are aggregate sums, not month rows, so this mainly
   re-confirms 3.6/8.1 still hold once B2 wraps the coverage calculator).
   _Satisfies: Scenario "Month rows are ordered by set membership, not input order" (composed path)._
-- [ ] **16.3** GREEN: no production change expected if calculators are pure; confirm and close.
+- [x] **16.3** GREEN: no production change expected if calculators are pure; confirm and close.
 
 ### Phase 17 — Endpoint completion
 
-- [ ] **17.1** RED: `StrategyBacktestsControllerTests.GetCostDecomposition_WhenValid_Returns200CarryingBothBases`
+- [x] **17.1** RED: `StrategyBacktestsControllerTests.GetCostDecomposition_WhenValid_Returns200CarryingBothBases`
   — extends 6.4: response now carries `CoverageBasis` AND `ResidualBasis`, with
   `CostDecompositionStatus.Decomposed`.
   _Satisfies: proposal Testing approach: "valid request → 200 carrying both bases" (completed)._
-- [ ] **17.2** GREEN: no controller change expected (6.5's action already delegates to the read
+- [x] **17.2** GREEN: no controller change expected (6.5's action already delegates to the read
   service, which now returns the composed DTO) — confirm 17.1 passes; if the controller needs a
   response-shape update, make it here.
 
 ### Phase 18 — Static gates and full suite (B2)
 
-- [ ] **18.1** Run `dotnet build app.trading.algoritmico.api -warnaserror` — zero warnings.
-- [ ] **18.2** Run `dotnet format app.trading.algoritmico.api --verify-no-changes` — no formatting
+- [x] **18.1** Run `dotnet build app.trading.algoritmico.api -warnaserror` — zero warnings.
+- [x] **18.2** Run `dotnet format app.trading.algoritmico.api --verify-no-changes` — no formatting
   diffs.
-- [ ] **18.3** Run `dotnet test app.trading.algoritmico.api` for the full backend suite. Confirm the
+- [x] **18.3** Run `dotnet test app.trading.algoritmico.api` for the full backend suite. Confirm the
   B1 total (from 9.3) plus every new B2 test from Phases 10–17 pass, with **0 warnings**. Confirm
   every slice A test and every B1 test stays byte-identical.
-- [ ] **18.4** If any pre-existing (slice A or B1) test fails or a warning appears, stop and
+- [x] **18.4** If any pre-existing (slice A or B1) test fails or a warning appears, stop and
   investigate before patching — B2 only adds members/files, per D9's additive contract.
-- [ ] **18.5** Confirm the final success-criteria checklist in `proposal.md` (Success criteria
+- [x] **18.5** Confirm the final success-criteria checklist in `proposal.md` (Success criteria
   section) against the shipped B1+B2 surface; do not check any box the tests above did not
   demonstrate.
 

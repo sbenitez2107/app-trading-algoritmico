@@ -20,13 +20,16 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// Producible At All").
 /// </para>
 /// </summary>
+/// <summary>The resolved run id plus its verbatim SQX <c>Symbol</c>, projected in the same command as the run lookup.</summary>
+internal readonly record struct RunSlot(Guid Id, string? Symbol);
+
 public sealed class CostDecompositionReadService(AppDbContext db) : ICostDecompositionReadService
 {
     public async Task<CostDecompositionDto> GetAsync(Guid strategyId, BacktestRunKind kind, CancellationToken ct)
     {
-        var runId = await RunIdQuery(db.BacktestRuns.AsNoTracking(), strategyId, kind).FirstOrDefaultAsync(ct);
+        var run = await RunQuery(db.BacktestRuns.AsNoTracking(), strategyId, kind).FirstOrDefaultAsync(ct);
 
-        if (runId is null)
+        if (run is null)
             return NoFigures(strategyId, kind, CostDecompositionStatus.NoRunForKind);
 
         var demoObservations = await DemoObservationsQuery(db.StrategyTrades.AsNoTracking(), strategyId).ToListAsync(ct);
@@ -34,7 +37,8 @@ public sealed class CostDecompositionReadService(AppDbContext db) : ICostDecompo
         if (demoObservations.Count == 0)
             return NoFigures(strategyId, kind, CostDecompositionStatus.NoDemoTrades);
 
-        var backtestObservations = await BacktestObservationsQuery(db.BacktestTrades.AsNoTracking(), runId.Value).ToListAsync(ct);
+        var runSlot = run.Value;
+        var backtestObservations = await BacktestObservationsQuery(db.BacktestTrades.AsNoTracking(), runSlot.Id).ToListAsync(ct);
 
         var comparability = DemoBacktestComparabilityCalculator.Measure(
             strategyId,
@@ -44,12 +48,32 @@ public sealed class CostDecompositionReadService(AppDbContext db) : ICostDecompo
 
         var coverage = DemoBacktestCoverageCalculator.Compute(demoObservations, backtestObservations);
 
-        return new CostDecompositionDto(strategyId, kind, CostDecompositionStatus.CoverageComponentOnly, comparability, coverage);
+        var calibration = runSlot.Symbol is null
+            ? null
+            : await CalibrationQuery(db.SymbolCalibrations.AsNoTracking(), runSlot.Symbol).FirstOrDefaultAsync(ct);
+
+        return CostDecompositionCalculator.Decompose(comparability, coverage, demoObservations, backtestObservations, calibration);
     }
 
     /// <summary>The (StrategyId, Kind) slot's run id, or none — never a fallback to the other slot.</summary>
     internal static IQueryable<Guid?> RunIdQuery(IQueryable<BacktestRun> runs, Guid strategyId, BacktestRunKind kind)
         => runs.Where(r => r.StrategyId == strategyId && r.Kind == kind).Select(r => (Guid?)r.Id);
+
+    /// <summary>
+    /// The (StrategyId, Kind) slot's run id AND its verbatim SQX <c>Symbol</c> in ONE command
+    /// (design D3 — the 4-command budget: run lookup, demo projection, backtest projection,
+    /// calibration row). B2 keys the calibration lookup on this <c>Symbol</c>, never on a mapping
+    /// table (design D7).
+    /// </summary>
+    internal static IQueryable<RunSlot?> RunQuery(IQueryable<BacktestRun> runs, Guid strategyId, BacktestRunKind kind)
+        => runs.Where(r => r.StrategyId == strategyId && r.Kind == kind).Select(r => (RunSlot?)new RunSlot(r.Id, r.Symbol));
+
+    /// <summary>Keyed on the verbatim SQX symbol — no broker or instrument mapping applied (design D7).</summary>
+    internal static IQueryable<SymbolCalibrationSnapshot?> CalibrationQuery(IQueryable<SymbolCalibration> calibrations, string symbol)
+        => calibrations
+            .Where(c => c.Symbol == symbol)
+            .Select(c => (SymbolCalibrationSnapshot?)new SymbolCalibrationSnapshot(
+                c.Symbol, c.Status, c.PointValue, c.SampleCount, c.MinObserved, c.MaxObserved, c.CalibratedAt));
 
     /// <summary>
     /// Demo net P/L matches slice A's own basis (<c>Profit + Commission + Swap + Taxes</c>) so the

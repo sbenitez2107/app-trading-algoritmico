@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using AppTradingAlgoritmico.Application.DTOs.Divergence;
+using AppTradingAlgoritmico.Infrastructure.Services;
 using FluentAssertions;
 
 namespace AppTradingAlgoritmico.UnitTests.Divergence;
@@ -36,7 +37,11 @@ public class CostDecompositionContractTests
     {
         var forbiddenFragments = new[] { "IsComparable", "Score", "Grade", "Rank", "Pass", "Fail", "Threshold", "Acceptable" };
 
-        foreach (var type in new[] { typeof(CostDecompositionDto), typeof(CoverageComponentDto), typeof(CoverageMonthDto) })
+        foreach (var type in new[]
+        {
+            typeof(CostDecompositionDto), typeof(CoverageComponentDto), typeof(CoverageMonthDto),
+            typeof(SwapComponentDto), typeof(EmbeddedCostComponentDto), typeof(ExecutionResidualDto),
+        })
         {
             foreach (var member in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
@@ -46,6 +51,36 @@ public class CostDecompositionContractTests
                 }
             }
         }
+    }
+
+    [Fact]
+    public void ResidualBasis_And_EmbeddedCostFields_AreNeverConstructorParameters()
+    {
+        var property = typeof(ExecutionResidualDto).GetProperty(nameof(ExecutionResidualDto.Basis));
+
+        property.Should().NotBeNull();
+        Nullable.GetUnderlyingType(property!.PropertyType).Should().BeNull(
+            "a nullable ResidualBasis would let a caller construct a residual with no claim-boundary disclosure at all");
+        property.GetSetMethod(nonPublic: true).Should().BeNull("ResidualBasis is computed from a constant — there is no setter to expose");
+
+        typeof(ExecutionResidualDto).GetConstructors()
+            .SelectMany(c => c.GetParameters())
+            .Should().NotContain(
+                p => p.Name == nameof(ExecutionResidualDto.Basis),
+                "ResidualBasis must not be settable at construction either — only a computed property makes it non-droppable");
+    }
+
+    [Fact]
+    public void Decompose_ComparabilityParameter_IsNotOptionalAndNotNullable()
+    {
+        var method = typeof(CostDecompositionCalculator).GetMethod("Decompose");
+        method.Should().NotBeNull();
+
+        var parameter = method!.GetParameters().Single(p => p.ParameterType == typeof(PriceOffsetComparabilityDto));
+
+        parameter.IsOptional.Should().BeFalse("the comparability gate is a structural ordering dependency, never defaulted");
+        Nullable.GetUnderlyingType(parameter.ParameterType).Should().BeNull(
+            "a nullable comparability parameter would let the calculator run without slice A's readout");
     }
 
     // =====================================================================
@@ -62,6 +97,9 @@ public class CostDecompositionContractTests
         "src/AppTradingAlgoritmico.Infrastructure/Services/CostObservation.cs",
         "src/AppTradingAlgoritmico.Infrastructure/Services/DemoBacktestCoverageCalculator.cs",
         "src/AppTradingAlgoritmico.Infrastructure/Services/CostDecompositionReadService.cs",
+        "src/AppTradingAlgoritmico.Domain/Enums/EmbeddedCostAvailability.cs",
+        "src/AppTradingAlgoritmico.Domain/Enums/ResidualBasis.cs",
+        "src/AppTradingAlgoritmico.Infrastructure/Services/CostDecompositionCalculator.cs",
     ];
 
     private static string ApiRoot([CallerFilePath] string thisFile = "")

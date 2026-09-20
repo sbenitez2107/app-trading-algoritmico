@@ -47,8 +47,15 @@ public class CostDecompositionReadServiceTests
         result.Coverage.Months.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// B2 wires <see cref="CostDecompositionCalculator"/> into the happy path (task 13.5), so once
+    /// data is present the service now always reports <see cref="CostDecompositionStatus.Decomposed"/>
+    /// rather than B1's <see cref="CostDecompositionStatus.CoverageComponentOnly"/> — the status this
+    /// test originally pinned is superseded by design D9's own stated plan ("B2 adds the members and
+    /// the Decomposed state purely additively").
+    /// </summary>
     [Fact]
-    public async Task GetAsync_WhenDataPresent_ReturnsCoverageComponentOnlyStatusWithComparabilityAndCoverage()
+    public async Task GetAsync_WhenDataPresent_ReturnsDecomposedStatusWithComparabilityCoverageAndCostFigures()
     {
         var strategyId = Guid.NewGuid();
         var runId = Guid.NewGuid();
@@ -96,8 +103,11 @@ public class CostDecompositionReadServiceTests
         var sut = new CostDecompositionReadService(db);
         var result = await sut.GetAsync(strategyId, BacktestRunKind.Deploy, default);
 
-        result.Status.Should().Be(CostDecompositionStatus.CoverageComponentOnly);
+        result.Status.Should().Be(CostDecompositionStatus.Decomposed);
         result.Comparability.PairedCount.Should().Be(1);
         result.Coverage.Months.Should().ContainSingle(m => m.Year == 2026 && m.Month == 4);
+        result.Swap.Should().NotBeNull();
+        result.EmbeddedCost!.State.Should().Be(EmbeddedCostAvailability.NoCalibrationRow, "no SymbolCalibration row exists in this fixture");
+        result.Residual.Should().NotBeNull();
     }
 }

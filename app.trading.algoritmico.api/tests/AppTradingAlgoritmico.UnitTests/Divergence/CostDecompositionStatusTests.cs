@@ -15,6 +15,22 @@ public class CostDecompositionStatusTests
         ((int)CostDecompositionStatus.CoverageComponentOnly).Should().Be(0);
     }
 
+    /// <summary>
+    /// Pins the actual hazard: a default-initialized (zero-valued) <see cref="CostDecompositionStatus"/>
+    /// must never read as <see cref="CostDecompositionStatus.Decomposed"/> — the most dangerous
+    /// possible default, since it would silently assert a COMPLETE decomposition. This is exactly
+    /// why <see cref="CostDecompositionStatus.CoverageComponentOnly"/> is retained even though it is
+    /// unreachable from production code post-PR-B2.
+    /// </summary>
+    [Fact]
+    public void CostDecompositionStatus_DefaultValue_IsNeverDecomposed()
+    {
+        var defaultValue = default(CostDecompositionStatus);
+
+        defaultValue.Should().NotBe(CostDecompositionStatus.Decomposed);
+        defaultValue.Should().Be(CostDecompositionStatus.CoverageComponentOnly);
+    }
+
     [Fact]
     public void CostDecompositionStatus_DeclaresAllFourMembers()
     {

@@ -268,4 +268,31 @@ public class StrategyBacktestsControllerTests
         body!.Status.Should().Be(CostDecompositionStatus.CoverageComponentOnly);
         body.Coverage.CoverageBasis.Should().Be(CoverageBasis.PresumedFromBacktestTradeAbsence);
     }
+
+    [Fact]
+    public async Task GetCostDecomposition_WhenValid_Returns200CarryingBothBases()
+    {
+        var strategyId = Guid.NewGuid();
+        var comparability = new PriceOffsetComparabilityDto(
+            strategyId, BacktestRunKind.Deploy, ComparabilityReadoutStatus.Measured, 1, 0, 0, 0, 0, []);
+        var dto = new CostDecompositionDto(
+            strategyId,
+            BacktestRunKind.Deploy,
+            CostDecompositionStatus.Decomposed,
+            comparability,
+            new CoverageComponentDto([]),
+            new SwapComponentDto(0m, 0, 1),
+            new EmbeddedCostComponentDto(EmbeddedCostAvailability.NoCalibrationRow, null, null, null, null),
+            new ExecutionResidualDto(null, null, null, null, null));
+        _costDecompositionMock
+            .Setup(s => s.GetAsync(strategyId, BacktestRunKind.Deploy, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateSut().GetCostDecomposition(strategyId, BacktestRunKind.Deploy, default);
+
+        var body = (result.Result as OkObjectResult)!.Value as CostDecompositionDto;
+        body!.Status.Should().Be(CostDecompositionStatus.Decomposed);
+        body.Coverage.CoverageBasis.Should().Be(CoverageBasis.PresumedFromBacktestTradeAbsence);
+        body.Residual!.Basis.Should().Be(ResidualBasis.PairedSubsetAfterSwapAndEmbeddedCost);
+    }
 }

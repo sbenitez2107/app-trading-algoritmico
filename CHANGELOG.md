@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.30.0] - 2026-09-20
+
+### Added
+
+- Completed the demo-versus-backtest cost decomposition: swap, embedded backtest cost and the execution residual now accompany the data-coverage component on the same readout.
+- Swap is reported as an isolated figure. It comes from demo trades only, because SQX backtests carry no swap column at all and never modelled it.
+- Embedded backtest cost is derived from the calibrated point value for the verbatim SQX symbol, and reports which of four calibration states applies. No figure is estimated when a symbol is uncalibrated, under-sampled, inconsistent, or has no calibration row at all, and no point value is ever assumed. The calibration timestamp is echoed as stored and compared to nothing.
+- The execution residual is computed over the exact-minute-paired subset only. Demo-only and backtest-only trades are reported separately and never folded in, so "the same signal produced a different result" is never mixed with "this trade had no counterpart".
+
 ## [0.29.0] - 2026-09-20
 
 ### Added

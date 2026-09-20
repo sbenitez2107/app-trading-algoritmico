@@ -17,7 +17,59 @@ public sealed record CostDecompositionDto(
     BacktestRunKind Kind,
     CostDecompositionStatus Status,
     PriceOffsetComparabilityDto Comparability,
-    CoverageComponentDto Coverage);
+    CoverageComponentDto Coverage,
+    SwapComponentDto? Swap = null,
+    EmbeddedCostComponentDto? EmbeddedCost = null,
+    ExecutionResidualDto? Residual = null);
+
+/// <summary>
+/// The sum of <c>StrategyTrade.Swap</c> across the demo trade set for the window, isolated from
+/// slice A's netting (spec "Swap Is Reported As An Isolated Component, Never Netted Silently").
+/// <see cref="TotalSwap"/> is <c>0</c> (not <c>null</c>) when no trade pays swap, and <c>null</c>
+/// only when the underlying demo trade set is empty.
+/// </summary>
+public sealed record SwapComponentDto(
+    decimal? TotalSwap,
+    int SwapPayingTradeCount,
+    int TotalTradeCount);
+
+/// <summary>
+/// The embedded-cost readiness of the backtest symbol's calibration and, when and only when
+/// <see cref="EmbeddedCostAvailability.Calibrated"/>, the derived estimate (spec "Embedded Backtest
+/// Cost Surfaces Four Calibration States Distinctly, With No Fallback"; design D8). Every field
+/// except <see cref="State"/> is <c>null</c> unless <see cref="State"/> is <c>Calibrated</c> — no
+/// path ever substitutes, assumes, or falls back to a point value. <see cref="CalibratedAt"/> is
+/// echoed verbatim and compared to nothing (no staleness/TTL concept exists).
+/// </summary>
+public sealed record EmbeddedCostComponentDto(
+    EmbeddedCostAvailability State,
+    decimal? PointValue,
+    int? SampleCount,
+    decimal? EmbeddedCostEstimate,
+    DateTime? CalibratedAt);
+
+/// <summary>
+/// The execution residual over the exact-minute-paired subset only (spec "The Execution Residual Is
+/// Computed Over The Paired Subset Only"; design D10). <see cref="DemoOnlyNetPl"/> and
+/// <see cref="BacktestOnlyNetPl"/> travel alongside it for context and are PROVABLY NOT summands —
+/// see <see cref="Basis"/>.
+/// </summary>
+public sealed record ExecutionResidualDto(
+    decimal? Residual,
+    decimal? DemoOnlyNetPl,
+    decimal? BacktestOnlyNetPl,
+    decimal? PairedDemoNetPl,
+    decimal? PairedBacktestNetPl)
+{
+    /// <summary>
+    /// Non-nullable, non-droppable disclosure of what <see cref="Residual"/> may and may not claim:
+    /// the paired subset's demo-versus-backtest difference after swap and embedded cost are
+    /// removed — not slippage, not a strategy-quality score, and not an accounting for the
+    /// M1-versus-tick intrabar path assumption (design D10; spec "ResidualBasis states the claim
+    /// boundary on the type").
+    /// </summary>
+    public ResidualBasis Basis => ResidualBasis.PairedSubsetAfterSwapAndEmbeddedCost;
+}
 
 /// <summary>
 /// Every calendar month in the dense window (spec Definitions), classified per
