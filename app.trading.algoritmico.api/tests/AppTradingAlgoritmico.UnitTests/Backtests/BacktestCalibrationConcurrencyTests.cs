@@ -68,7 +68,7 @@ public class BacktestCalibrationConcurrencyTests : IDisposable
         var sut = CreateSut();
 
         var result = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, Upload("F.csv", 1, 2, 3), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, Upload("F.csv", 1, 2, 3), null, CancellationToken.None);
 
         result.Outcome.Should().Be(
             BacktestImportOutcome.Imported,
@@ -96,7 +96,7 @@ public class BacktestCalibrationConcurrencyTests : IDisposable
         var sut = CreateSut();
 
         var result = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, Upload("F.csv", 1, 2, 3), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, Upload("F.csv", 1, 2, 3), null, CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Imported);
         result.TradeCount.Should().Be(3);

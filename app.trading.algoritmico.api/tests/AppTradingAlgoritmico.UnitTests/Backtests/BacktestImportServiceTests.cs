@@ -78,6 +78,29 @@ public class BacktestImportServiceTests
         return new BacktestFileUploadDto(fileName, new MemoryStream(Encoding.UTF8.GetBytes(string.Join("\r\n", lines))));
     }
 
+    // ---- Interface contract: sourcePlatform is a required, non-defaulted parameter (design D4) ----
+
+    [Fact]
+    public void ImportTradeListAsync_InterfaceSignature_DeclaresSourcePlatformBeforeCancellationTokenWithNoDefault()
+    {
+        // Compile-time pin: a call with args in exactly this order — strategyId, kind, file,
+        // sourcePlatform, ct — must exist on the interface, with sourcePlatform BEFORE ct and no C#
+        // default value (an optional parameter would let a caller omit it by accident, which is the
+        // silent-null hazard in a different coat).
+        Func<IBacktestImportService, Guid, BacktestRunKind, BacktestFileUploadDto, PlatformType?, CancellationToken, Task<BacktestImportResultDto>> call =
+            (svc, strategyId, kind, file, sourcePlatform, ct) => svc.ImportTradeListAsync(strategyId, kind, file, sourcePlatform, ct);
+
+        call.Should().NotBeNull();
+
+        var parameter = typeof(IBacktestImportService)
+            .GetMethod(nameof(IBacktestImportService.ImportTradeListAsync))!
+            .GetParameters()
+            .Single(p => p.Name == "sourcePlatform");
+
+        parameter.HasDefaultValue.Should().BeFalse(
+            "an optional parameter would let a caller omit it by accident — the silent-null hazard in a different coat");
+    }
+
     // ---- Regression gate: the importer never reaches live trade storage ----
 
     [Fact]
@@ -105,7 +128,7 @@ public class BacktestImportServiceTests
         var beforeTickets = await db.StrategyTrades.Select(t => t.Ticket).OrderBy(t => t).ToListAsync();
 
         var sut = CreateSut(db);
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         (await db.StrategyTrades.CountAsync()).Should().Be(beforeCount);
         (await db.StrategyTrades.Select(t => t.Ticket).OrderBy(t => t).ToListAsync()).Should().BeEquivalentTo(beforeTickets);
@@ -121,13 +144,115 @@ public class BacktestImportServiceTests
         var sut = CreateSut(db);
 
         var result = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Imported);
         var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
         run.StrategyId.Should().Be(strategyId);
         run.Kind.Should().Be(BacktestRunKind.Deploy);
         (await db.BacktestTrades.CountAsync(t => t.BacktestRunId == run.Id)).Should().Be(329);
+    }
+
+    // ---- Slice C: sourcePlatform on a new run (design D4, spec "Import Accepts An Optional
+    // Declared Platform") ----
+
+    [Fact]
+    public async Task ImportTradeListAsync_NewRun_DeclaredMT5_StoresMT5()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), PlatformType.MT5, CancellationToken.None);
+
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().Be(PlatformType.MT5);
+    }
+
+    [Fact]
+    public async Task ImportTradeListAsync_NewRun_DeclaredMT4_StoresMT4()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), PlatformType.MT4, CancellationToken.None);
+
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().Be(PlatformType.MT4);
+    }
+
+    [Fact]
+    public async Task ImportTradeListAsync_NewRun_OmittedPlatform_StoresNullNotMT4()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
+
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().BeNull("an omitted platform must never default to MT4");
+    }
+
+    // ---- Slice C: sourcePlatform on replace (design D6, spec "Replacing A Run's Bytes
+    // Overwrites Its Recorded Platform Unconditionally, Including With Null") ----
+
+    [Fact]
+    public async Task ImportTradeListAsync_Replace_SuppliedPlatformOverwritesThePreviouslyRecordedOne()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v1.csv", 1, 2, 3), PlatformType.MT4, CancellationToken.None);
+
+        var result = await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v2.csv", 10, 20, 30, 40), PlatformType.MT5, CancellationToken.None);
+
+        result.Outcome.Should().Be(BacktestImportOutcome.Replaced);
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().Be(PlatformType.MT5);
+    }
+
+    [Fact]
+    public async Task ImportTradeListAsync_Replace_OmittedPlatformNullsThePreviouslyRecordedOne()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v1.csv", 1, 2, 3), PlatformType.MT4, CancellationToken.None);
+
+        var result = await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v2.csv", 10, 20, 30, 40), null, CancellationToken.None);
+
+        result.Outcome.Should().Be(BacktestImportOutcome.Replaced);
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().BeNull("a replacement omitting the platform must null the previously recorded one");
+    }
+
+    // ---- Slice C: the Unchanged outcome writes nothing, including the platform column (design D7,
+    // spec "The Unchanged Outcome Writes Nothing, Including The Platform Column") ----
+
+    [Fact]
+    public async Task ImportTradeListAsync_Unchanged_IdenticalBytesWithSuppliedPlatform_TakesTheNoWritePathAndPlatformIsUntouched()
+    {
+        using var db = CreateDb();
+        var strategyId = await SeedStrategyAsync(db, "S1");
+        var sut = CreateSut(db);
+        await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
+
+        var result = await sut.ImportTradeListAsync(
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), PlatformType.MT5, CancellationToken.None);
+
+        result.Outcome.Should().Be(BacktestImportOutcome.Unchanged);
+        var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
+        run.SourcePlatform.Should().BeNull("identical bytes take the no-write path — the platform supplied on the retry must be ignored");
     }
 
     // ---- SBI-4: slot idempotency, three outcomes ----
@@ -138,11 +263,11 @@ public class BacktestImportServiceTests
         using var db = CreateDb();
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db);
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
         var runBefore = await db.BacktestRuns.AsNoTracking().SingleAsync();
 
         var result = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Unchanged);
         (await db.BacktestRuns.CountAsync()).Should().Be(1);
@@ -161,13 +286,14 @@ public class BacktestImportServiceTests
         using var db = CreateDb();
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db);
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
         var runBefore = await db.BacktestRuns.AsNoTracking().SingleAsync();
 
         var result = await sut.ImportTradeListAsync(
             strategyId,
             BacktestRunKind.Deploy,
             new BacktestFileUploadDto("Empty.csv", new MemoryStream(Encoding.UTF8.GetBytes(Header))),
+            null,
             CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Rejected);
@@ -183,11 +309,11 @@ public class BacktestImportServiceTests
         using var db = CreateDb();
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db);
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, SyntheticUpload("v1.csv", 1, 2, 3), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, SyntheticUpload("v1.csv", 1, 2, 3), null, CancellationToken.None);
         var runBefore = await db.BacktestRuns.AsNoTracking().SingleAsync();
 
         var result = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v2.csv", 10, 20, 30, 40), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, SyntheticUpload("v2.csv", 10, 20, 30, 40), null, CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Replaced);
         (await db.BacktestRuns.CountAsync()).Should().Be(1, "replace must reuse the slot, never create a second run");
@@ -205,8 +331,8 @@ public class BacktestImportServiceTests
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db);
 
-        var deploy = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, SyntheticUpload("d.csv", 1, 2), CancellationToken.None);
-        var evaluation = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Evaluation, SyntheticUpload("e.csv", 3, 4, 5), CancellationToken.None);
+        var deploy = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, SyntheticUpload("d.csv", 1, 2), null, CancellationToken.None);
+        var evaluation = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Evaluation, SyntheticUpload("e.csv", 3, 4, 5), null, CancellationToken.None);
 
         deploy.Outcome.Should().Be(BacktestImportOutcome.Imported);
         evaluation.Outcome.Should().Be(BacktestImportOutcome.Imported);
@@ -229,8 +355,8 @@ public class BacktestImportServiceTests
         var s2 = await SeedStrategyAsync(db, "Deployed on SBDEMO2");
         var sut = CreateSut(db);
 
-        var first = await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
-        var second = await sut.ImportTradeListAsync(s2, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        var first = await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
+        var second = await sut.ImportTradeListAsync(s2, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         first.Outcome.Should().Be(BacktestImportOutcome.Imported);
         second.Outcome.Should().Be(
@@ -256,8 +382,8 @@ public class BacktestImportServiceTests
         var s2 = await SeedStrategyAsync(db, "S2");
         var sut = CreateSut(db);
 
-        var asDeploy = await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
-        var asEvaluation = await sut.ImportTradeListAsync(s2, BacktestRunKind.Evaluation, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        var asDeploy = await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
+        var asEvaluation = await sut.ImportTradeListAsync(s2, BacktestRunKind.Evaluation, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         asEvaluation.Outcome.Should().Be(BacktestImportOutcome.Imported);
         asEvaluation.Reason.Should().BeNull("there is no warning to raise — the mislabeling is not observable");
@@ -275,7 +401,7 @@ public class BacktestImportServiceTests
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db);
 
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         var calibration = await db.SymbolCalibrations.SingleAsync(c => c.Symbol == Symbol);
         calibration.SampleCount.Should().Be(90);
@@ -292,8 +418,8 @@ public class BacktestImportServiceTests
         var s2 = await SeedStrategyAsync(db, "Deployed on SBDEMO2");
         var sut = CreateSut(db);
 
-        await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
-        await sut.ImportTradeListAsync(s2, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), CancellationToken.None);
+        await sut.ImportTradeListAsync(s1, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
+        await sut.ImportTradeListAsync(s2, BacktestRunKind.Deploy, await FixtureUploadAsync(F1Name), null, CancellationToken.None);
 
         (await db.BacktestTrades.CountAsync()).Should().Be(658, "both runs really do store their own trades");
         var calibration = await db.SymbolCalibrations.SingleAsync(c => c.Symbol == Symbol);

@@ -42,5 +42,13 @@ public class BacktestRun : BaseEntity
     /// <summary>The single SQX symbol for every trade in this run (file-level guard rejects multi-symbol files). Verbatim, no normalization (C4).</summary>
     public string? Symbol { get; set; }
 
+    /// <summary>
+    /// The SQX platform (MT4/MT5) that produced this run's trade list, as CALLER-DECLARED at
+    /// import time — never derived, never defaulted. <c>null</c> means "not declared at import",
+    /// which MUST stay distinguishable from <see cref="PlatformType.MT4"/> (the enum's CLR
+    /// default value is 0). See design.md D9.
+    /// </summary>
+    public PlatformType? SourcePlatform { get; set; }
+
     public ICollection<BacktestTrade> Trades { get; init; } = [];
 }

@@ -39,7 +39,8 @@ public sealed class BacktestReadService(AppDbContext db) : IBacktestReadService
                     s.Name,
                     r.Kind,
                     r.Trades.Count,
-                    r.CreatedAt))
+                    r.CreatedAt,
+                    r.SourcePlatform))
             .ToListAsync(ct);
 
         return new PagedResult<BacktestRunDto>(items, total, page, pageSize);
@@ -81,7 +82,7 @@ public sealed class BacktestReadService(AppDbContext db) : IBacktestReadService
             .AsNoTracking()
             .Where(r => r.StrategyId == strategyId)
             .Select(r => new BacktestRunSummaryDto(
-                r.Id, r.SourceFileName, r.Symbol, r.Kind, r.Trades.Count, r.CreatedAt))
+                r.Id, r.SourceFileName, r.Symbol, r.Kind, r.Trades.Count, r.CreatedAt, r.SourcePlatform))
             .ToListAsync(ct);
 
         var export = await db.StrategyWalkForwardExports

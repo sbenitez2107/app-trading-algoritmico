@@ -26,14 +26,14 @@ public sealed class BacktestImportService(
     ISqxTradeListParser parser) : IBacktestImportService
 {
     public async Task<BacktestImportResultDto> ImportTradeListAsync(
-        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, CancellationToken ct)
+        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, PlatformType? sourcePlatform, CancellationToken ct)
     {
         BacktestImportResultDto result;
         string? symbol;
 
         try
         {
-            (result, symbol) = await ImportOneFileAsync(strategyId, kind, file, ct);
+            (result, symbol) = await ImportOneFileAsync(strategyId, kind, file, sourcePlatform, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -98,7 +98,7 @@ public sealed class BacktestImportService(
     }
 
     private async Task<(BacktestImportResultDto Result, string? Symbol)> ImportOneFileAsync(
-        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, CancellationToken ct)
+        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, PlatformType? sourcePlatform, CancellationToken ct)
     {
         byte[] bytes;
         using (var buffer = new MemoryStream())
@@ -137,7 +137,7 @@ public sealed class BacktestImportService(
         //     therefore settles as Unchanged instead of writing a second time.
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(
-            async token => await PersistOneFileAsync(strategyId, kind, parsed, contentHash, token),
+            async token => await PersistOneFileAsync(strategyId, kind, parsed, contentHash, sourcePlatform, token),
             ct);
     }
 
@@ -147,7 +147,8 @@ public sealed class BacktestImportService(
     /// starting database state — that is the property, not an incidental.
     /// </summary>
     private async Task<(BacktestImportResultDto Result, string? Symbol)> PersistOneFileAsync(
-        Guid strategyId, BacktestRunKind kind, ParsedBacktestFileDto parsed, string contentHash, CancellationToken ct)
+        Guid strategyId, BacktestRunKind kind, ParsedBacktestFileDto parsed, string contentHash,
+        PlatformType? sourcePlatform, CancellationToken ct)
     {
         await using var attemptDb = dbFactory.Create();
 
@@ -160,7 +161,7 @@ public sealed class BacktestImportService(
 
         if (existing is null)
         {
-            await CreateNewRunAsync(attemptDb, strategyId, kind, parsed, contentHash, ct);
+            await CreateNewRunAsync(attemptDb, strategyId, kind, parsed, contentHash, sourcePlatform, ct);
             return (Ok(parsed, BacktestImportOutcome.Imported), parsed.Symbol);
         }
 
@@ -168,11 +169,13 @@ public sealed class BacktestImportService(
         {
             // Identical bytes already occupy this slot. NO WRITE — this is the property the retry
             // safety rests on: a transient failure after a commit that actually landed re-enters
-            // here, reads committed state, and settles without writing a second time.
+            // here, reads committed state, and settles without writing a second time. This
+            // includes SourcePlatform: a supplied value on a no-op retry is deliberately ignored
+            // (spec.md "The Unchanged Outcome Writes Nothing, Including The Platform Column").
             return (Ok(parsed, BacktestImportOutcome.Unchanged), parsed.Symbol);
         }
 
-        await ReplaceAsync(attemptDb, existing, parsed, contentHash, ct);
+        await ReplaceAsync(attemptDb, existing, parsed, contentHash, sourcePlatform, ct);
         return (Ok(parsed, BacktestImportOutcome.Replaced), parsed.Symbol);
     }
 
@@ -181,7 +184,7 @@ public sealed class BacktestImportService(
 
     private static async Task CreateNewRunAsync(
         IBacktestDbContext attemptDb, Guid strategyId, BacktestRunKind kind,
-        ParsedBacktestFileDto parsed, string contentHash, CancellationToken ct)
+        ParsedBacktestFileDto parsed, string contentHash, PlatformType? sourcePlatform, CancellationToken ct)
     {
         await using var tx = await attemptDb.Database.BeginTransactionAsync(ct);
 
@@ -193,6 +196,7 @@ public sealed class BacktestImportService(
             StrategyId = strategyId,
             Kind = kind,
             Symbol = parsed.Symbol,
+            SourcePlatform = sourcePlatform,
             CreatedAt = DateTime.UtcNow,
         };
         attemptDb.BacktestRuns.Add(run);
@@ -205,7 +209,8 @@ public sealed class BacktestImportService(
     }
 
     private static async Task ReplaceAsync(
-        IBacktestDbContext attemptDb, BacktestRun run, ParsedBacktestFileDto parsed, string contentHash, CancellationToken ct)
+        IBacktestDbContext attemptDb, BacktestRun run, ParsedBacktestFileDto parsed, string contentHash,
+        PlatformType? sourcePlatform, CancellationToken ct)
     {
         await using var tx = await attemptDb.Database.BeginTransactionAsync(ct);
 
@@ -221,6 +226,11 @@ public sealed class BacktestImportService(
         run.ContentHash = contentHash;
         run.SourceFileName = parsed.FileName;
         run.Symbol = parsed.Symbol;
+        // Unconditional, including null: carrying a previously recorded platform across a
+        // replacement would assert "the new file came from the same platform as the old one" —
+        // the same class of inference the trading-account rejection forbids (spec.md "Replacing
+        // A Run's Bytes Overwrites Its Recorded Platform Unconditionally, Including With Null").
+        run.SourcePlatform = sourcePlatform;
         run.UpdatedAt = DateTime.UtcNow;
 
         foreach (var trade in parsed.Trades)

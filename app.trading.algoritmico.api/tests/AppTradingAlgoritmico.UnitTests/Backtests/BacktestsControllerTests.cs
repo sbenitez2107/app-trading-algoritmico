@@ -24,7 +24,7 @@ public class BacktestsControllerTests
     {
         var run = new BacktestRunDto(
             Guid.NewGuid(), "ListOfTrades_XAUUSD_H1_IST.csv", "XAUUSD_M1_UTC02",
-            Guid.NewGuid(), "My Strategy", BacktestRunKind.Deploy, 329, DateTime.UtcNow);
+            Guid.NewGuid(), "My Strategy", BacktestRunKind.Deploy, 329, DateTime.UtcNow, null);
         var serviceMock = new Mock<IBacktestReadService>();
         serviceMock
             .Setup(s => s.GetRunsAsync(2, 20, It.IsAny<CancellationToken>()))

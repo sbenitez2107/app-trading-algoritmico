@@ -29,6 +29,11 @@ public class BacktestRunConfiguration : IEntityTypeConfiguration<BacktestRun>
         builder.Property(x => x.Symbol).HasMaxLength(BacktestFieldLengths.Symbol);
         builder.Property(x => x.Kind).IsRequired();
 
+        // Caller-declared provenance. NO IsRequired, NO HasDefaultValue, NO index — deliberately.
+        // Null means "not declared at import" and must stay distinguishable from MT4 (= 0).
+        // BacktestSchemaTests pins this; the comment documents it, the test enforces it.
+        builder.Property(x => x.SourcePlatform);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.CreatedBy).HasMaxLength(256);
         builder.Property(x => x.UpdatedBy).HasMaxLength(256);

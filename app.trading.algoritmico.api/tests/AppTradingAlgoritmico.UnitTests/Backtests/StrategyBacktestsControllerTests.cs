@@ -43,8 +43,8 @@ public class StrategyBacktestsControllerTests
 
     private void SetupImportOk()
         => _importMock
-            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid _, BacktestRunKind _, BacktestFileUploadDto f, CancellationToken _) =>
+            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, BacktestRunKind _, BacktestFileUploadDto f, PlatformType? _, CancellationToken _) =>
                 new BacktestImportResultDto(f.FileName, BacktestImportOutcome.Imported, 329, 0, null));
 
     // ---- The kind is a route segment, validated before anything else happens ----
@@ -60,7 +60,7 @@ public class StrategyBacktestsControllerTests
         result.Result.Should().BeOfType<BadRequestObjectResult>();
         file.Verify(f => f.OpenReadStream(), Times.Never, "the file must never be opened for a kind that does not exist");
         _importMock.Verify(
-            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()),
+            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -77,7 +77,7 @@ public class StrategyBacktestsControllerTests
         byNumber.Result.Should().BeOfType<BadRequestObjectResult>();
         byZero.Result.Should().BeOfType<BadRequestObjectResult>();
         _importMock.Verify(
-            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()),
+            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -91,8 +91,8 @@ public class StrategyBacktestsControllerTests
         Guid? capturedStrategyId = null;
         var strategyId = Guid.NewGuid();
         _importMock
-            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()))
-            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, CancellationToken>((id, kind, _, _) =>
+            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, PlatformType?, CancellationToken>((id, kind, _, _, _) =>
             {
                 capturedStrategyId = id;
                 captured = kind;
@@ -106,6 +106,62 @@ public class StrategyBacktestsControllerTests
         capturedStrategyId.Should().Be(strategyId, "attribution comes from the route, never from the file");
     }
 
+    // ---- sourcePlatform: caller-declared provenance, guarded against undeclared numerals (D1) ----
+
+    [Fact]
+    public async Task ImportTradeList_SourcePlatformAbsent_Returns200AndForwardsNull()
+    {
+        PlatformType? captured = PlatformType.MT4; // non-null sentinel — proves it flips to null
+        _importMock
+            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, PlatformType?, CancellationToken>((_, _, _, sp, _) => captured = sp)
+            .ReturnsAsync(new BacktestImportResultDto("f.csv", BacktestImportOutcome.Imported, 1, 0, null));
+
+        var result = await CreateSut().ImportTradeList(Guid.NewGuid(), "deploy", MockFile("f.csv").Object, default);
+
+        (result.Result as OkObjectResult)!.StatusCode.Should().Be(200);
+        captured.Should().BeNull("an omitted sourcePlatform must forward null, never default to a platform");
+    }
+
+    [Theory]
+    [InlineData(PlatformType.MT4)]
+    [InlineData(PlatformType.MT5)]
+    public async Task ImportTradeList_SourcePlatformDeclaredMT4OrMT5_ForwardsVerbatim(PlatformType platform)
+    {
+        PlatformType? captured = null;
+        _importMock
+            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, PlatformType?, CancellationToken>((_, _, _, sp, _) => captured = sp)
+            .ReturnsAsync(new BacktestImportResultDto("f.csv", BacktestImportOutcome.Imported, 1, 0, null));
+
+        var result = await CreateSut().ImportTradeList(Guid.NewGuid(), "deploy", MockFile("f.csv").Object, default, platform);
+
+        (result.Result as OkObjectResult)!.StatusCode.Should().Be(200);
+        captured.Should().Be(platform);
+    }
+
+    [Fact]
+    public async Task ImportTradeList_SourcePlatformIsUndeclaredNumeral_Returns400AndServiceIsNeverCalled()
+    {
+        var result = await CreateSut().ImportTradeList(
+            Guid.NewGuid(), "deploy", MockFile("f.csv").Object, default, (PlatformType)7);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        _importMock.Verify(
+            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ImportTradeList_SourcePlatformIsUndeclaredNumeral_NeverOpensTheFileBeforeTheGuardRuns()
+    {
+        var file = MockFile("f.csv");
+
+        await CreateSut().ImportTradeList(Guid.NewGuid(), "deploy", file.Object, default, (PlatformType)7);
+
+        file.Verify(f => f.OpenReadStream(), Times.Never, "the Enum.IsDefined guard must run before OpenReadStream");
+    }
+
     // ---- Server-side extension whitelist and filename sanitisation ----
 
     [Fact]
@@ -117,7 +173,7 @@ public class StrategyBacktestsControllerTests
 
         result.Result.Should().BeOfType<BadRequestObjectResult>();
         _importMock.Verify(
-            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()),
+            s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -136,8 +192,8 @@ public class StrategyBacktestsControllerTests
     {
         BacktestFileUploadDto? captured = null;
         _importMock
-            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<CancellationToken>()))
-            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, CancellationToken>((_, _, f, _) => captured = f)
+            .Setup(s => s.ImportTradeListAsync(It.IsAny<Guid>(), It.IsAny<BacktestRunKind>(), It.IsAny<BacktestFileUploadDto>(), It.IsAny<PlatformType?>(), It.IsAny<CancellationToken>()))
+            .Callback<Guid, BacktestRunKind, BacktestFileUploadDto, PlatformType?, CancellationToken>((_, _, f, _, _) => captured = f)
             .ReturnsAsync(new BacktestImportResultDto("x", BacktestImportOutcome.Imported, 1, 0, null));
 
         await CreateSut().ImportTradeList(
@@ -189,7 +245,7 @@ public class StrategyBacktestsControllerTests
             .Setup(s => s.GetByStrategyAsync(strategyId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StrategyBacktestsDto(
                 strategyId,
-                new BacktestRunSummaryDto(Guid.NewGuid(), "deploy.csv", "XAUUSD_M1_UTC02", BacktestRunKind.Deploy, 329, DateTime.UtcNow),
+                new BacktestRunSummaryDto(Guid.NewGuid(), "deploy.csv", "XAUUSD_M1_UTC02", BacktestRunKind.Deploy, 329, DateTime.UtcNow, PlatformType.MT4),
                 null,
                 new WalkForwardExportSummaryDto(
                     Guid.NewGuid(), "WFParamsExport_XAUUSD_H1.csv", new DateTime(2025, 5, 26), 6,

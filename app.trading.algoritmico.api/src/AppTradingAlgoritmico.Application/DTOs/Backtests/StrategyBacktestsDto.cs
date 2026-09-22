@@ -9,7 +9,8 @@ public sealed record BacktestRunSummaryDto(
     string? Symbol,
     BacktestRunKind Kind,
     int TradeCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    PlatformType? SourcePlatform);
 
 /// <summary>
 /// A strategy's walk-forward export. <c>DeployParameters</c>/<c>EvaluationParameters</c> are

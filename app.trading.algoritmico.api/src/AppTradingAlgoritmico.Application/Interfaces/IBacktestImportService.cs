@@ -11,7 +11,15 @@ public interface IBacktestImportService
     /// and no attribution step. A persistence failure is reported as
     /// <see cref="BacktestImportOutcome.Rejected"/> carrying the provider's own diagnosis rather
     /// than propagating, so the caller always gets an answer naming the file (design.md D6).
+    /// <para>
+    /// <paramref name="sourcePlatform"/> is caller-declared provenance (slice C), never derived.
+    /// It carries NO C# default value on purpose: an optional parameter would let a caller omit it
+    /// by accident, which is the silent-null hazard this field exists to avoid, in a different
+    /// coat. Omitting it explicitly (passing <c>null</c>) records "not declared" on the run;
+    /// deriving it from anything else (e.g. the strategy's <c>TradingAccount.Platform</c>) is
+    /// rejected (design.md D4).
+    /// </para>
     /// </summary>
     Task<BacktestImportResultDto> ImportTradeListAsync(
-        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, CancellationToken ct);
+        Guid strategyId, BacktestRunKind kind, BacktestFileUploadDto file, PlatformType? sourcePlatform, CancellationToken ct);
 }

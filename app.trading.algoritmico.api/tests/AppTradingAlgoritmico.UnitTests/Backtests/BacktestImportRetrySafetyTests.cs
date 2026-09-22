@@ -62,20 +62,20 @@ public class BacktestImportRetrySafetyTests : IDisposable
         var strategyId = await SeedStrategyAsync();
 
         // Starting state: v1 committed.
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), null, CancellationToken.None);
         var hashV1 = await ReadContentHashAsync();
 
         // Attempt 1 of the REPLACE unit. Its SaveChangesAsync is accepted (AcceptAllChanges sets
         // originals := current), and then the commit is lost. A rolled-back transaction leaves the
         // DATABASE at its pre-attempt value while the change tracker keeps the accepted state, so
         // rewind the column out-of-band to reproduce exactly that split.
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 10, 20, 30, 40), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 10, 20, 30, 40), null, CancellationToken.None);
         var hashV2 = await ReadContentHashAsync();
         hashV2.Should().NotBe(hashV1);
         await RewindContentHashAsync(hashV1);
 
         // Attempt 2 — the retry: same parsed input, same hash, same service instance.
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 10, 20, 30, 40), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 10, 20, 30, 40), null, CancellationToken.None);
 
         (await ReadContentHashAsync()).Should().Be(
             hashV2,
@@ -96,12 +96,12 @@ public class BacktestImportRetrySafetyTests : IDisposable
 
         // Attempt 1 dies at SaveChangesAsync. The transaction rolls back; the change tracker does
         // not — SaveChangesAsync only calls AcceptAllChanges on SUCCESS, so the graph stays Added.
-        await IgnoringFailureAsync(() => sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), CancellationToken.None));
+        await IgnoringFailureAsync(() => sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), null, CancellationToken.None));
 
         (await CountRunsAsync()).Should().Be(0, "the failed attempt's transaction must have rolled back");
 
         // Attempt 2 — the retry, against that same starting state.
-        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), CancellationToken.None);
+        await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("Same.csv", 1, 2, 3), null, CancellationToken.None);
 
         (await CountRunsAsync()).Should().Be(
             1,

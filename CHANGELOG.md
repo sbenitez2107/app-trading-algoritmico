@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.31.0] - 2026-09-22
+
+### Added
+
+- Backtest runs can record which trading platform they were built on. The value is declared at import time and reported back on both backtest read models, ahead of the October 2026 move to MT5.
+- The field is optional and a run that does not declare one is reported as having no platform, never as MT4. An import declaring a platform outside the two known ones is rejected before the file is read.
+
+### Changed
+
+- Existing backtest runs are recorded as MT4 by a one-time migration. This is a historical fact supplied by the account owner on 2026-09-21, not a value the system chose, and the migration records that provenance alongside the statement. Runs imported afterwards do not inherit it.
+
 ## [0.30.0] - 2026-09-20
 
 ### Added

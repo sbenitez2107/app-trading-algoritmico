@@ -14,4 +14,5 @@ public sealed record BacktestRunDto(
     string StrategyName,
     BacktestRunKind Kind,
     int TradeCount,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    PlatformType? SourcePlatform);

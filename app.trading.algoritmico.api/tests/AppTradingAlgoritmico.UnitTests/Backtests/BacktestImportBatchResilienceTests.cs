@@ -68,6 +68,7 @@ public class BacktestImportBatchResilienceTests
         var result = await sut.ImportTradeListAsync(
             strategyId, BacktestRunKind.Deploy,
             Upload("TooLong.csv", Row(2), Row(3, comment: overLength)),
+            null,
             CancellationToken.None);
 
         result.Outcome.Should().Be(BacktestImportOutcome.Imported);
@@ -91,11 +92,11 @@ public class BacktestImportBatchResilienceTests
         var sut = CreateSut(db, new FailOnNthAttemptFactory(_options, failOnAttempt: 2));
 
         var first = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, Upload("Good1.csv", Row(1)), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, Upload("Good1.csv", Row(1)), null, CancellationToken.None);
         var failing = await sut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Evaluation, Upload("Boom.csv", Row(2)), CancellationToken.None);
+            strategyId, BacktestRunKind.Evaluation, Upload("Boom.csv", Row(2)), null, CancellationToken.None);
         var third = await sut.ImportTradeListAsync(
-            otherStrategyId, BacktestRunKind.Deploy, Upload("Good2.csv", Row(3)), CancellationToken.None);
+            otherStrategyId, BacktestRunKind.Deploy, Upload("Good2.csv", Row(3)), null, CancellationToken.None);
 
         first.Outcome.Should().Be(BacktestImportOutcome.Imported);
         third.Outcome.Should().Be(
@@ -119,8 +120,8 @@ public class BacktestImportBatchResilienceTests
         var strategyId = await SeedStrategyAsync(db, "S1");
         var sut = CreateSut(db, new FailOnNthAttemptFactory(_options, failOnAttempt: null));
 
-        var a = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("A.csv", Row(1)), CancellationToken.None);
-        var b = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Evaluation, Upload("B.csv", Row(2)), CancellationToken.None);
+        var a = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Deploy, Upload("A.csv", Row(1)), null, CancellationToken.None);
+        var b = await sut.ImportTradeListAsync(strategyId, BacktestRunKind.Evaluation, Upload("B.csv", Row(2)), null, CancellationToken.None);
 
         a.Outcome.Should().Be(BacktestImportOutcome.Rejected);
         b.Outcome.Should().Be(BacktestImportOutcome.Rejected);

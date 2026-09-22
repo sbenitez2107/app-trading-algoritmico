@@ -166,7 +166,7 @@ public class WalkForwardImportServiceTests
         var wfSut = CreateSut(db);
 
         await tradeListSut.ImportTradeListAsync(
-            strategyId, BacktestRunKind.Evaluation, await UploadAsync(TradeListName), CancellationToken.None);
+            strategyId, BacktestRunKind.Evaluation, await UploadAsync(TradeListName), null, CancellationToken.None);
 
         var run = await db.BacktestRuns.AsNoTracking().SingleAsync();
         (await db.BacktestTrades.CountAsync(t => t.BacktestRunId == run.Id)).Should().Be(329);
@@ -227,7 +227,7 @@ public class WalkForwardImportServiceTests
         using var db = CreateDb();
         var strategyId = await SeedStrategyAsync(db, "S1");
         await CreateTradeListSut(db).ImportTradeListAsync(
-            strategyId, BacktestRunKind.Deploy, await UploadAsync(TradeListName), CancellationToken.None);
+            strategyId, BacktestRunKind.Deploy, await UploadAsync(TradeListName), null, CancellationToken.None);
         await CreateSut(db).ImportAsync(strategyId, await UploadAsync(WfName), CancellationToken.None);
 
         var evaluable = await EvaluableStrategyIdsAsync(db, strategyId);
@@ -241,7 +241,7 @@ public class WalkForwardImportServiceTests
         using var db = CreateDb();
         var strategyId = await SeedStrategyAsync(db, "S1");
         await CreateTradeListSut(db).ImportTradeListAsync(
-            strategyId, BacktestRunKind.Evaluation, await UploadAsync(TradeListName), CancellationToken.None);
+            strategyId, BacktestRunKind.Evaluation, await UploadAsync(TradeListName), null, CancellationToken.None);
         await CreateSut(db).ImportAsync(strategyId, await UploadAsync(WfName), CancellationToken.None);
 
         var evaluable = await EvaluableStrategyIdsAsync(db, strategyId);

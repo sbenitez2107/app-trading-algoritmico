@@ -40,6 +40,16 @@ public class StrategyBacktestsController(
     /// deliberately NOT checked: nothing in a 16-column trade list identifies the parameters that
     /// produced it, so a check here would be a guess dressed as a validation (design.md D11).
     /// </para>
+    /// <para>
+    /// <paramref name="sourcePlatform"/> is an OPTIONAL query parameter (slice C, design.md D1):
+    /// caller-declared provenance, never a route segment (it describes an attribute of the
+    /// payload, not the resource's identity) and never required (forcing a declaration on a
+    /// legacy file would force a guess). ASP.NET binds an out-of-range numeral like
+    /// <c>?sourcePlatform=7</c> to <c>(PlatformType)7</c> via <c>Enum.Parse</c> with NO
+    /// model-state error, so the explicit <see cref="Enum.IsDefined(Type, object)"/> guard below
+    /// exists to refuse it BEFORE the file is ever opened — otherwise an undeclared member would
+    /// be persisted as provenance.
+    /// </para>
     /// </summary>
     [HttpPost("backtests/{kind}")]
     [Consumes("multipart/form-data")]
@@ -49,7 +59,8 @@ public class StrategyBacktestsController(
         [FromRoute] Guid strategyId,
         [FromRoute] string kind,
         [FromForm] IFormFile? file,
-        CancellationToken ct)
+        CancellationToken ct,
+        [FromQuery] PlatformType? sourcePlatform = null)
     {
         if (!TryParseKind(kind, out var runKind))
         {
@@ -59,10 +70,18 @@ public class StrategyBacktestsController(
             });
         }
 
+        if (sourcePlatform is not null && !Enum.IsDefined(sourcePlatform.Value))
+        {
+            return BadRequest(new
+            {
+                message = $"Unknown source platform '{(int)sourcePlatform.Value}'. Expected MT4 or MT5.",
+            });
+        }
+
         if (!TryAcceptCsv(file, out var upload, out var error))
             return BadRequest(new { message = error });
 
-        return Ok(await importService.ImportTradeListAsync(strategyId, runKind, upload!, ct));
+        return Ok(await importService.ImportTradeListAsync(strategyId, runKind, upload!, sourcePlatform, ct));
     }
 
     /// <summary>

@@ -382,6 +382,29 @@ public class BacktestSchemaTests : IDisposable
     }
 
     [Fact]
+    public void BacktestRun_SourcePlatform_IsNullableWithNoDefaultAnywhere()
+    {
+        // Guards the proposal's highest-likelihood risk: a future reader treating the 2026-09-21
+        // backfill as a code-chosen default and "tidying" the field to non-nullable. It is not a
+        // default; it is one user's assertion about rows that already existed.
+
+        // 1. CLR shape — fails if someone writes `public PlatformType SourcePlatform`.
+        typeof(BacktestRun).GetProperty(nameof(BacktestRun.SourcePlatform))!
+            .PropertyType.Should().Be(typeof(PlatformType?));
+
+        // 2. A freshly constructed run is UNDECLARED, not MT4. Pins D4's coincidence directly.
+        new BacktestRun { SourceFileName = "f.csv", ContentHash = "h" }
+            .SourcePlatform.Should().BeNull();
+
+        // 3. EF model — fails if someone adds HasDefaultValue(0) / HasDefaultValueSql / IsRequired.
+        using var db = new BacktestTestDbContext(_options);
+        var p = db.Model.FindEntityType(typeof(BacktestRun))!.FindProperty(nameof(BacktestRun.SourcePlatform))!;
+        p.IsNullable.Should().BeTrue();
+        p.GetDefaultValue().Should().BeNull();
+        p.GetDefaultValueSql().Should().BeNull();
+    }
+
+    [Fact]
     public void Precision_MatchesDesignD1()
     {
         using var db = new BacktestTestDbContext(_options);
