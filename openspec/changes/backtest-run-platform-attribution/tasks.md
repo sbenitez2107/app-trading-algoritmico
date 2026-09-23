@@ -210,19 +210,19 @@ Depends on C1 merged/available on its branch (feature-branch-chain, base = `feat
 
 ### Phase 7 — Real `PlatformType` enum + re-export (D7)
 
-- [ ] 7.1 RED: create `app/core/models/platform-type.model.spec.ts` — asserts `PlatformType.MT4 === 0`
+- [x] 7.1 RED: create `app/core/models/platform-type.model.spec.ts` — asserts `PlatformType.MT4 === 0`
   and `PlatformType.MT5 === 1` as enum members (not a `0 | 1` union type — e.g. assert
   `Object.values(PlatformType)` includes the string keys `'MT4'`/`'MT5'`, which only a real enum
   produces). Will not compile until 7.2 exists — that is the RED.
   _Satisfies: design D7 ("the web app has no `PlatformType` enum; C2 creates one")._
-- [ ] 7.2 GREEN: create `app/core/models/platform-type.model.ts` —
+- [x] 7.2 GREEN: create `app/core/models/platform-type.model.ts` —
   `export enum PlatformType { MT4 = 0, MT5 = 1 }`. Confirm 7.1 passes.
-- [ ] 7.3 RED: extend `trading-account.service.spec.ts` (or add one if none exists) — asserts the
+- [x] 7.3 RED: extend `trading-account.service.spec.ts` (or add one if none exists) — asserts the
   `PlatformType` re-exported from `trading-account.service.ts` is reference-identical to
   `platform-type.model.ts`'s `PlatformType` (e.g. `PlatformType.MT4` imported from each path
   `=== `).
   _Satisfies: design D7 ("turns the alias into a one-line re-export")._
-- [ ] 7.4 GREEN: replace `export type PlatformType = 0 | 1;` at `trading-account.service.ts:7` with
+- [x] 7.4 GREEN: replace `export type PlatformType = 0 | 1;` at `trading-account.service.ts:7` with
   `export { PlatformType } from '../models/platform-type.model';`. **Decision point (D7 fallback)**:
   build the project after this change. If compile fallout is limited to one or two call sites, fix
   them minimally and continue. If fallout is broader/unbounded, REVERT this file's re-export,
@@ -234,63 +234,63 @@ Depends on C1 merged/available on its branch (feature-branch-chain, base = `feat
 
 ### Phase 8 — `backtest.service.ts`: param, `HttpParams`, DTO fields, labels
 
-- [ ] 8.1 RED: `backtest.service.spec.ts` — `importDeploy(id, file, PlatformType.MT4)` issues a
+- [x] 8.1 RED: `backtest.service.spec.ts` — `importDeploy(id, file, PlatformType.MT4)` issues a
   request whose params contain `sourcePlatform=0` (the falsy-zero trap named in design D6: `MT4 ===
   0` must not be dropped by a truthy check).
   _Satisfies: "The TypeScript falsy-zero trap" constraint; precedent `getGroupRisk`'s `segment`
   handling at `backtest.service.ts:443-445`._
-- [ ] 8.2 RED: `..._ImportDeploy_MT5_AppendsSourcePlatformEquals1`.
+- [x] 8.2 RED: `..._ImportDeploy_MT5_AppendsSourcePlatformEquals1`.
   _Satisfies: same constraint, MT5 side._
-- [ ] 8.3 RED: `..._ImportDeploy_SourcePlatformUndefined_AppendsNoSourcePlatformParamAtAll` — omitted
+- [x] 8.3 RED: `..._ImportDeploy_SourcePlatformUndefined_AppendsNoSourcePlatformParamAtAll` — omitted
   third argument produces a request with NO `sourcePlatform` key in params (not `sourcePlatform=`).
   Repeat 8.1–8.3 for `importEvaluation`.
   _Satisfies: design D6 service contract; the omission-means-null rule from the backend spec, now on
   the client._
-- [ ] 8.4 GREEN: add `sourcePlatform?: PlatformType` as a third parameter to `importDeploy` and
+- [x] 8.4 GREEN: add `sourcePlatform?: PlatformType` as a third parameter to `importDeploy` and
   `importEvaluation`; update `postFile` (or wrap the call) to append `sourcePlatform` to the request
   ONLY when `sourcePlatform !== undefined` — never `if (sourcePlatform)`. Confirm 8.1–8.3 pass.
-- [ ] 8.5 GREEN: add `sourcePlatform: PlatformType | null` to the `BacktestRunSummaryDto` and
+- [x] 8.5 GREEN: add `sourcePlatform: PlatformType | null` to the `BacktestRunSummaryDto` and
   `BacktestRunDto` TS interfaces in `backtest.service.ts`; add
   `export const PLATFORM_LABELS: Record<PlatformType, string> = { [PlatformType.MT4]: 'SQX.BACKTESTS.SOURCE_PLATFORM_MT4', [PlatformType.MT5]: 'SQX.BACKTESTS.SOURCE_PLATFORM_MT5' };`
   mirroring `BACKTEST_KIND_LABELS`.
 
 ### Phase 9 — i18n (Dual-Entry Protocol, six keys)
 
-- [ ] 9.1 Add to `public/assets/i18n/en.json` under `SQX.BACKTESTS`: `SOURCE_PLATFORM_LABEL`
+- [x] 9.1 Add to `public/assets/i18n/en.json` under `SQX.BACKTESTS`: `SOURCE_PLATFORM_LABEL`
   ("Source platform"), `SOURCE_PLATFORM_HINT`, `SOURCE_PLATFORM_NOT_DECLARED` ("Not declared"),
   `SOURCE_PLATFORM_MT4` ("MT4"), `SOURCE_PLATFORM_MT5` ("MT5"),
   `SOURCE_PLATFORM_UNDECLARED_NOTE` — exact EN strings from design D6's table.
-- [ ] 9.2 Add the same six keys with the ES strings from design D6's table to
+- [x] 9.2 Add the same six keys with the ES strings from design D6's table to
   `public/assets/i18n/es.json` in the SAME commit as 9.1 (Dual-Entry Protocol — never split across
   commits; `frontend-data.md`).
 
 ### Phase 10 — Import modal: one selector, optional, never-MT4-by-default (D6)
 
-- [ ] 10.1 RED: `import-strategy-backtests-modal.component.spec.ts` — the rendered modal has exactly
+- [x] 10.1 RED: `import-strategy-backtests-modal.component.spec.ts` — the rendered modal has exactly
   ONE `<select>` for source platform (not one per slot), located in `.import-backtests-modal__body`
   after `.import-backtests-modal__intro` and before the `@for` slot-loop's first `<section>`; its
   first `<option value="">` renders the `SOURCE_PLATFORM_NOT_DECLARED` label and is selected by
   default.
   _Satisfies: design D6 ("Where"/"Default" rows)._
-- [ ] 10.2 RED: `..._SelectingMT4_UpdatesTheSourcePlatformSignalToPlatformTypeMT4` — selecting the MT4
+- [x] 10.2 RED: `..._SelectingMT4_UpdatesTheSourcePlatformSignalToPlatformTypeMT4` — selecting the MT4
   option sets the component's platform state to `PlatformType.MT4`; the initial state (before any
   selection) is `null`.
   _Satisfies: design D6 ("Default" row: `signal<PlatformType | null>(null)`)._
-- [ ] 10.3 RED: `..._Submit_WithDeployAndEvaluationFilledAndMT4Selected_ForwardsMT4ToDeployAndEvaluationOnlyNeverToWalkForward` —
+- [x] 10.3 RED: `..._Submit_WithDeployAndEvaluationFilledAndMT4Selected_ForwardsMT4ToDeployAndEvaluationOnlyNeverToWalkForward` —
   queue deploy + evaluation + walkForward files, select MT4, call `submit()`; assert
   `importDeploy`/`importEvaluation` receive `PlatformType.MT4` as the third argument and
   `importWalkForward` is called with its existing two-argument signature (untouched).
   _Satisfies: design D6 ("Scope" row: applies to deploy/evaluation only, not walkForward)._
-- [ ] 10.4 RED: `..._Submit_WithNoPlatformChosen_ForwardsUndefinedNotNullNotZero` — with the platform
+- [x] 10.4 RED: `..._Submit_WithNoPlatformChosen_ForwardsUndefinedNotNullNotZero` — with the platform
   left at its default `null` state, `submit()` calls `importDeploy`/`importEvaluation` with
   `undefined` as the third argument (never `null`, never `0`) — this is the RED that proves the
   undeclared path sends nothing over the wire.
   _Satisfies: design D6 ("Required?" row — optional, omission is undefined on the wire)._
-- [ ] 10.5 RED: `..._WhenATradeListFileIsQueuedAndPlatformIsNull_TheUndeclaredNoteRendersAndSubmitStaysEnabled` —
+- [x] 10.5 RED: `..._WhenATradeListFileIsQueuedAndPlatformIsNull_TheUndeclaredNoteRendersAndSubmitStaysEnabled` —
   queue a deploy file with no platform chosen; assert a `role="status"` element bound to
   `SOURCE_PLATFORM_UNDECLARED_NOTE` renders, and the submit button remains NOT disabled.
   _Satisfies: design D6 ("Disclosure" row — "deliberately visible null"; submit not blocked)._
-- [ ] 10.6 KNOWN EXPECTED RED — update, do not treat as a regression to silently revert: the existing
+- [x] 10.6 KNOWN EXPECTED RED — update, do not treat as a regression to silently revert: the existing
   test `submit_OnlyDeployFilled_ImportsOnlyDeployAndLeavesTheOtherSlotsUntouched` at
   `import-strategy-backtests-modal.component.spec.ts:126` currently asserts
   `toHaveBeenCalledWith(STRATEGY_ID, expect.any(File))` (two arguments). Once 10.7 changes
@@ -299,7 +299,7 @@ Depends on C1 merged/available on its branch (feature-branch-chain, base = `feat
   assertion is the proof that the undeclared path's third argument is explicit `undefined`, per
   design.md's "Known breakage in C2" note. Do not restore the two-argument form.
   _Satisfies: design's explicit called-out breakage; ties to 10.4's contract._
-- [ ] 10.7 GREEN: implement the `<select>` in
+- [x] 10.7 GREEN: implement the `<select>` in
   `import-strategy-backtests-modal.component.html` per 10.1's placement; add
   `readonly sourcePlatform = signal<PlatformType | null>(null)` and a change handler in
   `.component.ts`; update `submit()` to pass `this.sourcePlatform() ?? undefined` as the third
@@ -309,17 +309,17 @@ Depends on C1 merged/available on its branch (feature-branch-chain, base = `feat
 
 ### Phase 11 — Backtests-list column (verbatim, visible not-declared state)
 
-- [ ] 11.1 RED: `backtests-list.component.spec.ts` — a run with `sourcePlatform: PlatformType.MT4`
+- [x] 11.1 RED: `backtests-list.component.spec.ts` — a run with `sourcePlatform: PlatformType.MT4`
   in the rendered table shows the `SOURCE_PLATFORM_MT4` label in the new column.
   _Satisfies: "The Backtests List Displays The Recorded Source Platform Verbatim..." — "A run
   recorded as MT4 renders as MT4"._
-- [ ] 11.2 RED: `..._MT5RecordedRun_RendersMT5Label` — symmetric case.
+- [x] 11.2 RED: `..._MT5RecordedRun_RendersMT5Label` — symmetric case.
   _Satisfies: same requirement — "A run recorded as MT5 renders as MT5"._
-- [ ] 11.3 RED: `..._NullSourcePlatform_RendersTheNotDeclaredLabelNeverBlankNeverDashNeverMT4` — a run
+- [x] 11.3 RED: `..._NullSourcePlatform_RendersTheNotDeclaredLabelNeverBlankNeverDashNeverMT4` — a run
   with `sourcePlatform: null` renders `SOURCE_PLATFORM_NOT_DECLARED`; assert the cell text is
   neither empty, nor `'—'`, nor the MT4 label.
   _Satisfies: same requirement — "A run with no recorded platform renders as visibly not declared"._
-- [ ] 11.4 GREEN: add a `COL_SOURCE_PLATFORM` header (reuse the `SOURCE_PLATFORM_LABEL` key) and a
+- [x] 11.4 GREEN: add a `COL_SOURCE_PLATFORM` header (reuse the `SOURCE_PLATFORM_LABEL` key) and a
   cell to the runs `<table>` in `backtests-list.component.html`, rendering
   `run.sourcePlatform !== null ? (platformLabels[run.sourcePlatform] | translate) : (notDeclaredKey | translate)`
   — verbatim only, no fallback, no derivation from any other field. Expose `platformLabels =
@@ -331,16 +331,16 @@ Depends on C1 merged/available on its branch (feature-branch-chain, base = `feat
 
 ### Phase 12 — Static gates and full suite (C2)
 
-- [ ] 12.1 Run `pnpm --dir app.trading.algoritmico.web exec prettier --check .` (prettier MUST run
+- [x] 12.1 Run `pnpm --dir app.trading.algoritmico.web exec prettier --check .` (prettier MUST run
   from `app.trading.algoritmico.web`, never the repo root) — no formatting diffs; if diffs appear,
   run `pnpm --dir app.trading.algoritmico.web exec prettier --write` on the touched files only.
-- [ ] 12.2 Run `pnpm --dir app.trading.algoritmico.web exec tsc --build` (NOT a bare `tsc --noEmit`
+- [x] 12.2 Run `pnpm --dir app.trading.algoritmico.web exec tsc --build` (NOT a bare `tsc --noEmit`
   from the repo root — the root `tsconfig.json` has `"files": []` and would exit 0 having compiled
   nothing) — zero type errors.
-- [ ] 12.3 Run `pnpm --dir app.trading.algoritmico.web test` for the full frontend suite (per
+- [x] 12.3 Run `pnpm --dir app.trading.algoritmico.web test` for the full frontend suite (per
   `openspec/config.yaml`'s `testing.frontend.command`). Confirm every pre-existing spec passes
   (including 10.6's UPDATED assertion), plus every new C2 test from Phases 7–11.
-- [ ] 12.4 If any pre-existing spec fails unexpectedly (i.e., not 10.6, which is the one deliberate,
+- [x] 12.4 If any pre-existing spec fails unexpectedly (i.e., not 10.6, which is the one deliberate,
   already-updated exception) or a type/format error appears, stop and investigate before patching.
 
 ---

@@ -20,6 +20,7 @@
             <th>{{ 'SQX.BACKTESTS.COL_STRATEGY' | translate }}</th>
             <th>{{ 'SQX.BACKTESTS.COL_KIND' | translate }}</th>
             <th>{{ 'SQX.BACKTESTS.COL_TRADES' | translate }}</th>
+            <th>{{ 'SQX.BACKTESTS.SOURCE_PLATFORM_LABEL' | translate }}</th>
           </tr>
         </thead>
         <tbody>
@@ -30,6 +31,14 @@
               <td>{{ run.strategyName }}</td>
               <td>{{ kindLabels[run.kind] | translate }}</td>
               <td>{{ run.tradeCount }}</td>
+              <td>
+                {{
+                  (run.sourcePlatform !== null
+                    ? platformLabels[run.sourcePlatform]
+                    : notDeclaredKey
+                  ) | translate
+                }}
+              </td>
             </tr>
           }
         </tbody>

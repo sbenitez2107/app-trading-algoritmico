@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.32.0] - 2026-09-22
+
+### Added
+
+- The backtest import dialog lets you declare which platform a run was built on. Declaring is optional, the field starts on "Not declared", and a note says plainly that runs imported without it are recorded with no platform.
+- The backtests list shows each run's recorded platform, and shows "Not declared" as its own value rather than leaving the cell empty.
+- English and Spanish copy for both.
+
+### Changed
+
+- `PlatformType` is now a real enum shared across the web app, replacing a numeric union alias that made the literal `0` the only way to express MT4.
+
 ## [0.31.0] - 2026-09-22
 
 ### Added

@@ -2,9 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
+import { PlatformType } from '../models/platform-type.model';
+
+export { PlatformType } from '../models/platform-type.model';
 
 export type AccountType = 0 | 1; // 0 = Demo, 1 = Live
-export type PlatformType = 0 | 1; // 0 = MT4, 1 = MT5
 
 export interface TradingAccountDto {
   id: string;

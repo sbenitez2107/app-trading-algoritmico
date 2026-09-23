@@ -23,6 +23,37 @@
         {{ 'SQX.BACKTESTS.IMPORT_INTRO' | translate }}
       </p>
 
+      <div class="import-backtests-modal__source-platform">
+        <label class="import-backtests-modal__source-platform-label" for="source-platform-select">
+          {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_LABEL' | translate }}
+        </label>
+        <p class="import-backtests-modal__source-platform-hint">
+          {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_HINT' | translate }}
+        </p>
+        <select
+          id="source-platform-select"
+          class="import-backtests-modal__source-platform-select"
+          [disabled]="pending() > 0"
+          (change)="onSourcePlatformChange($any($event.target).value)"
+        >
+          <option value="" [selected]="sourcePlatform() === null">
+            {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_NOT_DECLARED' | translate }}
+          </option>
+          <option [value]="PlatformType.MT4" [selected]="sourcePlatform() === PlatformType.MT4">
+            {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_MT4' | translate }}
+          </option>
+          <option [value]="PlatformType.MT5" [selected]="sourcePlatform() === PlatformType.MT5">
+            {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_MT5' | translate }}
+          </option>
+        </select>
+
+        @if (hasQueuedTradeListFile() && sourcePlatform() === null) {
+          <p class="import-backtests-modal__undeclared-note" role="status">
+            {{ 'SQX.BACKTESTS.SOURCE_PLATFORM_UNDECLARED_NOTE' | translate }}
+          </p>
+        }
+      </div>
+
       @for (slot of slots; track slot.key) {
         <section class="import-backtests-modal__slot">
           <label class="import-backtests-modal__slot-label" [attr.for]="slot.inputId">

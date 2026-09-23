@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, catchError, of, throwError } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
+import { PlatformType } from '../models/platform-type.model';
 
 /**
  * Mirrors AppTradingAlgoritmico.Application.DTOs.Backtests.BacktestImportOutcome (numeric, matches
@@ -62,6 +63,7 @@ export interface BacktestRunSummaryDto {
   kind: BacktestRunKind;
   tradeCount: number;
   createdAt: string;
+  sourcePlatform: PlatformType | null;
 }
 
 export interface WalkForwardExportSummaryDto {
@@ -90,6 +92,7 @@ export interface BacktestRunDto {
   kind: BacktestRunKind;
   tradeCount: number;
   createdAt: string;
+  sourcePlatform: PlatformType | null;
 }
 
 export interface BacktestTradeDto {
@@ -296,6 +299,11 @@ export const BACKTEST_KIND_LABELS: Record<BacktestRunKind, string> = {
   [BacktestRunKind.Evaluation]: 'SQX.BACKTESTS.KIND_EVALUATION',
 };
 
+export const PLATFORM_LABELS: Record<PlatformType, string> = {
+  [PlatformType.MT4]: 'SQX.BACKTESTS.SOURCE_PLATFORM_MT4',
+  [PlatformType.MT5]: 'SQX.BACKTESTS.SOURCE_PLATFORM_MT5',
+};
+
 export const BACKTEST_SEGMENT_LABELS: Record<BacktestSegment, string> = {
   [BacktestSegment.Unknown]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_UNKNOWN',
   [BacktestSegment.InSample]: 'SQX.BACKTESTS.GROUP_RISK.SEGMENT_IN_SAMPLE',
@@ -364,13 +372,25 @@ export class BacktestService {
    * running. One file, one slot, one request — the strategy is in the URL, so nothing about the
    * file's name or contents decides where it lands.
    */
-  importDeploy(strategyId: string, file: File): Observable<BacktestImportResultDto> {
-    return this.postFile(`${this.strategyBase(strategyId)}/backtests/deploy`, file);
+  importDeploy(
+    strategyId: string,
+    file: File,
+    sourcePlatform?: PlatformType,
+  ): Observable<BacktestImportResultDto> {
+    return this.postFile(`${this.strategyBase(strategyId)}/backtests/deploy`, file, sourcePlatform);
   }
 
   /** Imports the strategy's Evaluation run: the trade list produced from the PREVIOUS walk-forward window's parameters. */
-  importEvaluation(strategyId: string, file: File): Observable<BacktestImportResultDto> {
-    return this.postFile(`${this.strategyBase(strategyId)}/backtests/evaluation`, file);
+  importEvaluation(
+    strategyId: string,
+    file: File,
+    sourcePlatform?: PlatformType,
+  ): Observable<BacktestImportResultDto> {
+    return this.postFile(
+      `${this.strategyBase(strategyId)}/backtests/evaluation`,
+      file,
+      sourcePlatform,
+    );
   }
 
   /** Imports the strategy's walk-forward export, which owns the out-of-sample boundary date. */
@@ -396,12 +416,24 @@ export class BacktestService {
    * a genuine transport or server fault becomes an error, and it is re-thrown as a stable i18n key
    * so the caller can render it through the `translate` pipe without further mapping.
    */
-  private postFile<T = BacktestImportResultDto>(url: string, file: File): Observable<T> {
+  private postFile<T = BacktestImportResultDto>(
+    url: string,
+    file: File,
+    sourcePlatform?: PlatformType,
+  ): Observable<T> {
     const formData = new FormData();
     formData.append('file', file, file.name);
 
+    // Appended ONLY when `!== undefined` — never `if (sourcePlatform)`, because
+    // `PlatformType.MT4 === 0` is falsy and would silently drop an explicit MT4 declaration.
+    // Same rule as `getGroupRisk`'s `segment=0` handling below.
+    let params: HttpParams | undefined;
+    if (sourcePlatform !== undefined) {
+      params = new HttpParams().set('sourcePlatform', sourcePlatform);
+    }
+
     return this.http
-      .post<T>(url, formData)
+      .post<T>(url, formData, { params })
       .pipe(
         catchError((err: HttpErrorResponse) =>
           throwError(() => new Error('SQX.BACKTESTS.IMPORT_ERROR', { cause: err })),

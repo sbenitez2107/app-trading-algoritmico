@@ -9,6 +9,7 @@ import {
   BacktestImportResultDto,
   WalkForwardImportResultDto,
 } from '../../../../core/services/backtest.service';
+import { PlatformType } from '../../../../core/models/platform-type.model';
 
 const STRATEGY_ID = 'strategy-1';
 
@@ -123,7 +124,13 @@ describe('ImportStrategyBacktestsModalComponent', () => {
     comp.submit();
 
     expect(backtestServiceMock.importDeploy).toHaveBeenCalledTimes(1);
-    expect(backtestServiceMock.importDeploy).toHaveBeenCalledWith(STRATEGY_ID, expect.any(File));
+    // Third argument is explicit `undefined`, not omitted — this is the proof that the
+    // undeclared path sends nothing over the wire (design D6/D7 arity change, task 10.6/10.4).
+    expect(backtestServiceMock.importDeploy).toHaveBeenCalledWith(
+      STRATEGY_ID,
+      expect.any(File),
+      undefined,
+    );
     expect(backtestServiceMock.importEvaluation).not.toHaveBeenCalled();
     expect(backtestServiceMock.importWalkForward).not.toHaveBeenCalled();
   });
@@ -222,6 +229,98 @@ describe('ImportStrategyBacktestsModalComponent', () => {
     expect(comp.selectedFile('deploy')?.name).toBe('second.csv');
     expect(comp.selectedFile('evaluation')?.name).toBe('eval.csv');
     expect(comp.selectedFile('walkForward')).toBeNull();
+  });
+
+  it('sourcePlatformSelect_RendersExactlyOneOptionalSelectDefaultedToNotDeclared', () => {
+    const fixture = create();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const body = host.querySelector('.import-backtests-modal__body') as HTMLElement;
+    const selects = body.querySelectorAll('select');
+    expect(selects).toHaveLength(1);
+
+    const select = selects[0];
+    const intro = body.querySelector('.import-backtests-modal__intro') as HTMLElement;
+    const firstSlot = body.querySelector('.import-backtests-modal__slot') as HTMLElement;
+    // Placed after the intro, before the first slot section (design D6 "Where" row).
+    expect(intro.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      select.compareDocumentPosition(firstSlot) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const firstOption = select.querySelector('option') as HTMLOptionElement;
+    expect(firstOption.value).toBe('');
+    expect(firstOption.selected).toBe(true);
+  });
+
+  it('sourcePlatformSelect_SelectingMT4_UpdatesTheSignalToPlatformTypeMT4AndStartsAtNull', () => {
+    const fixture = create();
+    const comp = fixture.componentInstance;
+
+    expect(comp.sourcePlatform()).toBeNull();
+
+    const select = (fixture.nativeElement as HTMLElement).querySelector(
+      '.import-backtests-modal__body select',
+    ) as HTMLSelectElement;
+    select.value = String(PlatformType.MT4);
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(comp.sourcePlatform()).toBe(PlatformType.MT4);
+  });
+
+  it('submit_WithDeployAndEvaluationFilledAndMT4Selected_ForwardsMT4ToDeployAndEvaluationOnlyNeverToWalkForward', () => {
+    const fixture = create();
+    const comp = fixture.componentInstance;
+
+    comp.onFileSelected('deploy', makeFile('d.csv'));
+    comp.onFileSelected('evaluation', makeFile('e.csv'));
+    comp.onFileSelected('walkForward', makeFile('wf.csv'));
+    comp.onSourcePlatformChange(String(PlatformType.MT4));
+    comp.submit();
+
+    expect(backtestServiceMock.importDeploy).toHaveBeenCalledWith(
+      STRATEGY_ID,
+      expect.any(File),
+      PlatformType.MT4,
+    );
+    expect(backtestServiceMock.importEvaluation).toHaveBeenCalledWith(
+      STRATEGY_ID,
+      expect.any(File),
+      PlatformType.MT4,
+    );
+    // walkForward's signature is untouched — no third argument at all.
+    expect(backtestServiceMock.importWalkForward).toHaveBeenCalledWith(
+      STRATEGY_ID,
+      expect.any(File),
+    );
+  });
+
+  it('submit_WithNoPlatformChosen_ForwardsUndefinedNotNullNotZero', () => {
+    const fixture = create();
+    const comp = fixture.componentInstance;
+
+    comp.onFileSelected('deploy', makeFile('d.csv'));
+    comp.submit();
+
+    const call = (backtestServiceMock.importDeploy as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(call[2]).toBeUndefined();
+  });
+
+  it('undeclaredNote_WhenATradeListFileIsQueuedAndPlatformIsNull_RendersAndSubmitStaysEnabled', () => {
+    const fixture = create();
+    const comp = fixture.componentInstance;
+
+    comp.onFileSelected('deploy', makeFile('d.csv'));
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const note = host.querySelector('[role="status"].import-backtests-modal__undeclared-note');
+    expect(note).not.toBeNull();
+    expect(note!.textContent).toContain('SQX.BACKTESTS.SOURCE_PLATFORM_UNDECLARED_NOTE');
+
+    const submitBtn = host.querySelector('.btn--primary') as HTMLButtonElement;
+    expect(submitBtn.disabled).toBe(false);
   });
 
   it('cancel_EmitsClosedWithoutImportingAnything', () => {

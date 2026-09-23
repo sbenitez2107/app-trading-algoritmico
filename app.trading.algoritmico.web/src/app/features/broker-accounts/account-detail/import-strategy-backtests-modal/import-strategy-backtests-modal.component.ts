@@ -16,6 +16,7 @@ import {
   BACKTEST_OUTCOME_LABELS,
   WalkForwardImportResultDto,
 } from '../../../../core/services/backtest.service';
+import { PlatformType } from '../../../../core/models/platform-type.model';
 
 /** The three artifacts a strategy can own. The slot the user picks IS the declaration. */
 export type BacktestSlot = 'deploy' | 'evaluation' | 'walkForward';
@@ -67,6 +68,15 @@ export class ImportStrategyBacktestsModalComponent {
 
   readonly walkForwardResult = signal<WalkForwardImportResultDto | null>(null);
 
+  /**
+   * One selector for the whole submission, not one per slot (design D6 "Where"): both trade
+   * lists come from one SQX build. `null` by default and rendered as a visible "Not declared"
+   * option — never `0 as PlatformType`, the exact hazard at `account-form.component.ts:58` this
+   * field must not repeat.
+   */
+  readonly sourcePlatform = signal<PlatformType | null>(null);
+  readonly PlatformType = PlatformType;
+
   readonly slots: readonly {
     key: BacktestSlot;
     inputId: string;
@@ -113,6 +123,17 @@ export class ImportStrategyBacktestsModalComponent {
     return Object.values(this.files()).some((f) => f !== null);
   }
 
+  /** Applies to `deploy`/`evaluation` only (design D6 "Scope") — a walk-forward export has no such column. */
+  hasQueuedTradeListFile(): boolean {
+    const { deploy, evaluation } = this.files();
+    return deploy !== null || evaluation !== null;
+  }
+
+  /** `''` (the "Not declared" option's value) maps back to `null`, never to `PlatformType.MT4`. */
+  onSourcePlatformChange(rawValue: string): void {
+    this.sourcePlatform.set(rawValue === '' ? null : (Number(rawValue) as PlatformType));
+  }
+
   onFileSelected(slot: BacktestSlot, file: File | null): void {
     this.files.update((current) => ({ ...current, [slot]: file }));
     // A new choice invalidates whatever the previous one reported for THIS slot only.
@@ -133,10 +154,13 @@ export class ImportStrategyBacktestsModalComponent {
   submit(): void {
     const { deploy, evaluation, walkForward } = this.files();
     const strategyId = this.strategyId();
+    // `?? undefined`, never `?? null`: an omitted platform must send NOTHING over the wire
+    // (design D6/D7), which `BacktestService.postFile` only does for `undefined`.
+    const sourcePlatform = this.sourcePlatform() ?? undefined;
 
     if (deploy) {
       this.track('deploy');
-      this.backtestService.importDeploy(strategyId, deploy).subscribe({
+      this.backtestService.importDeploy(strategyId, deploy, sourcePlatform).subscribe({
         next: (result) => this.settle('deploy', result),
         error: (err: Error) => this.fail('deploy', err),
       });
@@ -144,7 +168,7 @@ export class ImportStrategyBacktestsModalComponent {
 
     if (evaluation) {
       this.track('evaluation');
-      this.backtestService.importEvaluation(strategyId, evaluation).subscribe({
+      this.backtestService.importEvaluation(strategyId, evaluation, sourcePlatform).subscribe({
         next: (result) => this.settle('evaluation', result),
         error: (err: Error) => this.fail('evaluation', err),
       });

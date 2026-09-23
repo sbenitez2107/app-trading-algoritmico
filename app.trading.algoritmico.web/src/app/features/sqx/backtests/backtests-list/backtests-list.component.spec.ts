@@ -10,6 +10,7 @@ import {
   CalibrationStatus,
   PagedResult,
 } from '../../../../core/services/backtest.service';
+import { PlatformType } from '../../../../core/models/platform-type.model';
 
 function makeRun(overrides: Partial<BacktestRunDto> = {}): BacktestRunDto {
   return {
@@ -21,6 +22,7 @@ function makeRun(overrides: Partial<BacktestRunDto> = {}): BacktestRunDto {
     kind: BacktestRunKind.Deploy,
     tradeCount: 329,
     createdAt: new Date().toISOString(),
+    sourcePlatform: null,
     ...overrides,
   };
 }
@@ -95,6 +97,57 @@ describe('BacktestsListComponent', () => {
     expect(text).toContain('BTC_H1_Fractal_MACD');
     expect(text).toContain('Other Strategy');
     expect(text).toContain('329');
+  });
+
+  it('runs_MT4RecordedRun_RendersTheMT4Label', () => {
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      of({
+        items: [makeRun({ sourcePlatform: PlatformType.MT4 })],
+        totalCount: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+
+    const fixture = create();
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr') as HTMLElement;
+    expect(row.textContent).toContain('SQX.BACKTESTS.SOURCE_PLATFORM_MT4');
+  });
+
+  it('runs_MT5RecordedRun_RendersTheMT5Label', () => {
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      of({
+        items: [makeRun({ sourcePlatform: PlatformType.MT5 })],
+        totalCount: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+
+    const fixture = create();
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr') as HTMLElement;
+    expect(row.textContent).toContain('SQX.BACKTESTS.SOURCE_PLATFORM_MT5');
+  });
+
+  it('runs_NullSourcePlatform_RendersTheNotDeclaredLabelNeverBlankNeverDashNeverMT4', () => {
+    (backtestServiceMock.getRuns as ReturnType<typeof vi.fn>).mockReturnValue(
+      of({
+        items: [makeRun({ sourcePlatform: null })],
+        totalCount: 1,
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+
+    const fixture = create();
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr') as HTMLElement;
+    const cells = Array.from(row.querySelectorAll('td'));
+    const platformCell = cells[cells.length - 1];
+
+    expect(platformCell.textContent).toContain('SQX.BACKTESTS.SOURCE_PLATFORM_NOT_DECLARED');
+    expect(platformCell.textContent!.trim()).not.toBe('');
+    expect(platformCell.textContent!.trim()).not.toBe('—');
+    expect(platformCell.textContent).not.toContain('SQX.BACKTESTS.SOURCE_PLATFORM_MT4');
   });
 
   it('page_HasNoImportControl_ImportBelongsToTheStrategyRow', () => {

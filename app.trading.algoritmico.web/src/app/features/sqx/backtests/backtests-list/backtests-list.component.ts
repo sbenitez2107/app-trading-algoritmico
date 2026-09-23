@@ -14,6 +14,7 @@ import {
   SymbolCalibrationDto,
   BACKTEST_KIND_LABELS,
   CALIBRATION_STATUS_LABELS,
+  PLATFORM_LABELS,
 } from '../../../../core/services/backtest.service';
 import { GroupRiskPanelComponent } from '../group-risk-panel/group-risk-panel.component';
 
@@ -71,6 +72,9 @@ export class BacktestsListComponent implements OnInit {
 
   readonly kindLabels = BACKTEST_KIND_LABELS;
   readonly calibrationLabels = CALIBRATION_STATUS_LABELS;
+  /** Verbatim only — no fallback, no derivation from any other field (design D6 "List rendering rule"). */
+  readonly platformLabels = PLATFORM_LABELS;
+  readonly notDeclaredKey = 'SQX.BACKTESTS.SOURCE_PLATFORM_NOT_DECLARED';
 
   ngOnInit(): void {
     this.loadRuns();

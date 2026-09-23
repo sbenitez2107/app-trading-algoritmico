@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { API_BASE_URL } from '../../app.config';
+import { PlatformType } from '../models/platform-type.model';
 import {
   BacktestService,
   BacktestImportOutcome,
@@ -57,6 +58,104 @@ describe('BacktestService', () => {
 
     req.flush({
       fileName: 'deploy.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importDeploy_MT4_AppendsSourcePlatformEquals0', () => {
+    // The falsy-zero trap: PlatformType.MT4 === 0, so an `if (sourcePlatform)` check would
+    // silently drop an explicit MT4 declaration. This must go through as `sourcePlatform=0`.
+    service.importDeploy(STRATEGY_ID, makeFile('deploy.csv'), PlatformType.MT4).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/deploy?sourcePlatform=0`,
+    );
+    expect(req.request.params.get('sourcePlatform')).toBe('0');
+    req.flush({
+      fileName: 'deploy.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importDeploy_MT5_AppendsSourcePlatformEquals1', () => {
+    service.importDeploy(STRATEGY_ID, makeFile('deploy.csv'), PlatformType.MT5).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/deploy?sourcePlatform=1`,
+    );
+    expect(req.request.params.get('sourcePlatform')).toBe('1');
+    req.flush({
+      fileName: 'deploy.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importDeploy_SourcePlatformUndefined_AppendsNoSourcePlatformParamAtAll', () => {
+    service.importDeploy(STRATEGY_ID, makeFile('deploy.csv')).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/deploy`,
+    );
+    expect(req.request.params.has('sourcePlatform')).toBe(false);
+    req.flush({
+      fileName: 'deploy.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importEvaluation_MT4_AppendsSourcePlatformEquals0', () => {
+    service.importEvaluation(STRATEGY_ID, makeFile('e.csv'), PlatformType.MT4).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/evaluation?sourcePlatform=0`,
+    );
+    expect(req.request.params.get('sourcePlatform')).toBe('0');
+    req.flush({
+      fileName: 'e.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importEvaluation_MT5_AppendsSourcePlatformEquals1', () => {
+    service.importEvaluation(STRATEGY_ID, makeFile('e.csv'), PlatformType.MT5).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/evaluation?sourcePlatform=1`,
+    );
+    expect(req.request.params.get('sourcePlatform')).toBe('1');
+    req.flush({
+      fileName: 'e.csv',
+      outcome: BacktestImportOutcome.Imported,
+      tradeCount: 329,
+      rejectedRowCount: 0,
+      reason: null,
+    } as BacktestImportResultDto);
+  });
+
+  it('importEvaluation_SourcePlatformUndefined_AppendsNoSourcePlatformParamAtAll', () => {
+    service.importEvaluation(STRATEGY_ID, makeFile('e.csv')).subscribe();
+
+    const req = httpTesting.expectOne(
+      `http://localhost:5001/api/strategies/${STRATEGY_ID}/backtests/evaluation`,
+    );
+    expect(req.request.params.has('sourcePlatform')).toBe(false);
+    req.flush({
+      fileName: 'e.csv',
       outcome: BacktestImportOutcome.Imported,
       tradeCount: 329,
       rejectedRowCount: 0,
@@ -230,28 +329,25 @@ describe('BacktestService', () => {
     ['a 400 request refusal', 400, GroupRiskAnalysisStatus.InvalidInitialCapital],
     ['a 404 missing strategy', 404, GroupRiskAnalysisStatus.StrategyNotFound],
     ['a 422 data refusal', 422, GroupRiskAnalysisStatus.NonUnitWeight],
-  ])(
-    'getGroupRisk_%s_EmitsTheEvidenceBodyInsteadOfAGenericError',
-    (_name, httpStatus, status) => {
-      let received: GroupRiskAnalysisDto | undefined;
-      let erroredWith: unknown;
-      service
-        .getGroupRisk(query)
-        .subscribe({ next: (r) => (received = r), error: (e: unknown) => (erroredWith = e) });
+  ])('getGroupRisk_%s_EmitsTheEvidenceBodyInsteadOfAGenericError', (_name, httpStatus, status) => {
+    let received: GroupRiskAnalysisDto | undefined;
+    let erroredWith: unknown;
+    service
+      .getGroupRisk(query)
+      .subscribe({ next: (r) => (received = r), error: (e: unknown) => (erroredWith = e) });
 
-      httpTesting
-        .expectOne((r) => r.url === GROUP_RISK_URL)
-        .flush(refusal(status, 'Alpha carries weight 1.5'), {
-          status: httpStatus,
-          statusText: 'Refused',
-        });
+    httpTesting
+      .expectOne((r) => r.url === GROUP_RISK_URL)
+      .flush(refusal(status, 'Alpha carries weight 1.5'), {
+        status: httpStatus,
+        statusText: 'Refused',
+      });
 
-      expect(erroredWith).toBeUndefined();
-      expect(received?.status).toBe(status);
-      expect(received?.members[0].label).toBe('Alpha');
-      expect(received?.refusal).toContain('1.5');
-    },
-  );
+    expect(erroredWith).toBeUndefined();
+    expect(received?.status).toBe(status);
+    expect(received?.members[0].label).toBe('Alpha');
+    expect(received?.refusal).toContain('1.5');
+  });
 
   it('getGroupRisk_TransportFailureWithNoAnalysisBody_IsAStableI18nError', () => {
     let nextCalled = false;
