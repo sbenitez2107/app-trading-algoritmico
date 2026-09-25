@@ -41,7 +41,7 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 1 — Characterization pins (Windows-measured, Linux unverified)
 
-- [ ] 1.1 RED: `FtmoTimeZoneCharacterizationTests.cs` — pin, per design.md Decision 1 and Engram
+- [x] 1.1 RED: `FtmoTimeZoneCharacterizationTests.cs` — pin, per design.md Decision 1 and Engram
   #2769: (a) `TimeZoneInfo.FindSystemTimeZoneById("Asia/Jerusalem")` and `("Europe/Berlin")`
   resolve; (b) 2026-01-15 00:30 and 2026-07-15 00:30 Jerusalem both convert to 23:30 of the
   PREVIOUS Berlin day; (c) 2013-10-27 01:30 Jerusalem has `IsAmbiguousTime == true` and
@@ -50,59 +50,59 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
   ambiguous under the pre-2013 Israeli rule. Will fail today because no test file exists — that
   is the RED (nothing to implement; this suite only observes the BCL).
   _Satisfies: design.md Decision 1 verification status; spec.md Day-Boundary requirement pins._
-- [ ] 1.2 Run 1.1 on the target CI/container image (Linux, per `mcr.microsoft.com/dotnet/aspnet:10.0`).
+- [x] 1.2 Run 1.1 on the target CI/container image (Linux, per `mcr.microsoft.com/dotnet/aspnet:10.0`).
   If any assertion fails, STOP and record the failure — this is the NodaTime decision point
   (design.md Decision 1), not a reason to weaken the pin. Do not proceed to 1.3+ silently on a
   Linux mismatch; escalate to the user/orchestrator.
-- [ ] 1.3 GREEN (confirmatory, no production code): 1.1 passes on the verified platform. Commit the
+- [x] 1.3 GREEN (confirmatory, no production code): 1.1 passes on the verified platform. Commit the
   pin as a permanent regression guard.
 
 ### Phase 2 — `FtmoDayClock.Attribute` (candidate-set conversion)
 
-- [ ] 2.1 RED: `FtmoDayClockTests.Attribute_00_30JerusalemOutsideDstWindow_MapsToPreviousBerlinDay` —
+- [x] 2.1 RED: `FtmoDayClockTests.Attribute_00_30JerusalemOutsideDstWindow_MapsToPreviousBerlinDay` —
   a non-mismatch-window close at 00:30 Jerusalem attributes to the previous Berlin-day date, one
   candidate day, no flags.
   _Satisfies: spec.md "A close near FTMO midnight is bucketed by the converted day" scenario._
-- [ ] 2.2 GREEN: create `Infrastructure/Services/FtmoDayClock.cs` (`internal static`) implementing
+- [x] 2.2 GREEN: create `Infrastructure/Services/FtmoDayClock.cs` (`internal static`) implementing
   `Attribute(DateTime sourceLocal, TimeZoneInfo sourceZone, TimeZoneInfo berlin) ->
   DayAttribution(IReadOnlySet<DateOnly> CandidateDays, DateTime FtmoLocal, AttributionFlags
   Flags)` per design.md Decision 1: ambiguous → two candidates via
   `GetAmbiguousTimeOffsets`; invalid → two candidates (`local - BaseUtcOffset`, `local -
   (BaseUtcOffset + 1h)`); otherwise one candidate via `GetUtcOffset`. Confirm 2.1 passes.
-- [ ] 2.3 RED: `..._2013_10_27_01_30Jerusalem_FlagsAmbiguousSourceTime`.
+- [x] 2.3 RED: `..._2013_10_27_01_30Jerusalem_FlagsAmbiguousSourceTime`.
   _Satisfies: spec.md "An ambiguous or invalid source timestamp is contingent" scenario (ambiguous half)._
-- [ ] 2.4 RED: `..._2013_03_29_02_30Jerusalem_FlagsInvalidSourceTime`.
+- [x] 2.4 RED: `..._2013_03_29_02_30Jerusalem_FlagsInvalidSourceTime`.
   _Satisfies: same scenario, invalid half._
-- [ ] 2.5 GREEN: wire ambiguous/invalid detection into `AttributionFlags` (`AmbiguousSourceTime`,
+- [x] 2.5 GREEN: wire ambiguous/invalid detection into `AttributionFlags` (`AmbiguousSourceTime`,
   `InvalidSourceTime`). Confirm 2.3–2.4 pass.
-- [ ] 2.6 RED: `..._MismatchWindowExactDayDiffersFromNaive_FlagsDstMismatchWindow` — a close where
+- [x] 2.6 RED: `..._MismatchWindowExactDayDiffersFromNaive_FlagsDstMismatchWindow` — a close where
   `jerusalem.GetUtcOffset(utc) - berlin.GetUtcOffset(utc) != 1h` AND the exact day differs from
   `(sourceLocal - 1h).Date`.
   _Satisfies: spec.md "A close whose exact day differs from the naive day is contingent" scenario._
-- [ ] 2.7 RED: `..._MismatchWindowExactDayMatchesNaive_NoFlagFromMismatchAlone` — same window, exact
+- [x] 2.7 RED: `..._MismatchWindowExactDayMatchesNaive_NoFlagFromMismatchAlone` — same window, exact
   day equals the naive day, source time neither ambiguous nor invalid → no `DstMismatchWindow` flag.
   _Satisfies: spec.md "A close inside the mismatch window whose exact day matches the naive day is
   not downgraded" scenario._
-- [ ] 2.8 GREEN: implement the mismatch-window naive-day comparison. Confirm 2.6–2.7 pass.
-- [ ] 2.9 Falsification (mandatory, load-bearing unit): temporarily replace the offset comparison in
+- [x] 2.8 GREEN: implement the mismatch-window naive-day comparison. Confirm 2.6–2.7 pass.
+- [x] 2.9 Falsification (mandatory, load-bearing unit): temporarily replace the offset comparison in
   2.8 with an always-true check (flag every mismatch-window close regardless of naive-day match) —
   confirm 2.7 goes RED. Restore the exact comparison and confirm 2.7 is green again.
-- [ ] 2.10 RED: `..._UnresolvableZoneId_ReturnsTimeZoneDataUnavailable` — `FindSystemTimeZoneById`
+- [x] 2.10 RED: `..._UnresolvableZoneId_ReturnsTimeZoneDataUnavailable` — `FindSystemTimeZoneById`
   throws `TimeZoneNotFoundException` and `TryConvertIanaIdToWindowsId` also fails → clock signals
   refusal, never a fallback offset.
   _Satisfies: design.md Decision 1 resolution; spec.md refusal reasons table (`TimeZoneDataUnavailable`)._
-- [ ] 2.11 GREEN: implement the `FindSystemTimeZoneById` → `TryConvertIanaIdToWindowsId` fallback
+- [x] 2.11 GREEN: implement the `FindSystemTimeZoneById` → `TryConvertIanaIdToWindowsId` fallback
   chain, returning a refusal signal (not throwing, not defaulting) on double failure. Confirm 2.10.
-- [ ] 2.12 RED: `..._FixedPlus02Offset_WouldDisagreeWithExactConversionAtLeastPartOfTheYear` —
+- [x] 2.12 RED: `..._FixedPlus02Offset_WouldDisagreeWithExactConversionAtLeastPartOfTheYear` —
   construct a hypothetical fixed-`+02:00` day assignment alongside `FtmoDayClock`'s exact result
   for both a winter and a summer date; assert they differ for at least one.
   _Satisfies: spec.md "A fixed +02:00 offset would fail this requirement" scenario._
 
 ### Phase 3 — Static gates (P1)
 
-- [ ] 3.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
-- [ ] 3.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
-- [ ] 3.3 `dotnet test` full suite — confirm the **723 pre-existing tests** still pass plus every
+- [x] 3.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
+- [x] 3.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
+- [x] 3.3 `dotnet test` full suite — confirm the **723 pre-existing tests** still pass plus every
   new P1 test.
 
 ---
