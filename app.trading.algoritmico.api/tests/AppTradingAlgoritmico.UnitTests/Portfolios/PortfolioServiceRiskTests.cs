@@ -118,7 +118,60 @@ public class PortfolioServiceRiskTests
         guard.DailyHeadroomPct.Should().Be(expectedHeadroom, "unchanged formula: dailyLimit - Var95Percent");
         guard.DailyBreached.Should().Be(guard.ServiceVar95Percent > 0.05m);
         guard.VarTarget.Should().BeNull("VarTarget block is null for a LossLimits guardrail");
-        guard.BreachBasis.Should().Be(BreachBasis.ClosedTradeLowerBound);
+        guard.BreachBasis.Should().Be(
+            BreachBasis.VarQuantileComparison,
+            "PR P4 (design.md Decision 7): LossLimits discloses the VaR95-vs-limit comparison it has "
+            + "always performed, never a closed-trade replay — DailyBreached/DailyHeadroomPct VALUES "
+            + "above are unchanged, only this label changed");
+    }
+
+    /// <summary>
+    /// PR P4, Phase 15 (design.md Decision 7 / Testing Strategy pin): an 8%-of-initial intraday drop
+    /// with VaR95 at 2% still drives <c>DailyBreached</c> exactly as before (VaR95 &gt; limit, here
+    /// FALSE since 2% &lt; 5%) — the VALUE is unchanged. Only <see cref="ServiceGuardrailDto.BreachBasis"/>
+    /// changed, from <see cref="BreachBasis.ClosedTradeLowerBound"/> to
+    /// <see cref="BreachBasis.VarQuantileComparison"/>. This is the regression guard against
+    /// accidentally wiring the new label to a different (correct, closed-trade-replay) VALUE.
+    /// </summary>
+    [Fact]
+    public async Task GetRiskAsync_Minus8PctDayVar95At2Pct_DailyBreachedValueUnchanged_OnlyLabelChanges()
+    {
+        var accountId = Guid.NewGuid();
+        var strategyId = Guid.NewGuid();
+        var portfolioId = Guid.NewGuid();
+        var d = new DateTime(2026, 1, 1);
+
+        await using var db = InMemoryDbContextFactory.Create();
+        db.TradingAccounts.Add(MakeAccount(accountId, "FTMO"));
+        db.Strategies.Add(MakeStrategy(strategyId, "A", accountId));
+        // One 8%-of-capital bad day among otherwise-flat days: pushes the run's own VaR95 toward the
+        // 2% region used by the naming of this pin (the Var95Percent VALUE is whatever the existing,
+        // UNCHANGED calculator computes from these trades — this test pins that BreachBasis alone
+        // moves, not the underlying Var95Percent/DailyBreached computation).
+        db.StrategyTrades.AddRange(DailyTrades(strategyId, d, 10, -1000m));
+        db.Portfolios.Add(MakePortfolio(portfolioId, 100_000m, strategyId));
+        db.BrokerRiskLimits.Add(new BrokerRiskLimits
+        {
+            Broker = "FTMO",
+            FundingService = FundingService.Ftmo,
+            Kind = GuardrailKind.LossLimits,
+            DailyLossLimitPct = 0.05m,
+            MaxLossLimitPct = 0.10m,
+            DrawdownModel = DrawdownModel.Static,
+            Verified = true,
+        });
+        await db.SaveChangesAsync();
+
+        var sut = new PortfolioService(db);
+        var risk = await sut.GetRiskAsync(portfolioId);
+        var guard = risk.Guardrails.Single();
+
+        var expectedDailyBreached = guard.ServiceVar95Percent > 0.05m;
+        var expectedHeadroom = 0.05m - guard.ServiceVar95Percent;
+
+        guard.DailyBreached.Should().Be(expectedDailyBreached, "the VALUE is byte-identical to the pre-existing formula");
+        guard.DailyHeadroomPct.Should().Be(expectedHeadroom, "the VALUE is byte-identical to the pre-existing formula");
+        guard.BreachBasis.Should().Be(BreachBasis.VarQuantileComparison, "only the disclosed LABEL changed");
     }
 
     [Fact]

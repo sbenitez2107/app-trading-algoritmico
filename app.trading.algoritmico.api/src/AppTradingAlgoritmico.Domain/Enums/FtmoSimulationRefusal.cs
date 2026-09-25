@@ -18,7 +18,10 @@ public enum FtmoSimulationRefusal
     /// <summary>The product is null or <c>OneStep</c> on the supplied <c>BrokerRiskLimits</c> row.</summary>
     ProductNotTwoStep,
 
-    /// <summary>No FTMO <c>BrokerRiskLimits</c> row is configured.</summary>
+    /// <summary>
+    /// No FTMO <c>BrokerRiskLimits</c> row is configured, or its daily/max loss percentage is null or
+    /// outside (0, 1]. A null limit is an unconfigured rule, never a 0% rule.
+    /// </summary>
     LimitsNotConfigured,
 
     /// <summary>The row's drawdown model is not Static.</summary>

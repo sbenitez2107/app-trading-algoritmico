@@ -48,6 +48,7 @@ import {
   ContributionLegendRow,
 } from '../contribution-legend/contribution-legend.component';
 import { MonthlyHeatmapComponent } from '../monthly-heatmap/monthly-heatmap.component';
+import { TranslateService } from '@ngx-translate/core';
 import { SymbolDonutComponent } from '../symbol-donut/symbol-donut.component';
 import { CorrelationMatrixComponent } from '../correlation-matrix/correlation-matrix.component';
 import { PortfolioTradesGridComponent } from '../portfolio-trades-grid/portfolio-trades-grid.component';
@@ -126,6 +127,7 @@ export class PortfolioDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly service = inject(PortfolioService);
+  private readonly translate = inject(TranslateService);
 
   private portfolioId = '';
   private portfoliosBase = '/portfolios';
@@ -689,11 +691,22 @@ export class PortfolioDetailComponent implements OnInit {
     return 'Dentro de la banda';
   }
 
-  /** Discloses that a breach readout is a LOWER BOUND (closed trades only), never the vendor's verdict. */
+  /**
+   * Discloses the basis for a breach readout. Switches on the exact enum VALUE (never truthiness —
+   * `ClosedTradeLowerBound` is `0`, which is falsy, so `if (basis)` would silently skip it; see
+   * design.md/Engram #2769's falsy-zero trap). BOTH members are translated via ngx-translate
+   * (Dual-Entry EN/ES), so the label never mixes languages inside one element; a member added
+   * without a case still falls back to the empty string rather than to another member's text.
+   */
   breachBasisLabel(basis: BreachBasis | null | undefined): string {
-    return basis === BreachBasis.ClosedTradeLowerBound
-      ? 'Cota inferior (solo trades cerrados) — no es el veredicto del broker'
-      : '';
+    switch (basis) {
+      case BreachBasis.ClosedTradeLowerBound:
+        return this.translate.instant('PORTFOLIO.RISK.BREACH_BASIS_CLOSED_TRADE_LOWER_BOUND');
+      case BreachBasis.VarQuantileComparison:
+        return this.translate.instant('PORTFOLIO.RISK.BREACH_BASIS_VAR_QUANTILE');
+      default:
+        return '';
+    }
   }
 
   fundingLabel(fs: FundingService): string {

@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import en from '../../../../../public/assets/i18n/en.json';
+import es from '../../../../../public/assets/i18n/es.json';
 import { PortfolioDetailComponent } from './portfolio-detail.component';
 import {
   PortfolioService,
@@ -8,6 +11,7 @@ import {
   PortfolioRiskDto,
   FundingService,
   GuardrailKind,
+  BreachBasis,
   AccountType,
 } from '../../../core/services/portfolio.service';
 
@@ -34,7 +38,7 @@ describe('PortfolioDetailComponent', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      imports: [PortfolioDetailComponent],
+      imports: [PortfolioDetailComponent, TranslateModule.forRoot()],
       providers: [
         { provide: PortfolioService, useValue: serviceMock },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { id: 'pf-1' }, data: {} } } },
@@ -417,13 +421,20 @@ describe('PortfolioDetailComponent — Risk tab by GuardrailKind', () => {
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      imports: [PortfolioDetailComponent],
+      imports: [PortfolioDetailComponent, TranslateModule.forRoot()],
       providers: [
         { provide: PortfolioService, useValue: serviceMock },
         { provide: ActivatedRoute, useValue: { snapshot: { params: { id: 'pf-1' }, data: {} } } },
         { provide: Router, useValue: { navigate: vi.fn() } },
       ],
     });
+
+    // The REAL dictionaries (Dual-Entry), not inline fixtures: a key missing from either file must
+    // fail here. The pre-existing breach-basis assertions below are Spanish, so ES is the default.
+    const translate = TestBed.inject(TranslateService);
+    translate.setTranslation('en', en);
+    translate.setTranslation('es', es);
+    translate.use('es');
   });
 
   function baseRisk(overrides: Partial<PortfolioRiskDto> = {}): PortfolioRiskDto {
@@ -675,5 +686,87 @@ describe('PortfolioDetailComponent — Risk tab by GuardrailKind', () => {
 
     const text = fixture.nativeElement.textContent as string;
     expect(text.toLowerCase()).toContain('cota inferior');
+  });
+
+  // --- PR P4 (design.md Decision 7): the VarQuantileComparison label -----------
+
+  it('breachBasisLabel_VarQuantileComparison_RendersNonEmptyLabel_NotEmptyString', () => {
+    const fixture = renderWithRisk(
+      baseRisk({
+        guardrails: [
+          {
+            service: 'FTMO',
+            fundingService: FundingService.Ftmo,
+            kind: GuardrailKind.LossLimits,
+            configured: true,
+            verified: true,
+            dailyLossLimitPct: 0.05,
+            maxLossLimitPct: 0.1,
+            profitTargetPct: 0.1,
+            drawdownModel: 0,
+            serviceVar95Percent: 0.02,
+            dailyHeadroomPct: 0.03,
+            dailyBreached: false,
+            varTarget: null,
+            breachBasis: BreachBasis.VarQuantileComparison,
+          },
+        ],
+      }),
+    );
+
+    const label = fixture.componentInstance.breachBasisLabel(BreachBasis.VarQuantileComparison);
+    expect(label).not.toBe('');
+    expect(label.length).toBeGreaterThan(0);
+  });
+
+  it('breachBasisLabel_ClosedTradeLowerBoundStillRendersItsExistingLabel', () => {
+    const cmp = TestBed.createComponent(PortfolioDetailComponent).componentInstance;
+
+    expect(cmp.breachBasisLabel(BreachBasis.ClosedTradeLowerBound).toLowerCase()).toContain(
+      'cota inferior',
+    );
+  });
+
+  /**
+   * `ClosedTradeLowerBound` is enum value `0` — falsy in JS/TS. A check like `if (basis)` would
+   * treat it the same as `null`/`undefined` and silently fall through to the empty-string branch.
+   * The implementation switches on the value with strict equality, never truthiness.
+   */
+  it('breachBasisLabel_ClosedTradeLowerBoundIsEnumValueZero_TruthinessCheckWouldBeBuggy', () => {
+    const cmp = TestBed.createComponent(PortfolioDetailComponent).componentInstance;
+
+    expect(BreachBasis.ClosedTradeLowerBound).toBe(0);
+    const label = cmp.breachBasisLabel(BreachBasis.ClosedTradeLowerBound);
+    expect(label).not.toBe('');
+  });
+
+  /**
+   * RELIABILITY-002: both `BreachBasis` members are translated. Before this, `ClosedTradeLowerBound`
+   * returned a hardcoded Spanish literal, so an English UI rendered Spanish next to English.
+   */
+  it('breachBasisLabel_EnLocale_BothMembersRenderEnglishNonEmptyLabels', () => {
+    TestBed.inject(TranslateService).use('en');
+    const cmp = TestBed.createComponent(PortfolioDetailComponent).componentInstance;
+
+    const lowerBound = cmp.breachBasisLabel(BreachBasis.ClosedTradeLowerBound);
+    const varQuantile = cmp.breachBasisLabel(BreachBasis.VarQuantileComparison);
+
+    for (const label of [lowerBound, varQuantile]) {
+      expect(label).not.toBe('');
+      expect(label).not.toContain('PORTFOLIO.');
+    }
+    expect(lowerBound.toLowerCase()).toContain('lower bound');
+    expect(lowerBound.toLowerCase()).not.toContain('cota inferior');
+    expect(varQuantile).toContain('VaR95');
+    expect(varQuantile.toLowerCase()).not.toContain('comparación');
+  });
+
+  it('breachBasisLabel_EsLocale_ClosedTradeLowerBoundKeepsTheSpanishText', () => {
+    TestBed.inject(TranslateService).use('es');
+    const cmp = TestBed.createComponent(PortfolioDetailComponent).componentInstance;
+
+    expect(cmp.breachBasisLabel(BreachBasis.ClosedTradeLowerBound)).toBe(
+      'Cota inferior (solo trades cerrados) — no es el veredicto del broker',
+    );
   });
 });

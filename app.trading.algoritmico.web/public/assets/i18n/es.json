@@ -328,5 +328,11 @@
       "SLOT_WALK_FORWARD_NAMING": "3-WFEXPORT__<walk-forward>__<estrategia>__<versión>__WF-ParamsExport.csv",
       "SLOT_NAMING_HINT": "Es una convención para vos, no para la aplicación: el nombre del archivo se guarda como auditoría y nunca se lee para decidir nada. El doble guión bajo separa campos y el guión simple une palabras dentro de uno. Las dos listas de operaciones salen de AlgoWizard — la lista walk-forward del propio Optimizer mezcla filas dentro y fuera de muestra, y se rechaza."
     }
+  },
+  "PORTFOLIO": {
+    "RISK": {
+      "BREACH_BASIS_CLOSED_TRADE_LOWER_BOUND": "Cota inferior (solo trades cerrados) — no es el veredicto del broker",
+      "BREACH_BASIS_VAR_QUANTILE": "Comparación VaR95, no una pérdida diaria real"
+    }
   }
 }

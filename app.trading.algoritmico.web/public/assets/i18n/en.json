@@ -328,5 +328,11 @@
       "SLOT_WALK_FORWARD_NAMING": "3-WFEXPORT__<walk-forward>__<strategy>__<version>__WF-ParamsExport.csv",
       "SLOT_NAMING_HINT": "A convention for you, not for the app: the file name is stored for audit and never read to decide anything. Double underscore separates fields, single hyphen joins words inside one. Both trade lists come from AlgoWizard — the Optimizer’s own walk-forward trade list mixes in-sample and out-of-sample rows and is refused."
     }
+  },
+  "PORTFOLIO": {
+    "RISK": {
+      "BREACH_BASIS_CLOSED_TRADE_LOWER_BOUND": "Lower bound (closed trades only) — not the broker's verdict",
+      "BREACH_BASIS_VAR_QUANTILE": "VaR95 comparison, not a real daily loss"
+    }
   }
 }

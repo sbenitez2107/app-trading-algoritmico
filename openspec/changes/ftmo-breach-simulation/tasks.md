@@ -268,27 +268,27 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 11 — Refusal reasons (one test per reason, per design.md Decision 6)
 
-- [ ] 11.1 RED: `FtmoBreachSimulationReadServiceTests.Simulate_NullOrOneStepProduct_RefusesProductNotTwoStep`.
+- [x] 11.1 RED: `FtmoBreachSimulationReadServiceTests.Simulate_NullOrOneStepProduct_RefusesProductNotTwoStep`.
   _Satisfies: spec.md "A non-TwoStep or missing product refuses evaluation" scenario._
-- [ ] 11.2 RED: `..._NoBrokerRiskLimitsRow_RefusesLimitsNotConfigured`.
-- [ ] 11.3 RED: `..._DrawdownModelNotStatic_RefusesDrawdownModelNotStatic`.
-- [ ] 11.4 RED: `..._NoInstrumentSpecForSymbol_RefusesInstrumentSpecMissing`.
-- [ ] 11.5 RED: `..._NqUsatechCalibrationInconsistentNullPointValue_RefusesPointValueNotCalibrated` —
+- [x] 11.2 RED: `..._NoBrokerRiskLimitsRow_RefusesLimitsNotConfigured`.
+- [x] 11.3 RED: `..._DrawdownModelNotStatic_RefusesDrawdownModelNotStatic`.
+- [x] 11.4 RED: `..._NoInstrumentSpecForSymbol_RefusesInstrumentSpecMissing`.
+- [x] 11.5 RED: `..._NqUsatechCalibrationInconsistentNullPointValue_RefusesPointValueNotCalibrated` —
   the live refusal case: `CalibrationStatus.Calibrated == 0` (CLR default), so this test MUST
   assert the null-`PointValue` check fires even when `Status` happens to be `Calibrated`
   (construct that exact combination), not only when `Status != Calibrated`.
   _Satisfies: spec.md "NQ simulation is refused when no FTMO point value is supplied" scenario;
   design.md Decision 6 ("the null check is load-bearing")._
-- [ ] 11.6 RED: `..._NonUsdSymbolNoFxBandSupplied_RefusesFxRateNotDeclared`.
+- [x] 11.6 RED: `..._NonUsdSymbolNoFxBandSupplied_RefusesFxRateNotDeclared`.
   _Satisfies: spec.md "A EUR-settling symbol without a supplied FX band is refused" scenario._
-- [ ] 11.7 RED: `..._DegenerateOrInvertedFxBand_RefusesInvalidFxBand`.
-- [ ] 11.8 RED: `..._NormalizerRefusesRun_RefusesRiskNotEstimable`.
-- [ ] 11.9 RED: `..._RunTradesCarryMultipleSegments_RefusesRunSegmentsDisagree`.
-- [ ] 11.10 RED: `..._UnresolvableTimeZoneId_RefusesTimeZoneDataUnavailable`.
-- [ ] 11.11 RED: `..._InvalidCapitalOrTargetOrSourceGrid_RefusesInvalidRequest`.
-- [ ] 11.12 RED: `..._AnyRefusedRun_CarriesNoFindings` — a refused result's finding collection is empty.
+- [x] 11.7 RED: `..._DegenerateOrInvertedFxBand_RefusesInvalidFxBand`.
+- [x] 11.8 RED: `..._NormalizerRefusesRun_RefusesRiskNotEstimable`.
+- [x] 11.9 RED: `..._RunTradesCarryMultipleSegments_RefusesRunSegmentsDisagree`.
+- [x] 11.10 RED: `..._UnresolvableTimeZoneId_RefusesTimeZoneDataUnavailable`.
+- [x] 11.11 RED: `..._InvalidCapitalOrTargetOrSourceGrid_RefusesInvalidRequest`.
+- [x] 11.12 RED: `..._AnyRefusedRun_CarriesNoFindings` — a refused result's finding collection is empty.
   _Satisfies: design.md Decision 6 ("A refused run carries NO findings")._
-- [ ] 11.13 GREEN: create `Application/DTOs/Backtests/FtmoBreachSimulationDto.cs`,
+- [x] 11.13 GREEN: create `Application/DTOs/Backtests/FtmoBreachSimulationDto.cs`,
   `Application/Interfaces/IFtmoBreachSimulationReadService.cs`, and
   `Infrastructure/Services/FtmoBreachSimulationReadService.cs` implementing the guard chain from
   design.md's Data Flow section in order (product → limits → drawdown model → instrument spec →
@@ -298,59 +298,59 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 12 — FX band evaluation and merge
 
-- [ ] 12.1 RED: `..._SameCurrencySymbol_NoFxBandRequired_Proceeds` — `XAUUSD` needs no band.
+- [x] 12.1 RED: `..._SameCurrencySymbol_NoFxBandRequired_Proceeds` — `XAUUSD` needs no band.
   _Satisfies: spec.md "A same-currency symbol needs no FX band" scenario._
-- [ ] 12.2 RED: `..._AgreeingFxBand_ProducesCleanVerdictWithoutFxRoundingSensitive`.
+- [x] 12.2 RED: `..._AgreeingFxBand_ProducesCleanVerdictWithoutFxRoundingSensitive`.
   _Satisfies: spec.md "A EUR-settling symbol with an agreeing band produces a clean verdict" scenario._
-- [ ] 12.3 RED: `..._DisagreeingFxBand_YieldsBreachContingentFxRoundingSensitive_AndEchoesTheBand`.
+- [x] 12.3 RED: `..._DisagreeingFxBand_YieldsBreachContingentFxRoundingSensitive_AndEchoesTheBand`.
   _Satisfies: spec.md "A EUR-settling symbol with a disagreeing band is FX-contingent" scenario._
-- [ ] 12.4 GREEN: implement the fxLow/fxHigh dual-run and merge per design.md's Data Flow ("merge
+- [x] 12.4 GREEN: implement the fxLow/fxHigh dual-run and merge per design.md's Data Flow ("merge
   the two evaluations -> verdict + causes + resize counts per fx"). Confirm 12.1–12.3.
 
 ### Phase 13 — Resize counts, IS/OOS separation, disclosures, symbol/grid declaration
 
-- [ ] 13.1 RED: `..._TwoRaisedZeroCappedZeroUnscalable_NoBreach_CountsStillReported`.
+- [x] 13.1 RED: `..._TwoRaisedZeroCappedZeroUnscalable_NoBreach_CountsStillReported`.
   _Satisfies: spec.md "Resize counts appear even on a NoBreachObserved result" scenario._
-- [ ] 13.2 RED: `..._IsAndOosRuns_ProduceTwoSeparateResults_NeverMerged`.
+- [x] 13.2 RED: `..._IsAndOosRuns_ProduceTwoSeparateResults_NeverMerged`.
   _Satisfies: spec.md "IS and OOS produce separate results for the same strategy" scenario._
-- [ ] 13.3 RED: `..._EverySwapDisclosureAndEmbeddedCommissionDisclosure_AppearOnEveryResult` —
+- [x] 13.3 RED: `..._EverySwapDisclosureAndEmbeddedCommissionDisclosure_AppearOnEveryResult` —
   regardless of finding state.
   _Satisfies: spec.md swap/commission disclosure scenarios._
-- [ ] 13.4 RED: `..._NoSymbolMappingSupplied_RefusedWithoutStringSimilarityMatch`.
+- [x] 13.4 RED: `..._NoSymbolMappingSupplied_RefusedWithoutStringSimilarityMatch`.
   _Satisfies: spec.md "Simulation without a declared symbol mapping is refused" scenario._
-- [ ] 13.5 RED: `..._NoLotGridSupplied_RefusedWithoutSubstitutingImoxRetester`.
+- [x] 13.5 RED: `..._NoLotGridSupplied_RefusedWithoutSubstitutingImoxRetester`.
   _Satisfies: spec.md "Simulation without a declared lot grid is refused" scenario — never
   `LotGrid.ImoxRetester` as a silent default._
-- [ ] 13.6 RED: `..._TwoStrategiesEachNoBreachObserved_NoCombinedPortfolioFindingProduced`.
+- [x] 13.6 RED: `..._TwoStrategiesEachNoBreachObserved_NoCombinedPortfolioFindingProduced`.
   _Satisfies: spec.md "Multiple strategies are evaluated independently" scenario._
-- [ ] 13.7 GREEN: implement resize-count propagation, per-segment (never merged) result shaping,
+- [x] 13.7 GREEN: implement resize-count propagation, per-segment (never merged) result shaping,
   disclosure fields (`NotModelled = [Swap, FtmoCommission, IntradayEquity]`,
   `EmbeddedSourceCommissionRescaled`), declared-mapping/grid enforcement, and per-strategy-only
   scope. Confirm 13.1–13.6 pass.
 
 ### Phase 14 — Endpoint
 
-- [ ] 14.1 RED: `StrategyBacktestsControllerTests` — a new GET endpoint (mirror the existing
+- [x] 14.1 RED: `StrategyBacktestsControllerTests` — a new GET endpoint (mirror the existing
   direct-instantiation pattern) returns the DTO for a resolved simulation and forwards refusal
   reasons verbatim for a refused one.
-- [ ] 14.2 GREEN: add the query endpoint to `WebAPI/Controllers/StrategyBacktestsController.cs`
+- [x] 14.2 GREEN: add the query endpoint to `WebAPI/Controllers/StrategyBacktestsController.cs`
   per design.md's REST convention (read side). Confirm 14.1 passes.
 
 ### Phase 15 — `DailyBreached`/`BreachBasis` deprecation (design.md Decision 7)
 
-- [ ] 15.1 RED: `PortfolioAnalyticsCalculatorTests` (or nearest existing suite) —
+- [x] 15.1 RED: `PortfolioAnalyticsCalculatorTests` (or nearest existing suite) —
   `..._LossLimits_BreachBasisIsVarQuantileComparison_NotClosedTradeLowerBound`.
   _Satisfies: `funding-guardrails` delta — "Legacy DailyBreached readout is relabeled" scenario._
-- [ ] 15.2 RED: `..._StagedLossLimits_BreachBasisStaysClosedTradeLowerBound` (regression pin —
+- [x] 15.2 RED: `..._StagedLossLimits_BreachBasisStaysClosedTradeLowerBound` (regression pin —
   existing behavior must not change).
   _Satisfies: `funding-guardrails` delta — "StagedLossLimits readout stays labelled a lower
   bound" scenario._
-- [ ] 15.3 RED: `..._Minus8PctDayVar95At2PctScenario_DailyBreachedValueUnchanged_OnlyLabelChanges` —
+- [x] 15.3 RED: `..._Minus8PctDayVar95At2PctScenario_DailyBreachedValueUnchanged_OnlyLabelChanges` —
   the −8% day / VaR 2% pin from design.md Testing Strategy: `DailyBreached` boolean and
   `DailyHeadroomPct` are byte-identical before/after; only `BreachBasis` differs.
   _Satisfies: `funding-guardrails` delta — "Relabeling is disclosed as a changelog-visible label
   change" scenario._
-- [ ] 15.4 GREEN: add `BreachBasis.VarQuantileComparison = 1` to
+- [x] 15.4 GREEN: add `BreachBasis.VarQuantileComparison = 1` to
   `Domain/Enums/BreachBasis.cs`; update the computed switch in
   `Application/DTOs/Portfolios/PortfolioAnalyticsDto.cs:223-228` so `LossLimits` returns
   `VarQuantileComparison`, `StagedLossLimits` keeps `ClosedTradeLowerBound`, `VarTarget` stays
@@ -361,43 +361,43 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 16 — Web label (`portfolio-detail.component.ts:693`, falsy-zero-safe)
 
-- [ ] 16.1 RED: `portfolio-detail.component.spec.ts` —
+- [x] 16.1 RED: `portfolio-detail.component.spec.ts` —
   `breachBasisLabel_VarQuantileComparison_RendersNonEmptyLabel_NotEmptyString` — the current
   `breachBasisLabel` at line 693 returns `''` for any value other than
   `ClosedTradeLowerBound`, so this fails until the new branch exists.
   _Satisfies: `funding-guardrails` delta — "The web Risk-tab card does not silently drop the new
   label" scenario._
-- [ ] 16.2 RED: `..._ClosedTradeLowerBoundStillRendersItsExistingLabel` (regression pin — the
+- [x] 16.2 RED: `..._ClosedTradeLowerBoundStillRendersItsExistingLabel` (regression pin — the
   existing branch must survive the edit).
-- [ ] 16.3 GREEN: add `VarQuantileComparison = 1` to `BreachBasis` enum in
+- [x] 16.3 GREEN: add `VarQuantileComparison = 1` to `BreachBasis` enum in
   `app/core/services/portfolio.service.ts`; update `breachBasisLabel` in
   `portfolio-detail.component.ts:693` to add a branch for `VarQuantileComparison` returning a
   non-empty, translated string via `ngx-translate` (EN: "VaR95 comparison, not a real daily
   loss" / ES: "Comparación VaR95, no una pérdida diaria real" — Engram #2769 exact wording per
   design.md Decision 7). Add both keys to `public/assets/i18n/en.json` and `es.json` in the SAME
   commit (Dual-Entry Protocol, `frontend-data.md`). Confirm 16.1–16.2 pass.
-- [ ] 16.4 RED: `..._breachBasisLabel_ClosedTradeLowerBoundIsEnumValueZero_TruthinessCheckWouldBeBuggy` —
+- [x] 16.4 RED: `..._breachBasisLabel_ClosedTradeLowerBoundIsEnumValueZero_TruthinessCheckWouldBeBuggy` —
   a check like `if (basis)` on `ClosedTradeLowerBound` (value 0) would be falsy; assert the
   implementation switches on the value, not truthiness (regression guard against the falsy-zero
   trap named in design.md/Engram #2769).
-- [ ] 16.5 GREEN: confirm 16.4 passes against 16.3's implementation (switch/strict-equality based,
+- [x] 16.5 GREEN: confirm 16.4 passes against 16.3's implementation (switch/strict-equality based,
   never `if (basis)`).
-- [ ] 16.6 Add a `CHANGELOG.md` entry disclosing the `BreachBasis` relabel as label-only, per
+- [x] 16.6 Add a `CHANGELOG.md` entry disclosing the `BreachBasis` relabel as label-only, per
   design.md Decision 7 and the `funding-guardrails` delta.
 
 ### Phase 17 — Static gates and full suite (P4)
 
-- [ ] 17.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
-- [ ] 17.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
-- [ ] 17.3 `dotnet test` full backend suite — confirm **723 pre-existing tests** pass plus every
+- [x] 17.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
+- [x] 17.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
+- [x] 17.3 `dotnet test` full backend suite — confirm **723 pre-existing tests** pass plus every
   new P1–P4 backend test.
-- [ ] 17.4 `pnpm --dir app.trading.algoritmico.web exec prettier --check .` on touched files — no
+- [x] 17.4 `pnpm --dir app.trading.algoritmico.web exec prettier --check .` on touched files — no
   diffs (or `--write` and re-check).
-- [ ] 17.5 `pnpm --dir app.trading.algoritmico.web exec tsc --build` (not a bare `tsc --noEmit`
+- [x] 17.5 `pnpm --dir app.trading.algoritmico.web exec tsc --build` (not a bare `tsc --noEmit`
   from repo root) — zero type errors.
-- [ ] 17.6 `npx ng test --watch=false` (or `pnpm --dir app.trading.algoritmico.web test`) — confirm
+- [x] 17.6 `npx ng test --watch=false` (or `pnpm --dir app.trading.algoritmico.web test`) — confirm
   **409 pre-existing tests across 33 files** pass plus every new P4 frontend test.
-- [ ] 17.7 If any pre-existing test/spec fails or a warning/type error appears, stop and
+- [x] 17.7 If any pre-existing test/spec fails or a warning/type error appears, stop and
   investigate before patching — every existing call path must be unchanged.
 
 ---

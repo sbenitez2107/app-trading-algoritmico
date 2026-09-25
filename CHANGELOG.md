@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.36.0] - 2026-09-25
+
+### Added
+
+- FTMO 2-Step breach simulation for a single strategy. The strategy's backtest is resized onto a declared FTMO account and instrument, then replayed against FTMO's daily and maximum loss limits. Each limit reports one of three findings: breached, breach contingent on a named cause, or no breach observed.
+- "No breach observed" is not a pass. The replay uses closed trades and a backtest without swap, both of which understate loss, so it can confirm a breach but cannot confirm survival. Every result says so, together with how many trades had to be resized to the minimum lot, capped, or left out.
+- Positions are resized by money per point rather than lot count, because the backtest calibration and FTMO's contract size can differ — tenfold for DAX.
+- A simulation that cannot be run is refused with a stated reason rather than guessed: an uncalibrated point value (currently NQ), missing FTMO instrument specification, missing or invalid loss limits, a non-USD instrument without a declared exchange-rate band, or an undeclared lot grid.
+- FTMO instrument specifications for XAUUSD, GER40.cash, US100.cash and BTCUSD, as supplied from the FTMO platform on 2026-09-24.
+
+### Changed
+
+- The Risk tab's loss-limit disclosure now says what `DailyBreached` actually compares: daily VaR95 against the limit, not a replay of closed trades. Only the label changed; the values are the same as before. Axi's staged limits keep their closed-trade lower-bound label.
+- Both loss-limit disclosure labels are now translated; the closed-trade one was shown in Spanish regardless of language.
+
 ## [0.32.0] - 2026-09-22
 
 ### Added

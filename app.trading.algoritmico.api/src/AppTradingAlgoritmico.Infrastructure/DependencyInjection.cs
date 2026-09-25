@@ -106,6 +106,9 @@ public static class DependencyInjection
         // Slice B (divergence-cost-decomposition), PR B1 — data coverage component.
         services.AddScoped<ICostDecompositionReadService, CostDecompositionReadService>();
 
+        // ftmo-breach-simulation, PR P4 — read service.
+        services.AddScoped<IFtmoBreachSimulationReadService, FtmoBreachSimulationReadService>();
+
         return services;
     }
 }

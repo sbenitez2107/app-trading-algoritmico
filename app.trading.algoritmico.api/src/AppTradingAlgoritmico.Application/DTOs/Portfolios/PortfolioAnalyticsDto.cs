@@ -197,13 +197,24 @@ public sealed record ServiceRiskDto(
 /// (Axi) emits no daily headroom/breach either — the app has no stage-membership tracking yet, so a
 /// single portfolio-level daily figure cannot be attributed to a specific stage's limit.
 /// </summary>
+/// <param name="DailyHeadroomPct">
+/// DEPRECATED — VaR95 comparison. For <see cref="Domain.Enums.GuardrailKind.LossLimits"/> this is
+/// <c>DailyLossLimitPct - ServiceVar95Percent</c>, a quantile comparison against the segment's VaR95
+/// — not a replay of the exact tail where a real breach lives. See <see cref="BreachBasis"/>
+/// (PR P4, design.md Decision 7).
+/// </param>
+/// <param name="DailyBreached">
+/// DEPRECATED — VaR95 comparison. For <see cref="Domain.Enums.GuardrailKind.LossLimits"/> this is
+/// <c>ServiceVar95Percent &gt; DailyLossLimitPct</c> — a VaR95-vs-limit quantile comparison, never a
+/// closed-trade replay of an actual bad day. Value UNCHANGED by PR P4; only <see cref="BreachBasis"/>'s
+/// label changed (design.md Decision 7).
+/// </param>
 /// <param name="BreachBasis">
-/// COMPUTED, a pure function of <see cref="Kind"/> — <see cref="Domain.Enums.BreachBasis.ClosedTradeLowerBound"/>
-/// for <see cref="Domain.Enums.GuardrailKind.LossLimits"/> and
+/// COMPUTED, a pure function of <see cref="Kind"/> — <see cref="Domain.Enums.BreachBasis.VarQuantileComparison"/>
+/// for <see cref="Domain.Enums.GuardrailKind.LossLimits"/> (PR P4, design.md Decision 7),
+/// <see cref="Domain.Enums.BreachBasis.ClosedTradeLowerBound"/> for
 /// <see cref="Domain.Enums.GuardrailKind.StagedLossLimits"/>, <c>null</c> for
-/// <see cref="Domain.Enums.GuardrailKind.VarTarget"/>. Discloses that any breach readout here is a
-/// LOWER BOUND (closed trades only), never the vendor's verdict (`funding-guardrails` spec —
-/// "Closed-Trade Lower-Bound Disclosure").
+/// <see cref="Domain.Enums.GuardrailKind.VarTarget"/>.
 /// </param>
 public sealed record ServiceGuardrailDto(
     string Service,
@@ -220,10 +231,18 @@ public sealed record ServiceGuardrailDto(
     bool DailyBreached,
     VarTargetReadoutDto? VarTarget)
 {
+    /// <summary>
+    /// PR P4 (design.md Decision 7): <see cref="Domain.Enums.GuardrailKind.LossLimits"/> now discloses
+    /// <see cref="Domain.Enums.BreachBasis.VarQuantileComparison"/> — <see cref="DailyBreached"/> there
+    /// is a VaR95-vs-limit quantile comparison, not a closed-trade replay.
+    /// <see cref="Domain.Enums.GuardrailKind.StagedLossLimits"/> (Axi) keeps
+    /// <see cref="Domain.Enums.BreachBasis.ClosedTradeLowerBound"/> unchanged — its per-stage breach
+    /// readout genuinely is a closed-trade lower bound, not a VaR comparison.
+    /// </summary>
     public Domain.Enums.BreachBasis? BreachBasis => Kind switch
     {
-        Domain.Enums.GuardrailKind.LossLimits or Domain.Enums.GuardrailKind.StagedLossLimits
-            => Domain.Enums.BreachBasis.ClosedTradeLowerBound,
+        Domain.Enums.GuardrailKind.LossLimits => Domain.Enums.BreachBasis.VarQuantileComparison,
+        Domain.Enums.GuardrailKind.StagedLossLimits => Domain.Enums.BreachBasis.ClosedTradeLowerBound,
         _ => null,
     };
 }

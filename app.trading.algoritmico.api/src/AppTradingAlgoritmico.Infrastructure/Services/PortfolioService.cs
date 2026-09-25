@@ -442,7 +442,9 @@ public sealed class PortfolioService(AppDbContext db) : IPortfolioService
                     VarTarget: null);
             }
 
-            // LossLimits — byte-identical to the pre-existing behaviour.
+            // LossLimits — VALUES byte-identical to the pre-existing behaviour. Only the disclosed
+            // BreachBasis label changed (PR P4, design.md Decision 7): DailyBreached/DailyHeadroomPct
+            // remain a VaR95-vs-limit quantile comparison, never a closed-trade replay.
             var dailyLimit = lim?.DailyLossLimitPct;
             return new ServiceGuardrailDto(
                 Service: s.Service,

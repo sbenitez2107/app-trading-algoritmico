@@ -27,7 +27,8 @@ public class StrategyBacktestsController(
     IWalkForwardImportService walkForwardImportService,
     IBacktestReadService readService,
     IDemoBacktestComparabilityReadService comparabilityReadService,
-    ICostDecompositionReadService costDecompositionReadService) : ControllerBase
+    ICostDecompositionReadService costDecompositionReadService,
+    IFtmoBreachSimulationReadService ftmoBreachSimulationReadService) : ControllerBase
 {
     private const string AllowedExtension = ".csv";
 
@@ -165,6 +166,78 @@ public class StrategyBacktestsController(
         }
 
         return Ok(await costDecompositionReadService.GetAsync(strategyId, kind.Value, ct));
+    }
+
+    /// <summary>
+    /// The FTMO 2-Step breach simulation for every held run of one strategy
+    /// (`ftmo-breach-simulation` spec, design.md Data Flow — PR P4). GET, following
+    /// <see cref="GetComparability"/>/<see cref="GetCostDecomposition"/>'s read-side convention: this
+    /// endpoint computes and returns a result, it does not persist anything. Nested under the
+    /// existing <c>api/strategies/{strategyId}</c> resource rather than a new top-level route,
+    /// because the simulation is scoped to one strategy's own runs, exactly like the two siblings
+    /// above it.
+    /// <para>
+    /// <c>broker</c>, <c>sqxSymbol</c>, <c>initialCapital</c> and <c>targetRiskPerTrade</c> are
+    /// REQUIRED query parameters with no default — mirroring <see cref="GetComparability"/>'s
+    /// required-<c>kind</c> pattern, for the same reason (no automated integration-test harness to
+    /// exercise ASP.NET's implicit model-state validation). <c>fxLow</c>/<c>fxHigh</c> are optional:
+    /// they are required only when the symbol settles in a non-USD currency, and that is a runtime
+    /// fact the read service — not the controller — decides (design.md Decision 3).
+    /// </para>
+    /// <para>
+    /// The SOURCE lot grid (<c>sizeDecimals</c>, <c>step</c>, <c>minLot</c>, <c>maxLots</c>) is
+    /// equally REQUIRED and is NEVER defaulted or substituted (spec.md "FTMO Lot Grid Is A Required
+    /// Caller Input"; <c>.agents/knowledge/imox/INDEX.md</c> §5). The split is the same as for
+    /// <c>initialCapital</c>: an OMITTED value is a 400 here, while a PRESENT but invalid value
+    /// (e.g. <c>step=0</c>) is passed through untouched so that
+    /// <see cref="FtmoBreachSimulationRequest.TryBuildSourceGrid"/> — the single validation surface —
+    /// refuses it with <c>InvalidRequest</c>. The params are nullable precisely so that omission is
+    /// distinguishable from an explicit <c>0</c> (a whole-lot grid legitimately declares
+    /// <c>sizeDecimals=0</c>).
+    /// </para>
+    /// </summary>
+    [HttpGet("ftmo-breach")]
+    [ProducesResponseType(typeof(FtmoBreachSimulationDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<FtmoBreachSimulationDto>> GetFtmoBreachSimulation(
+        [FromRoute] Guid strategyId,
+        [FromQuery] string? broker,
+        [FromQuery] string? sqxSymbol,
+        [FromQuery] decimal? initialCapital,
+        [FromQuery] decimal? targetRiskPerTrade,
+        [FromQuery] decimal? fxLow,
+        [FromQuery] decimal? fxHigh,
+        [FromQuery] int? sizeDecimals,
+        [FromQuery] decimal? step,
+        [FromQuery] decimal? minLot,
+        [FromQuery] decimal? maxLots,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(broker) || string.IsNullOrWhiteSpace(sqxSymbol)
+            || initialCapital is null || targetRiskPerTrade is null
+            || sizeDecimals is null || step is null || minLot is null || maxLots is null)
+        {
+            return BadRequest(new
+            {
+                message = "The 'broker', 'sqxSymbol', 'initialCapital', 'targetRiskPerTrade', 'sizeDecimals', "
+                    + "'step', 'minLot' and 'maxLots' query parameters are required. There is no default.",
+            });
+        }
+
+        var request = new FtmoBreachSimulationRequest(
+            strategyId,
+            broker,
+            sqxSymbol,
+            initialCapital.Value,
+            targetRiskPerTrade.Value,
+            fxLow,
+            fxHigh,
+            sizeDecimals.Value,
+            step.Value,
+            minLot.Value,
+            maxLots.Value);
+
+        return Ok(await ftmoBreachSimulationReadService.SimulateAsync(request, ct));
     }
 
     /// <summary>

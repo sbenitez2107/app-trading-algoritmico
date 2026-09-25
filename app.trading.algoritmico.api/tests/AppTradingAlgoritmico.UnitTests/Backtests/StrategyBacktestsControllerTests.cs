@@ -27,9 +27,12 @@ public class StrategyBacktestsControllerTests
     private readonly Mock<IBacktestReadService> _readMock = new();
     private readonly Mock<IDemoBacktestComparabilityReadService> _comparabilityMock = new();
     private readonly Mock<ICostDecompositionReadService> _costDecompositionMock = new();
+    private readonly Mock<IFtmoBreachSimulationReadService> _ftmoBreachMock = new();
 
     private StrategyBacktestsController CreateSut()
-        => new(_importMock.Object, _wfMock.Object, _readMock.Object, _comparabilityMock.Object, _costDecompositionMock.Object);
+        => new(
+            _importMock.Object, _wfMock.Object, _readMock.Object, _comparabilityMock.Object,
+            _costDecompositionMock.Object, _ftmoBreachMock.Object);
 
     private static Mock<IFormFile> MockFile(string name, string content = "x")
     {
@@ -350,5 +353,176 @@ public class StrategyBacktestsControllerTests
         body!.Status.Should().Be(CostDecompositionStatus.Decomposed);
         body.Coverage.CoverageBasis.Should().Be(CoverageBasis.PresumedFromBacktestTradeAbsence);
         body.Residual!.Basis.Should().Be(ResidualBasis.PairedSubsetAfterSwapAndEmbeddedCost);
+    }
+
+    // ---- PR P4: GET ftmo-breach ----
+
+    [Fact]
+    public async Task GetFtmoBreachSimulation_MissingRequiredQueryParameters_Returns400WithoutCallingTheService()
+    {
+        var strategyId = Guid.NewGuid();
+
+        var result = await CreateSut().GetFtmoBreachSimulation(
+            strategyId, broker: null, sqxSymbol: null, initialCapital: null, targetRiskPerTrade: null,
+            fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 10m, default);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        _ftmoBreachMock.Verify(
+            s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFtmoBreachSimulation_Valid_ReturnsTheDtoFromTheReadService()
+    {
+        var strategyId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var dto = new FtmoBreachSimulationDto(
+            strategyId,
+            [
+                new FtmoRunSimulationResultDto(
+                    runId, BacktestRunKind.Deploy, BacktestSegment.InSample, FtmoSimulationStatus.Evaluated, null,
+                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach"),
+                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach"),
+                    0, 0, 0, null, null,
+                    FtmoRunSimulationResultDto.DefaultNotModelled,
+                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure),
+            ]);
+        _ftmoBreachMock
+            .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateSut().GetFtmoBreachSimulation(
+            strategyId, broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null,
+            sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 10m, default);
+
+        var body = (result.Result as OkObjectResult)!.Value as FtmoBreachSimulationDto;
+        body!.StrategyId.Should().Be(strategyId);
+        body.Runs.Single().RunId.Should().Be(runId);
+    }
+
+    /// <summary>
+    /// A refused run's reason is forwarded VERBATIM through the controller — no translation, no
+    /// swallowing, no downgrade to a generic error.
+    /// </summary>
+    [Fact]
+    public async Task GetFtmoBreachSimulation_RefusedRun_ForwardsTheRefusalReasonVerbatim()
+    {
+        var strategyId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var dto = new FtmoBreachSimulationDto(
+            strategyId,
+            [
+                new FtmoRunSimulationResultDto(
+                    runId, BacktestRunKind.Deploy, BacktestSegment.Unknown, FtmoSimulationStatus.Refused,
+                    FtmoSimulationRefusal.FxRateNotDeclared,
+                    null, null, 0, 0, 0, null, null,
+                    FtmoRunSimulationResultDto.DefaultNotModelled,
+                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure),
+            ]);
+        _ftmoBreachMock
+            .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateSut().GetFtmoBreachSimulation(
+            strategyId, broker: "FTMO", sqxSymbol: "DEUIDXEUR_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 50m, fxLow: null, fxHigh: null,
+            sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 1000m, default);
+
+        var body = (result.Result as OkObjectResult)!.Value as FtmoBreachSimulationDto;
+        body!.Runs.Single().Refusal.Should().Be(FtmoSimulationRefusal.FxRateNotDeclared);
+    }
+
+    // ---- RELIABILITY-001: the SOURCE lot grid is declared by the caller and never substituted ----
+
+    /// <summary>
+    /// Calls the endpoint with every non-grid parameter valid and the four grid values as given,
+    /// capturing the request the controller hands to the read service.
+    /// </summary>
+    private async Task<FtmoBreachSimulationRequest> CaptureFtmoRequestAsync(
+        int sizeDecimals, decimal step, decimal minLot, decimal maxLots)
+    {
+        FtmoBreachSimulationRequest? captured = null;
+        _ftmoBreachMock
+            .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<FtmoBreachSimulationRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(new FtmoBreachSimulationDto(Guid.NewGuid(), []));
+
+        var result = await CreateSut().GetFtmoBreachSimulation(
+            Guid.NewGuid(), broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null,
+            sizeDecimals: sizeDecimals, step: step, minLot: minLot, maxLots: maxLots, default);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
+        captured.Should().NotBeNull("an explicitly declared grid must reach the read service");
+        return captured!;
+    }
+
+    /// <summary>
+    /// A whole-lot grid (<c>sizeDecimals=0</c>, step 1) is legitimate. It must reach the service
+    /// verbatim — rewriting the 0 to 2 would turn a valid grid into one <c>LotGrid</c> rejects.
+    /// </summary>
+    [Fact]
+    public async Task GetFtmoBreachSimulation_ExplicitWholeLotGrid_SizeDecimalsZeroIsPreservedVerbatim()
+    {
+        var request = await CaptureFtmoRequestAsync(sizeDecimals: 0, step: 1m, minLot: 1m, maxLots: 100m);
+
+        request.SizeDecimals.Should().Be(0);
+        request.Step.Should().Be(1m);
+        request.MinLot.Should().Be(1m);
+        request.MaxLots.Should().Be(100m);
+        request.TryBuildSourceGrid().Should().NotBeNull("a whole-lot grid is valid");
+    }
+
+    /// <summary>
+    /// An explicitly INVALID grid value is passed through untouched so that
+    /// <see cref="FtmoBreachSimulationRequest.TryBuildSourceGrid"/> — the single validation surface —
+    /// rejects it and the service refuses with <c>InvalidRequest</c>. Rewriting it to a "valid"
+    /// value would simulate a grid the caller never declared.
+    /// </summary>
+    [Theory]
+    [InlineData(2, 0, 0.01, 10)] // step = 0
+    [InlineData(2, 0.01, 0, 10)] // minLot = 0
+    [InlineData(2, 0.01, 0.01, 0)] // maxLots = 0
+    public async Task GetFtmoBreachSimulation_ExplicitZeroGridValue_IsPassedThroughUntouched(
+        int sizeDecimals, double step, double minLot, double maxLots)
+    {
+        var request = await CaptureFtmoRequestAsync(sizeDecimals, (decimal)step, (decimal)minLot, (decimal)maxLots);
+
+        request.SizeDecimals.Should().Be(sizeDecimals);
+        request.Step.Should().Be((decimal)step);
+        request.MinLot.Should().Be((decimal)minLot);
+        request.MaxLots.Should().Be((decimal)maxLots);
+        request.TryBuildSourceGrid().Should().BeNull("the declared grid is invalid and must be refused, not repaired");
+    }
+
+    /// <summary>
+    /// An OMITTED grid parameter is a 400 at the controller, exactly like an omitted
+    /// <c>broker</c>/<c>sqxSymbol</c>/<c>initialCapital</c>/<c>targetRiskPerTrade</c>: presence is
+    /// the controller's concern, value validity is the service's. The service is never called with
+    /// a grid the caller did not declare.
+    /// </summary>
+    [Theory]
+    [InlineData("sizeDecimals")]
+    [InlineData("step")]
+    [InlineData("minLot")]
+    [InlineData("maxLots")]
+    public async Task GetFtmoBreachSimulation_GridParameterOmitted_Returns400WithoutCallingTheService(string omitted)
+    {
+        var result = await CreateSut().GetFtmoBreachSimulation(
+            Guid.NewGuid(), broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null,
+            sizeDecimals: omitted == "sizeDecimals" ? null : 2,
+            step: omitted == "step" ? null : 0.01m,
+            minLot: omitted == "minLot" ? null : 0.01m,
+            maxLots: omitted == "maxLots" ? null : 10m,
+            default);
+
+        var badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        badRequest.Value!.ToString().Should().Contain(omitted);
+        _ftmoBreachMock.Verify(
+            s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

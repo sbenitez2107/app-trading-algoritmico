@@ -32,6 +32,12 @@ export enum FtmoProduct {
  */
 export enum BreachBasis {
   ClosedTradeLowerBound = 0,
+  /**
+   * PR P4 (design.md Decision 7): `LossLimits` now discloses that `DailyBreached` compares VaR95
+   * against the daily loss limit — a quantile comparison, not a closed-trade replay of a real bad
+   * day. `DailyBreached`/`DailyHeadroomPct` values are unchanged; only this label is new.
+   */
+  VarQuantileComparison = 1,
 }
 
 /**

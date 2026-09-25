@@ -66,6 +66,18 @@ internal static class FtmoDayClock
         return ZoneResolutionResult.Success(Attribute(sourceLocal, sourceZone, berlin));
     }
 
+    /// <summary>
+    /// PR P4 — exposes the same fallback chain <see cref="AttributeFromIanaId"/> uses internally, so
+    /// the read service can resolve BOTH the source zone and <c>Europe/Berlin</c> up front and refuse
+    /// with <see cref="ZoneResolutionRefusal.TimeZoneDataUnavailable"/> before touching any trade,
+    /// rather than discovering the failure mid-replay.
+    /// </summary>
+    internal static bool TryResolveZone(string ianaId, out TimeZoneInfo? zone)
+    {
+        zone = ResolveZone(ianaId);
+        return zone is not null;
+    }
+
     private static TimeZoneInfo? ResolveZone(string ianaId)
     {
         try
