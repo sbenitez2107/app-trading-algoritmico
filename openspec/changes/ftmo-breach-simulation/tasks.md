@@ -111,7 +111,7 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 4 — New enums
 
-- [ ] 4.1 GREEN: create `Domain/Enums/FtmoBreachVerdict.cs` (`Breached`, `BreachContingent`,
+- [x] 4.1 GREEN: create `Domain/Enums/FtmoBreachVerdict.cs` (`Breached`, `BreachContingent`,
   `NoBreachObserved`), `BreachContingencyCause.cs` (`ConcurrentOpenPosition`,
   `AmbiguousSourceTime`, `InvalidSourceTime`, `DstMismatchWindow`, `UnscalableTradeExcluded`,
   `FxRoundingSensitive`), `FtmoSimulationStatus.cs` (`Evaluated`, `Refused`),
@@ -123,96 +123,96 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 5 — `FtmoTradeProjector` (money-per-point, never lot count)
 
-- [ ] 5.1 RED: `FtmoTradeProjectorTests.Project_PSrcEqualsM_ReproducesTradeResizerAndBridge` — the
+- [x] 5.1 RED: `FtmoTradeProjectorTests.Project_PSrcEqualsM_ReproducesTradeResizerAndBridge` — the
   identity from design.md Decision 2: when `P_src == M`, the projector's `net'`/`q'` for a sample
   trade set equal the existing `TradeResizer.Resize` + `BacktestNetSeries.Bridge` result on the
   same inputs.
   _Satisfies: spec.md Rescaling requirement; design.md Decision 2 identity._
-- [ ] 5.2 GREEN: create `Infrastructure/Services/FtmoTradeProjector.cs` (`internal static`)
+- [x] 5.2 GREEN: create `Infrastructure/Services/FtmoTradeProjector.cs` (`internal static`)
   implementing `u = q · target · P_src / (Â · M)`, `q' = clamp(floor(u/step)·step, min, max)`,
   `net' = Profit · (q'·M) / (q·P_src)` per design.md Decision 2. Does NOT call
   `BacktestReadService`'s existing `TryNormalize`/`TradeResizer.Resize` pairing at
   `BacktestReadService.cs:232-246` — takes `Â` from `TryNormalize` on the source grid only, and
   performs its own money-per-point arithmetic. Confirm 5.1 passes.
-- [ ] 5.3 RED: `..._DaxWorkedExample_Gives013LotsAndNet0234xProfit` — pin design.md's exact numbers:
+- [x] 5.3 RED: `..._DaxWorkedExample_Gives013LotsAndNet0234xProfit` — pin design.md's exact numbers:
   q=0.06, Â=200, target=50, P_src=10, C=1, FX=1.08 → q'=0.13, net'=Profit×0.234.
   _Satisfies: spec.md "DAX rescaling uses the declared FTMO point value" scenario._
-- [ ] 5.4 RED: `..._BtcCappedAtMaxLots_ReturnsMaxNotUnbounded` — a trade whose computed `u` exceeds
+- [x] 5.4 RED: `..._BtcCappedAtMaxLots_ReturnsMaxNotUnbounded` — a trade whose computed `u` exceeds
   BTC's `MaxLots = 5.00` clamps to 5.00, `Outcome = CappedAtMaximum`.
   _Satisfies: design.md Decision 4 BTC seed row; spec.md Resize Counts requirement._
-- [ ] 5.5 RED: `..._BelowMinLot_RaisesToMinimumAndCountsIt` — a trade whose computed `u` floors below
+- [x] 5.5 RED: `..._BelowMinLot_RaisesToMinimumAndCountsIt` — a trade whose computed `u` floors below
   `MinLot` raises to `MinLot`, `Outcome = RaisedToMinimum`.
   _Satisfies: spec.md Resize Counts requirement._
-- [ ] 5.6 GREEN: implement clamp outcomes (`RaisedToMinimum`, `CappedAtMaximum`, `Unscalable`) on
+- [x] 5.6 GREEN: implement clamp outcomes (`RaisedToMinimum`, `CappedAtMaximum`, `Unscalable`) on
   `ProjectedTrade`. Confirm 5.3–5.5 pass.
-- [ ] 5.7 Falsification (mandatory, load-bearing unit): temporarily change 5.2's `net'` formula to
+- [x] 5.7 Falsification (mandatory, load-bearing unit): temporarily change 5.2's `net'` formula to
   scale by `q'/q` (the known-defective lot-count path from `BacktestReadService.cs:232-246`) and
   re-run 5.3 — confirm it goes RED with the lot-count path's wrong numbers (~$33 vs $46.80, per
   design.md's worked example). Restore the money-per-point formula and confirm 5.3 is green again.
 
 ### Phase 6 — `FtmoBreachEvaluator` (running balance, three-state, day-scoped causes)
 
-- [ ] 6.1 RED: `FtmoBreachEvaluatorTests.Evaluate_Minus8PctDayWithVar95At2Pct_GivesBreachedIndependentOfVar95` —
+- [x] 6.1 RED: `FtmoBreachEvaluatorTests.Evaluate_Minus8PctDayWithVar95At2Pct_GivesBreachedIndependentOfVar95` —
   spec.md's headline scenario: an 8% intraday drop yields `Breached` regardless of segment VaR95.
   _Satisfies: spec.md "A single bad day yields Breached, not a VaR-shaped near-miss" scenario._
-- [ ] 6.2 GREEN: create `Infrastructure/Services/FtmoBreachEvaluator.cs` (`internal static`)
+- [x] 6.2 GREEN: create `Infrastructure/Services/FtmoBreachEvaluator.cs` (`internal static`)
   implementing `Evaluate(IReadOnlyList<ProjectedTrade>, FtmoDayClock, decimal initialCapital,
   decimal dailyPct, decimal maxPct) -> FtmoBreachEvaluation` per design.md Decision 5/interfaces:
   iterate closes in `(CloseTime, RowIndex)` order, running balance, daily floor =
   previous-midnight balance − dailyPct·initial (day 1 = initial), max floor = static
   initial·(1−maxPct). Confirm 6.1 passes.
-- [ ] 6.3 RED: `..._ReferenceFloorMovesWithPreviousMidnightBalance_NotFlatInitialMinus5Pct` — day 1
+- [x] 6.3 RED: `..._ReferenceFloorMovesWithPreviousMidnightBalance_NotFlatInitialMinus5Pct` — day 1
   closes 2% above initial, day 2 loses 5% of initial intraday; assert the day-2 floor equals
   (day-1 closing balance) − 5%·initial, higher than a flat initial−5% floor would be.
   _Satisfies: spec.md "Reference floor moves with the previous day's balance" scenario._
-- [ ] 6.4 RED: `..._FlatInitialMinus5PctEveryDay_WouldFailThisRequirement` — construct the same
+- [x] 6.4 RED: `..._FlatInitialMinus5PctEveryDay_WouldFailThisRequirement` — construct the same
   two-day segment; assert a hypothetical flat-floor calculation differs from 6.3's evaluator floor.
   _Satisfies: spec.md "A flat 5% of initial every day would fail this requirement" scenario._
-- [ ] 6.5 RED: `..._Day1UsesInitialCapitalAsReferenceBalance`.
+- [x] 6.5 RED: `..._Day1UsesInitialCapitalAsReferenceBalance`.
   _Satisfies: spec.md "Day 1 uses Initial Capital as the reference balance" scenario._
-- [ ] 6.6 RED: `..._MaxLossFloorDoesNotMoveAfterProfitableDay` — day 1 closes 5% above initial; day 2's
+- [x] 6.6 RED: `..._MaxLossFloorDoesNotMoveAfterProfitableDay` — day 1 closes 5% above initial; day 2's
   max floor is unchanged from day 1.
   _Satisfies: spec.md "Max loss floor does not move after a profitable day" scenario._
-- [ ] 6.7 RED: `..._ThreeClosesOneDay_MiddleCloseBreachesThirdRecovers_FindingReflectsMiddleBreach` —
+- [x] 6.7 RED: `..._ThreeClosesOneDay_MiddleCloseBreachesThirdRecovers_FindingReflectsMiddleBreach` —
   chronological evaluation catches the transient breach, not the recovered end state.
   _Satisfies: spec.md "Every close in chronological order is checked" scenario._
-- [ ] 6.8 GREEN: implement per-close evaluation order and day-1/floor-movement rules. Confirm 6.3–6.7.
-- [ ] 6.9 Falsification (mandatory, load-bearing unit): temporarily change 6.2's daily floor to a
+- [x] 6.8 GREEN: implement per-close evaluation order and day-1/floor-movement rules. Confirm 6.3–6.7.
+- [x] 6.9 Falsification (mandatory, load-bearing unit): temporarily change 6.2's daily floor to a
   flat `initial·(1−dailyPct)` on every day (no midnight-balance tracking) and re-run 6.3 — confirm
   it goes RED. Restore the moving-floor logic and confirm 6.3 is green again.
-- [ ] 6.10 RED: `..._NoOverlap_BreachStaysBreached` — no trade's `OpenTime` precedes the previous
+- [x] 6.10 RED: `..._NoOverlap_BreachStaysBreached` — no trade's `OpenTime` precedes the previous
   trade's `CloseTime`; a detected breach stays `Breached`.
   _Satisfies: spec.md "No overlap in current data still yields Breached" scenario._
-- [ ] 6.11 RED: `..._OverlapAtBreachInstant_DowngradesToBreachContingentWithConcurrentOpenPositionCause` —
+- [x] 6.11 RED: `..._OverlapAtBreachInstant_DowngradesToBreachContingentWithConcurrentOpenPositionCause` —
   a second trade's `OpenTime` precedes and `CloseTime` follows the breaching close (constructed
   fixture — measured today's 0-of-46 runs do not exercise this, per spec.md and Engram #2769).
   _Satisfies: spec.md "A breach coinciding with an open second position is downgraded" scenario;
   reads `BacktestTrade.OpenTime`, not `DatedNet`._
-- [ ] 6.12 GREEN: implement overlap detection reading `OpenTime`/`CloseTime` pairs, adding
+- [x] 6.12 GREEN: implement overlap detection reading `OpenTime`/`CloseTime` pairs, adding
   `ConcurrentOpenPosition` to `Causes` and downgrading to `BreachContingent`. Confirm 6.10–6.11.
-- [ ] 6.13 RED: `..._UnscalableTradeClosedBeforeBreach_DowngradesWithUnscalableTradeExcludedCause`.
+- [x] 6.13 RED: `..._UnscalableTradeClosedBeforeBreach_DowngradesWithUnscalableTradeExcludedCause`.
   _Satisfies: design.md Decision 5 causes table (`UnscalableTradeExcluded`)._
-- [ ] 6.14 RED: `..._LaterCleanBreachAfterContingentOne_YieldsBreachedOnTheCleanClose` — first breach
+- [x] 6.14 RED: `..._LaterCleanBreachAfterContingentOne_YieldsBreachedOnTheCleanClose` — first breach
   has a cause, later breach has none → verdict `Breached`.
   _Satisfies: design.md Decision 5 ("If the first breach was not real, the account lived to the
   clean one")._
-- [ ] 6.15 GREEN: implement `FirstBreach`/`FirstCleanBreach` tracking and the
+- [x] 6.15 GREEN: implement `FirstBreach`/`FirstCleanBreach` tracking and the
   `BreachContingent`-requires-non-empty-`Causes` factory invariant. Confirm 6.13–6.14.
-- [ ] 6.16 RED: `..._NoBreachingClose_YieldsNoBreachObserved`.
+- [x] 6.16 RED: `..._NoBreachingClose_YieldsNoBreachObserved`.
   _Satisfies: spec.md Three-State Finding requirement — the third state._
-- [ ] 6.17 RED: `..._NoOutputContainsPassSurvivedSafeWording` — inspect every field/label produced by
+- [x] 6.17 RED: `..._NoOutputContainsPassSurvivedSafeWording` — inspect every field/label produced by
   the evaluator's disclosure text for "passed", "safe", "survived", "would have passed".
   _Satisfies: spec.md "No pass-style wording appears anywhere in the result" scenario._
-- [ ] 6.18 RED: `..._NoBreachObservedCarriesDisclosureText_NotASurvivalClaim`.
+- [x] 6.18 RED: `..._NoBreachObservedCarriesDisclosureText_NotASurvivalClaim`.
   _Satisfies: spec.md "NoBreachObserved carries its own disclosure text" scenario._
-- [ ] 6.19 GREEN: confirm 6.16–6.18 pass with existing disclosure implementation from 6.15; add
+- [x] 6.19 GREEN: confirm 6.16–6.18 pass with existing disclosure implementation from 6.15; add
   disclosure strings if missing.
 
 ### Phase 7 — Static gates (P2)
 
-- [ ] 7.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
-- [ ] 7.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
-- [ ] 7.3 `dotnet test` full suite — confirm 723 baseline plus P1+P2 tests all pass.
+- [x] 7.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
+- [x] 7.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
+- [x] 7.3 `dotnet test` full suite — confirm 723 baseline plus P1+P2 tests all pass.
 
 ---
 

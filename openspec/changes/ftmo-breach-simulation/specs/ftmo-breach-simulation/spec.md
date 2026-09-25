@@ -141,6 +141,38 @@ be `BreachContingent`, never `Breached`.
 - WHEN the finding is produced
 - THEN the finding is `BreachContingent`, not `Breached`
 
+### Requirement: An Excluded Unscalable Trade Downgrades Only The Breaches It Can Affect
+
+An `Unscalable` trade contributes no P/L to the replayed balance. A detected max-loss breach at any
+close after an `Unscalable` close MUST be `BreachContingent` with cause `UnscalableTradeExcluded`. A
+detected daily-loss breach MUST carry that cause only when the `Unscalable` close falls on the same
+FTMO trading day as the breach, at or before it; a daily-loss breach on a later FTMO day MUST NOT be
+downgraded on account of it.
+
+> The excluded trade's P/L is missing from every later balance by the same amount. The max-loss floor
+> is static, so that offset shifts every later comparison against it. The daily reference is the
+> replayed balance at the previous FTMO midnight, so on any later day the balance and its reference
+> both lack the same amount and `balance < reference − daily%·initial` is unchanged. Downgrading every
+> later daily breach instead would let one unscalable trade weeks earlier stop the simulator from
+> ever eliminating a strategy on the daily limit.
+
+#### Scenario: A same-day daily breach after an unscalable close is contingent
+- GIVEN an `Unscalable` trade that closes on an FTMO day, and a later close on the same FTMO day that
+  breaches the daily-loss floor
+- WHEN the daily finding is produced
+- THEN it is `BreachContingent` with cause `UnscalableTradeExcluded`
+
+#### Scenario: A later-day daily breach stays Breached
+- GIVEN an `Unscalable` trade that closes on one FTMO day, and a clean daily-loss breach on a later
+  FTMO day
+- WHEN the daily finding is produced
+- THEN it is `Breached`
+
+#### Scenario: A max-loss breach any time after an unscalable close is contingent
+- GIVEN an `Unscalable` trade that closes on one FTMO day, and a max-loss breach on a later FTMO day
+- WHEN the max-loss finding is produced
+- THEN it is `BreachContingent` with cause `UnscalableTradeExcluded`
+
 ### Requirement: Day-Boundary Conversion Uses A Persisted IANA Source Zone, Never A Fixed Offset
 
 Timestamp-to-FTMO-day conversion MUST use the source data's timezone as a persisted IANA zone —

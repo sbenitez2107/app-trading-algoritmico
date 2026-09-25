@@ -142,7 +142,7 @@ A breaching close is *clean* when it has no causes. Causes:
 |---|---|---|
 | `ConcurrentOpenPosition` | Another trade has `OpenTime < close < CloseTime`, read from `BacktestTrade` | both |
 | `AmbiguousSourceTime` / `InvalidSourceTime` / `DstMismatchWindow` | A flagged close whose candidate days intersect {D−1, D} | daily only (the static floor is day-free) |
-| `UnscalableTradeExcluded` | An `Unscalable` row closed before the breach | both |
+| `UnscalableTradeExcluded` | Max: an `Unscalable` row closed at any time before the breach. Daily: one closed before the breach on the same FTMO day (its reference predates the excluded close, or their candidate days intersect) | both, scoped per limit |
 | `FxRoundingSensitive` | The verdict differs across the FX band | both |
 
 Verdicts:
