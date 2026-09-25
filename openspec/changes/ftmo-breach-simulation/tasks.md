@@ -220,11 +220,11 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 8 — Entity and configuration
 
-- [ ] 8.1 RED: `FtmoInstrumentSpecSchemaTests.cs` — mirror `BacktestSchemaTests.cs`'s EF-contract
+- [x] 8.1 RED: `FtmoInstrumentSpecSchemaTests.cs` — mirror `BacktestSchemaTests.cs`'s EF-contract
   idiom: `SqxSymbol` is unique (`FindProperty`/`FindIndex`), `Provenance` is required (non-nullable
   `string`), `SourceTimeZoneId` is a non-nullable `string`.
   _Satisfies: design.md Decision 4 column table._
-- [ ] 8.2 GREEN: create `Domain/Entities/FtmoInstrumentSpec.cs` with `SqxSymbol` (unique),
+- [x] 8.2 GREEN: create `Domain/Entities/FtmoInstrumentSpec.cs` with `SqxSymbol` (unique),
   `FtmoSymbol`, `ContractSize`, `ProfitCurrency` (ISO), `SizeDecimals`, `Step`, `MinLot`,
   `MaxLots`, `SourceTimeZoneId`, `Provenance` (required), `CapturedOn`; add
   `Persistence/Configurations/FtmoInstrumentSpecConfiguration.cs` with the unique index on
@@ -232,34 +232,34 @@ a reason to trim scope (design.md Decision 8: prior slices overran ~2x).
 
 ### Phase 9 — Migration with seeded provenance (SQL provenance comment, `internal const` precedent)
 
-- [ ] 9.1 RED: `FtmoInstrumentSpecMigrationProvenanceTests.cs` — mirror
+- [x] 9.1 RED: `FtmoInstrumentSpecMigrationProvenanceTests.cs` — mirror
   `BacktestMigrationProvenanceTests.cs`: assert `AddFtmoInstrumentSpecs.SeedSql` (an `internal
   const string`) contains all four `SqxSymbol` values (`XAUUSD_M1_UTC02`, `DEUIDXEUR_M1_UTC02`,
   `USATECHIDXUSD_M1_UTC02`, `BTCUSD_M1_UTC02`), the phrase "user-supplied", the date
   `2026-09-24`, and the BTC row's `MaxLots = 5.00` (distinct from the others' `1000`). Will not
   compile until 9.2 exists — that is the RED.
   _Satisfies: design.md Decision 4 seed table; Engram #2766/#2769 provenance._
-- [ ] 9.2 GREEN: run `dotnet ef migrations add AddFtmoInstrumentSpecs`, hand-edit to add the
+- [x] 9.2 GREEN: run `dotnet ef migrations add AddFtmoInstrumentSpecs`, hand-edit to add the
   `FtmoInstrumentSpecs` table (`Up`), seed the four rows via `internal const string SeedSql` with
   the provenance comment ("user-supplied from the FTMO MT platform 2026-09-24, Engram
   #2766/#2769"), and `Down` drops the table. Confirm 9.1 passes. **Do NOT run `dotnet ef database
   update`** — applying the migration is a separate, user-authorised step naming the target
   connection.
-- [ ] 9.3 GREEN: update `AppDbContextModelSnapshot.cs` and the migration's `.Designer.cs` via the
+- [x] 9.3 GREEN: update `AppDbContextModelSnapshot.cs` and the migration's `.Designer.cs` via the
   9.2 scaffold; do not hand-edit beyond what the scaffold produced.
-- [ ] 9.4 RED: `..._SeededRows_MatchTheFourInstrumentSpecs_WithCorrectContractSizeCurrencyAndGrid` —
+- [x] 9.4 RED: `..._SeededRows_MatchTheFourInstrumentSpecs_WithCorrectContractSizeCurrencyAndGrid` —
   pin exact values: `XAUUSD_M1_UTC02`→`XAUUSD` (100, USD), `DEUIDXEUR_M1_UTC02`→`GER40.cash` (1,
   EUR), `USATECHIDXUSD_M1_UTC02`→`US100.cash` (1, USD), `BTCUSD_M1_UTC02`→`BTCUSD` (1, USD, max
   5.00); min 0.01, step 0.01 for all; max 1000 except BTC.
   _Satisfies: design.md Decision 4 seed table verbatim._
-- [ ] 9.5 GREEN: confirm 9.4 passes against the `SeedSql` from 9.2; no additional production code
+- [x] 9.5 GREEN: confirm 9.4 passes against the `SeedSql` from 9.2; no additional production code
   expected if 9.2 is correct.
 
 ### Phase 10 — Static gates (P3)
 
-- [ ] 10.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
-- [ ] 10.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
-- [ ] 10.3 `dotnet test` full suite — confirm 723 baseline plus P1+P2+P3 tests all pass. Confirm no
+- [x] 10.1 `dotnet build AppTradingAlgoritmico.slnx -warnaserror` — zero warnings.
+- [x] 10.2 `dotnet format AppTradingAlgoritmico.slnx --verify-no-changes` — no diffs.
+- [x] 10.3 `dotnet test` full suite — confirm 723 baseline plus P1+P2+P3 tests all pass. Confirm no
   test applies the migration to a real database.
 
 ---

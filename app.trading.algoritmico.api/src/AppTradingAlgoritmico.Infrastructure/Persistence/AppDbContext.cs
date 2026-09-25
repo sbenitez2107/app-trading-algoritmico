@@ -30,6 +30,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<SymbolCalibration> SymbolCalibrations => Set<SymbolCalibration>();
     public DbSet<StrategyWalkForwardExport> StrategyWalkForwardExports => Set<StrategyWalkForwardExport>();
     public DbSet<WalkForwardWindow> WalkForwardWindows => Set<WalkForwardWindow>();
+    public DbSet<FtmoInstrumentSpec> FtmoInstrumentSpecs => Set<FtmoInstrumentSpec>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

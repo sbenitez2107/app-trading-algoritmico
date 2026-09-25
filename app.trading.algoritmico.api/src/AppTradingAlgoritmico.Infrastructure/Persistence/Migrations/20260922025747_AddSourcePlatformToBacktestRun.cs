@@ -23,7 +23,7 @@ namespace AppTradingAlgoritmico.Infrastructure.Persistence.Migrations
         /// </para>
         /// </summary>
         internal const string BackfillSql = """
-            -- PROVENANCE, NOT SYSTEM-CHOSEN. On 2026-09-21 Sebastian Benitez asserted, from his own
+            -- PROVENANCE, NOT SYSTEM-CHOSEN. On 2026-09-21 Sebastian Benitez asserted, from their own
             -- SQX build history, that every BacktestRun loaded up to that date came from MT4-era
             -- work. This is a USER-SUPPLIED HISTORICAL FACT recorded once — not derived, inferred or
             -- chosen by the system. The WHERE clause is point-in-time and load-bearing: rows created
