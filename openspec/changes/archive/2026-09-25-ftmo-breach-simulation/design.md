@@ -163,7 +163,7 @@ carries NO findings (the `TryNormalize` null-profile precedent). Reasons:
 | Reason | Trigger |
 |---|---|
 | `ProductNotTwoStep` | The product is null or OneStep |
-| `LimitsNotConfigured` | No FTMO `BrokerRiskLimits` row |
+| `LimitsNotConfigured` | No FTMO `BrokerRiskLimits` row, or the row's `DailyLossLimitPct`/`MaxLossLimitPct` is null or outside `(0, 1]` |
 | `DrawdownModelNotStatic` | The row's drawdown model is not Static |
 | `InstrumentSpecMissing` | No `FtmoInstrumentSpec` for the run's symbol |
 | `PointValueNotCalibrated` | Calibration status is not `Calibrated` **or** `PointValue` is null. `Calibrated` is enum value 0, the CLR default, so the null check is load-bearing. This covers NQ. |

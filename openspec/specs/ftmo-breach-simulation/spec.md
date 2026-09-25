@@ -391,6 +391,55 @@ resizing, not absent from it — regardless of its findings.
 - THEN it carries an explicit statement that the source backtest's commission is embedded in
   `Profit` and rescaled with the P/L, not absent
 
+### Requirement: A Missing Or Out-Of-Range Loss-Limit Percentage Refuses The Run
+
+A `LossLimits` row supplied for a simulation MUST have both `DailyLossLimitPct` and
+`MaxLossLimitPct` present and expressed as fractions in `(0, 1]`. When either percentage is null, or
+present but outside `(0, 1]` (zero, negative, or above 1), the simulation MUST be refused with
+`FtmoSimulationRefusal.LimitsNotConfigured`, the same reason used when no `BrokerRiskLimits` row
+exists for the broker at all, and no finding MUST be produced.
+
+> A null percentage read as 0% would put the max-loss floor at Initial Capital and report every
+> closed loss as a false `Breached`; a negative or above-1 value is equally not a usable rule. Both
+> are properties of the stored configuration, never of the request, so they refuse exactly like a
+> missing row rather than being silently substituted or approximated.
+> `RiskLimitsService.ValidateKindFields` does not require `DailyLossLimitPct`/`MaxLossLimitPct` to be
+> present or bounded when persisting a `LossLimits` row — that upstream write path is deliberately
+> unchanged by this capability, so the simulation guards itself at read time instead of relying on a
+> write-time invariant that does not exist yet.
+
+#### Scenario: Null daily percentage refuses the run
+- GIVEN a `LossLimits` row with `DailyLossLimitPct = null` and a valid `MaxLossLimitPct`
+- WHEN a breach simulation is requested against it
+- THEN the simulation is refused with `LimitsNotConfigured`, and no finding is produced
+
+#### Scenario: Null max percentage refuses the run
+- GIVEN a `LossLimits` row with `MaxLossLimitPct = null` and a valid `DailyLossLimitPct`
+- WHEN a breach simulation is requested against it
+- THEN the simulation is refused with `LimitsNotConfigured`, and no finding is produced
+
+#### Scenario: A zero percentage refuses the run
+- GIVEN a `LossLimits` row with `DailyLossLimitPct = 0` and a valid `MaxLossLimitPct`
+- WHEN a breach simulation is requested against it
+- THEN the simulation is refused with `LimitsNotConfigured`, and no finding is produced
+
+#### Scenario: A negative percentage refuses the run
+- GIVEN a `LossLimits` row with `MaxLossLimitPct = -0.05` and a valid `DailyLossLimitPct`
+- WHEN a breach simulation is requested against it
+- THEN the simulation is refused with `LimitsNotConfigured`, and no finding is produced
+
+#### Scenario: A percentage above 1 refuses the run
+- GIVEN a `LossLimits` row with `DailyLossLimitPct = 1.5` and a valid `MaxLossLimitPct`
+- WHEN a breach simulation is requested against it
+- THEN the simulation is refused with `LimitsNotConfigured`, and no finding is produced
+
+#### Scenario: A percentage of exactly 1 is accepted and evaluated
+- GIVEN a `LossLimits` row with `DailyLossLimitPct = 1` and `MaxLossLimitPct = 1`, both otherwise
+  valid
+- WHEN a breach simulation is requested against it
+- THEN the run proceeds to evaluation and is not refused with `LimitsNotConfigured` on account of
+  either percentage
+
 ### Requirement: Simulation Is Per-Strategy Only, Never Portfolio-Level
 
 The simulation MUST evaluate one strategy segment at a time and MUST NOT aggregate, sum, or otherwise
