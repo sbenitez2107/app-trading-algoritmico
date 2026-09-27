@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.38.0] - 2026-09-27
+
+### Added
+
+- The FTMO simulation now races the profit target against the loss limits for a 2-Step account. Phase 1 needs +10% of initial capital and phase 2 +5%, each with at least four trading days, all positions closed, and no time limit; phase 2 starts on a fresh account after phase 1 reaches its target.
+- Each phase reports one of: target reached first, breached first (which limit, and whether cleanly or contingently), neither by the end of the data, or not started. It also reports when the target was first touched, so you can see when it came before day four.
+- A target reached in the simulation is an optimistic result: the backtest has no swap, and a closed-trade replay understates intraday losses, so both make the target look easier to reach than it is. A breach before the target remains a strong result.
+- If the FTMO row stores a profit target other than 10%, the race is refused with the stored value echoed, and the breach findings are still reported.
+
 ## [0.37.3] - 2026-09-27
 
 ### Fixed

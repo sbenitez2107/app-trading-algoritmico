@@ -171,6 +171,110 @@ public class FtmoBreachSimulationReadServiceTests
         result.Runs[0].Refusal.Should().Be(FtmoSimulationRefusal.ProductNotTwoStep);
         result.Runs[0].Daily.Should().BeNull();
         result.Runs[0].Max.Should().BeNull();
+
+        // ftmo-challenge-race, tasks.md 2.6.6/2.11.2 (hard rule 7): the EXISTING whole-run refusal
+        // already refuses the race too — no new refusal logic needed, only this coverage, exercised
+        // THROUGH THE SERVICE rather than a hand-built FtmoChallengeRace.RunPhase call.
+        result.Runs[0].ChallengeRace.Should().BeNull();
+    }
+
+    /// <summary>
+    /// ftmo-challenge-race, tasks.md 2.6.7: both phases read the same stored
+    /// DailyLossLimitPct/MaxLossLimitPct — exercised end-to-end (the daily/max floors close over the
+    /// same `dailyPct`/`maxPct` values passed into both `RunPhase` calls from `RunChain`).
+    /// </summary>
+    [Fact]
+    public async Task Simulate_ChallengeRace_LossLimitsAreReadUnchangedAcrossBothPhases()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        var trades = SlCalibrationTrades();
+        // Phase 1 reaches +10% on day 4 (day min met, flat book); a further trade after the handover
+        // exercises phase 2 against the SAME stored 5%/10% limits.
+        trades.Add(MakeTrade(3, size: 1.00m, profit: 1_100m, closeType: "TP", open: SafeDay.AddDays(4).AddHours(-1), close: SafeDay.AddDays(4)));
+        trades.Add(MakeTrade(4, size: 1.00m, profit: 10m, closeType: "TP", open: SafeDay.AddDays(5).AddHours(-1), close: SafeDay.AddDays(5)));
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, trades);
+        await SeedBrokerRiskLimitsAsync(db);
+        await SeedInstrumentSpecAsync(db);
+        await SeedCalibrationAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var race = result.Runs.Single().ChallengeRace;
+
+        race.Should().NotBeNull();
+        race!.Refusal.Should().BeNull();
+        race.Rules.Phase1TargetPct.Should().Be(0.10m);
+        race.Rules.Phase2TargetPct.Should().Be(0.05m);
+    }
+
+    /// <summary>ftmo-challenge-race, tasks.md 2.6.1/2.6.4: a stored 0.10 (or null) target does not refuse.</summary>
+    [Theory]
+    [InlineData(0.10)]
+    [InlineData(null)]
+    public async Task Simulate_ChallengeRace_StoredTargetOf010OrNull_DoesNotRefuse(double? profitTargetPct)
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, SlCalibrationTrades());
+        db.BrokerRiskLimits.Add(new BrokerRiskLimits
+        {
+            Broker = Broker,
+            FundingService = FundingService.Ftmo,
+            Kind = GuardrailKind.LossLimits,
+            FtmoProduct = FtmoProduct.TwoStep,
+            DrawdownModel = Domain.Enums.DrawdownModel.Static,
+            DailyLossLimitPct = 0.05m,
+            MaxLossLimitPct = 0.10m,
+            ProfitTargetPct = (decimal?)profitTargetPct,
+            Verified = true,
+        });
+        await db.SaveChangesAsync();
+        await SeedInstrumentSpecAsync(db);
+        await SeedCalibrationAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var race = result.Runs.Single().ChallengeRace;
+
+        race.Should().NotBeNull();
+        race!.Refusal.Should().BeNull();
+    }
+
+    /// <summary>ftmo-challenge-race, tasks.md 2.6.2/2.6.3: a stored target != 0.10 refuses only the race.</summary>
+    [Fact]
+    public async Task Simulate_ChallengeRace_StoredTargetOtherThan010_RefusesRaceOnly_RunStaysEvaluated()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, SlCalibrationTrades());
+        db.BrokerRiskLimits.Add(new BrokerRiskLimits
+        {
+            Broker = Broker,
+            FundingService = FundingService.Ftmo,
+            Kind = GuardrailKind.LossLimits,
+            FtmoProduct = FtmoProduct.TwoStep,
+            DrawdownModel = Domain.Enums.DrawdownModel.Static,
+            DailyLossLimitPct = 0.05m,
+            MaxLossLimitPct = 0.10m,
+            ProfitTargetPct = 0.08m,
+            Verified = true,
+        });
+        await db.SaveChangesAsync();
+        await SeedInstrumentSpecAsync(db);
+        await SeedCalibrationAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var withoutRace = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var run = withoutRace.Runs.Single();
+
+        run.Status.Should().Be(FtmoSimulationStatus.Evaluated);
+        run.Daily.Should().NotBeNull();
+        run.ChallengeRace.Should().NotBeNull();
+        run.ChallengeRace!.Refusal.Should().Be(FtmoChallengeRaceRefusal.ProfitTargetMismatch);
+        run.ChallengeRace.StoredProfitTargetPct.Should().Be(0.08m);
+        run.ChallengeRace.Phase1.Should().BeNull();
+        run.ChallengeRace.Phase2.Should().BeNull();
     }
 
     [Fact]
@@ -976,11 +1080,17 @@ public class FtmoBreachSimulationReadServiceTests
                 FtmoFirstBreachingLimit.Daily, breachClose, breachDay, FtmoTradingDaysElapsed: -1, CalendarDaysElapsed: 10),
             ReplayStartSourceTime = SafeDay.AddDays(-0).AddHours(-1), // trade 0's open: SafeDay - 1h, day 0
             ReplayStartFtmoDay = DateOnly.FromDateTime(SafeDay),
+            // ftmo-challenge-race (orchestrator-approved exception, 2026-09-27): this snapshot was
+            // captured before ChallengeRace existed, so it never protected that field — excluding it
+            // here does not weaken anything the pin originally guarded; every pre-existing field above
+            // is still compared exactly, byte-identical to the pre-PR1 capture.
+            ChallengeRace = null,
         };
 
         result.Runs.Single().Should().BeEquivalentTo(expected, options => options
             .Excluding(member => member.Name == nameof(FtmoBreachTimingDto.FtmoTradingDaysElapsed))
-            .Excluding(member => member.Name == nameof(FtmoFirstLimitBreachDto.FtmoTradingDaysElapsed)));
+            .Excluding(member => member.Name == nameof(FtmoFirstLimitBreachDto.FtmoTradingDaysElapsed))
+            .Excluding(member => member.Name == nameof(FtmoRunSimulationResultDto.ChallengeRace)));
     }
 
     /// <summary>
@@ -1000,5 +1110,31 @@ public class FtmoBreachSimulationReadServiceTests
 
         run.Daily!.FirstBreach!.FtmoTradingDaysElapsed.Should().Be(5);
         run.FirstLimitBreach!.FtmoTradingDaysElapsed.Should().Be(5);
+    }
+
+    /// <summary>
+    /// ftmo-challenge-race, tasks.md 2.5.7 (spec.md "The Race's Phase-One Breach Matches The Shipped
+    /// First Breach"): this fixture's shipped daily-loss FirstBreach (day 10) occurs well before any
+    /// target could be reached (the balance never approaches +10%), so the race's phase-1 result MUST
+    /// report BreachedFirst for the SAME close/limit/class as the shipped FirstBreach — exercised
+    /// THROUGH THE SERVICE, not a hand-built RunPhase call.
+    /// </summary>
+    [Fact]
+    public async Task Simulate_ChallengeRace_PhaseOneBreach_MatchesTheShippedFirstBreach()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedTradingDaySnapshotScenarioAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var run = result.Runs.Single();
+
+        var shippedBreach = run.Daily!.FirstBreach!;
+        var phase1 = run.ChallengeRace!.Phase1!;
+
+        phase1.Outcome.Should().Be(FtmoPhaseOutcome.BreachedFirst);
+        phase1.OutcomeSourceClose.Should().Be(shippedBreach.SourceCloseTime);
+        phase1.BreachLimit.Should().Be(FtmoFirstBreachingLimit.Daily);
+        phase1.BreachPointClass.Should().Be(shippedBreach.PointClass);
     }
 }

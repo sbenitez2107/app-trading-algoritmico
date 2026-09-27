@@ -175,7 +175,7 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             results.Add(SimulateRun(
                 run.Id, run.Kind, trades, sourceGrid!, ftmoGrid!, request.TargetRiskPerTrade,
                 pointValue, spec!.ContractSize, fxBand, sourceZone!, berlinZone!,
-                request.InitialCapital, dailyPct, maxPct));
+                request.InitialCapital, dailyPct, maxPct, limits.ProfitTargetPct));
         }
 
         return new FtmoBreachSimulationDto(request.StrategyId, results);
@@ -195,7 +195,8 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
         TimeZoneInfo berlinZone,
         decimal initialCapital,
         decimal dailyPct,
-        decimal maxPct)
+        decimal maxPct,
+        decimal? profitTargetPct)
     {
         var segment = trades.Count > 0 ? trades[0].Segment : BacktestSegment.Unknown;
 
@@ -246,6 +247,11 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
                 firstLimit.Value, winning.Point.SourceTime, winning.Point.FtmoDay, tradingDays, calendarDays);
         }
 
+        // ftmo-challenge-race (design.md Data Flow): a separate, non-truncating composition over the
+        // same trade series (hard rule 1 — FtmoBreachEvaluator.cs is not edited or truncated by this).
+        var challengeRace = FtmoChallengeRace.Evaluate(
+            profitTargetPct, low.Projected, high.Projected, sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
+
         return new FtmoRunSimulationResultDto(
             runId, kind, segment, FtmoSimulationStatus.Evaluated, Refusal: null,
             daily, max,
@@ -257,6 +263,7 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             FirstLimitBreach = firstLimitBreach,
             ReplayStartSourceTime = anchor.SourceOpen,
             ReplayStartFtmoDay = anchor.FtmoDay,
+            ChallengeRace = challengeRace,
         };
     }
 
@@ -377,5 +384,6 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             FirstLimitBreach = null,
             ReplayStartSourceTime = null,
             ReplayStartFtmoDay = null,
+            ChallengeRace = null,
         };
 }

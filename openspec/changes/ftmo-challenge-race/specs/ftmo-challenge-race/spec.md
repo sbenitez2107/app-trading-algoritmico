@@ -51,8 +51,10 @@ breach simulation.
 When the supplied `BrokerRiskLimits` row's `ProfitTargetPct` is present and is not 0.10, the race MUST
 be refused with a typed reason that echoes both the stored value and the fixed 0.10 rule value. This
 refusal is scoped to the race only: the run itself stays `Evaluated`, and the shipped
-`ftmo-breach-simulation` breach findings for that run MUST still be reported unaffected, with only
-`ChallengeRace` set to null. A null `ProfitTargetPct` MUST use the fixed 2-Step target rule without
+`ftmo-breach-simulation` breach findings for that run MUST still be reported unaffected, with
+`ChallengeRace` present and carrying `Refusal = ProfitTargetMismatch` alongside the echoed stored
+value and the fixed rule value, and `Phase1`/`Phase2` null. `ChallengeRace` is set to null only when
+the whole run is refused. A null `ProfitTargetPct` MUST use the fixed 2-Step target rule without
 refusing.
 
 > `BrokerRiskLimits` percentages are user-sourced (`BrokerRiskLimits.cs:9`); silently overriding a
@@ -77,7 +79,8 @@ refusing.
   otherwise proceed
 - WHEN the run is simulated
 - THEN the run's status stays `Evaluated`, its `ftmo-breach-simulation` breach findings are reported
-  exactly as they would be without the race feature present, and only `ChallengeRace` is null
+  exactly as they would be without the race feature present, and `ChallengeRace` is present with
+  `Refusal = ProfitTargetMismatch`, the stored and fixed rule values echoed, and `Phase1`/`Phase2` null
 
 #### Scenario: A null stored target uses the fixed rule without refusing
 - GIVEN a `BrokerRiskLimits` row with `ProfitTargetPct = null`
@@ -235,6 +238,13 @@ decision MUST be produced.
 - WHEN the race result is produced
 - THEN phase 2's outcome is `NotStarted`, and no phase-2 timing or decision is reported
 
+#### Scenario: Phase 1 reaches its target on the last replayed close, with no further data
+- GIVEN a phase 1 that reaches its target at the LAST close in the replayed series, with no trade
+  opening afterwards
+- WHEN phase 2's result is produced
+- THEN phase 2's outcome is `NeitherByEndOfData` (not `NotStarted`, since phase 1 genuinely reached its
+  target), with a null `StartSourceOpen` since no post-handover trade exists to start it
+
 ### Requirement: Phase Outcome Is A Four-State Enum, Never A Boolean, With No Survival Wording For A Reached Target
 Each phase's outcome MUST be exactly one of `TargetReachedFirst`, `BreachedFirst`,
 `NeitherByEndOfData`, or `NotStarted`. No boolean pass/fail flag MUST exist anywhere in this
@@ -277,7 +287,10 @@ same rank (an outcome tie), the race MUST report the less favourable timing betw
 reports the earlier breach, or, absent a breach, whichever end reports the later target. When both the
 outcome and the deciding close are identical between the two ends (the same row), the race MUST report
 `BothEnds` with the `fxLow` values. The race MUST tag its result with cause `FxRoundingSensitive`
-whenever the two ends' outcome pairs (phase 1 outcome and phase 2 outcome) differ from each other.
+whenever the two ends' rows are NOT identical — that is, whenever either end's phase 1 outcome, phase 1
+deciding close, phase 2 outcome, or phase 2 deciding close differs from the other end's. A timing-only
+disagreement at the same rank (both ends reaching the same outcome pair, but at a different deciding
+close) is tagged exactly like an outcome disagreement: only a genuinely identical row is untagged.
 
 > Consistent with `ftmo-breach-simulation`'s existing FX-band handling, which never picks a favourable
 > reading silently on disagreement; the race applies the same principle to its own target-versus-breach
@@ -318,6 +331,15 @@ whenever the two ends' outcome pairs (phase 1 outcome and phase 2 outcome) diffe
 - WHEN the race result is produced
 - THEN the reported `FxBandEnd` is `BothEnds`, carrying the `fxLow` values, without an
   `FxRoundingSensitive` cause, since the two ends' outcome pairs are identical
+
+#### Scenario: A tie between two undecided chains reports the fxLow end
+- GIVEN a `GER40.cash` race where `fxLow` and `fxHigh` both yield `P1 NeitherByEndOfData` (or both yield
+  `P1 TargetReachedFirst, P2 NeitherByEndOfData`), at the same rank, with no breach or target decided on
+  either end for the tied phase
+- WHEN the race result is produced
+- THEN the reported chain is `fxLow`'s values, tagged `FxRoundingSensitive` only if the two ends' rows
+  (outcome and deciding close for both phases) are not identical — the same convention used for a
+  same-row tie at any other rank, with no separate "later elapsed time" tie-break
 
 ### Requirement: The Race Leaves The Shipped Breach Result Byte-Identical
 Producing a challenge race result MUST NOT change `Verdict`, `Causes`, `DisclosureText`,

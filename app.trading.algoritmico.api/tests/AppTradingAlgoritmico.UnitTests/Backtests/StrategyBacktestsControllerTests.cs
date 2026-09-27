@@ -387,7 +387,7 @@ public class StrategyBacktestsControllerTests
                     0, 0, 0, null, null,
                     FtmoRunSimulationResultDto.DefaultNotModelled,
                     FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
-                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null },
+                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null, ChallengeRace = null },
             ]);
         _ftmoBreachMock
             .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
@@ -421,7 +421,7 @@ public class StrategyBacktestsControllerTests
                     null, null, 0, 0, 0, null, null,
                     FtmoRunSimulationResultDto.DefaultNotModelled,
                     FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
-                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null },
+                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null, ChallengeRace = null },
             ]);
         _ftmoBreachMock
             .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))

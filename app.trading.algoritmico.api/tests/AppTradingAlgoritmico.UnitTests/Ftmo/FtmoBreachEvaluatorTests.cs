@@ -356,6 +356,8 @@ public class FtmoBreachEvaluatorTests
         foreach (var enumType in new[]
         {
             typeof(FtmoBreachPointClass), typeof(FtmoFxBandEnd), typeof(FtmoFirstBreachingLimit),
+            // ftmo-challenge-race (tasks.md 2.9.3): every new discriminator this capability introduces.
+            typeof(FtmoPhaseOutcome), typeof(FtmoChallengeRaceRefusal),
         })
         {
             enumType.IsEnum.Should().BeTrue();
@@ -369,14 +371,31 @@ public class FtmoBreachEvaluatorTests
             }
         }
 
-        foreach (var dtoType in new[] { typeof(FtmoBreachTimingDto), typeof(FtmoFirstLimitBreachDto) })
+        foreach (var dtoType in new[]
+        {
+            typeof(FtmoBreachTimingDto), typeof(FtmoFirstLimitBreachDto),
+            // ftmo-challenge-race (tasks.md 2.9.3): no PASS/FAIL boolean anywhere in the new phase/rules
+            // shapes.
+            typeof(FtmoChallengePhaseDto), typeof(FtmoChallengeRulesDto), typeof(FtmoChallengeRaceDto),
+        })
         {
             foreach (var property in dtoType.GetProperties())
             {
+                // FtmoChallengeRaceDto.FxRoundingSensitive is deliberately exempted by name from this
+                // scan: it is a diagnostic cause TAG (spec.md's FX-band requirement), not an encoding of
+                // the phase outcome itself — the outcome is exclusively FtmoPhaseOutcome, checked above.
+                if (dtoType == typeof(FtmoChallengeRaceDto) && property.Name == nameof(FtmoChallengeRaceDto.FxRoundingSensitive))
+                    continue;
+
                 property.PropertyType.Should().NotBe(typeof(bool));
                 property.PropertyType.Should().NotBe(typeof(bool?));
             }
         }
+
+        // ftmo-challenge-race (tasks.md 2.9.3): the disclosure constant carries none of the banned words.
+        var disclosure = AppTradingAlgoritmico.Infrastructure.Services.FtmoChallengeRace.Disclosure.ToLowerInvariant();
+        foreach (var word in banned)
+            disclosure.Should().NotContain(word);
     }
 
     /// <summary>

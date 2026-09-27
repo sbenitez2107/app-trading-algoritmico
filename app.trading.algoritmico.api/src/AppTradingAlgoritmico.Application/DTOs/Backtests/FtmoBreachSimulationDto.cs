@@ -142,9 +142,58 @@ public sealed record FtmoRunSimulationResultDto(
 
     /// <summary>The replay-start anchor's FTMO trading day (ftmo-first-breach-timing). Null on a refused run.</summary>
     public required DateOnly? ReplayStartFtmoDay { get; init; }
+
+    /// <summary>ftmo-challenge-race. Null iff the whole run is refused (<see cref="Status"/> is
+    /// <see cref="FtmoSimulationStatus.Refused"/>). On a race-only refusal (stored `ProfitTargetPct`
+    /// disagreeing with the fixed 0.10 rule), this is present and carries the refusal reason with
+    /// `Phase1`/`Phase2` null; the run itself stays `Evaluated`.</summary>
+    public required FtmoChallengeRaceDto? ChallengeRace { get; init; }
 }
 
 /// <summary>Root result: one <see cref="FtmoRunSimulationResultDto"/> per held run, never merged (spec.md IS/OOS requirement).</summary>
 public sealed record FtmoBreachSimulationDto(
     Guid StrategyId,
     IReadOnlyList<FtmoRunSimulationResultDto> Runs);
+
+/// <summary>
+/// ftmo-challenge-race (design.md Interfaces/Contracts) — the fixed FTMO 2-Step ruleset, echoed on
+/// every non-refused race result (spec.md "Two-Step Challenge And Verification Rules Are Fixed In
+/// Code"). <c>TimeLimitDays</c> is always null: the race models no time limit for either phase.
+/// </summary>
+public sealed record FtmoChallengeRulesDto(
+    decimal Phase1TargetPct,
+    decimal Phase2TargetPct,
+    int MinTradingDaysPerPhase,
+    int? TimeLimitDays);
+
+/// <summary>
+/// One phase's (Challenge or Verification) full timing (ftmo-challenge-race, spec.md "Every
+/// Non-Refused Race Reports Full Per-Phase Timing And The Fixed Rules"). A <see cref="FtmoPhaseOutcome.NotStarted"/>
+/// phase carries every field null except <see cref="Outcome"/>.
+/// </summary>
+public sealed record FtmoChallengePhaseDto(
+    FtmoPhaseOutcome Outcome,
+    DateTime? StartSourceOpen,
+    DateTime? FirstTargetTouchSourceClose,
+    DateOnly? MinTradingDaysMetFtmoDay,
+    DateTime? OutcomeSourceClose,
+    FtmoFirstBreachingLimit? BreachLimit,
+    FtmoBreachPointClass? BreachPointClass,
+    int? CalendarDaysElapsed,
+    int? FtmoTradingDaysElapsed,
+    FtmoFxBandEnd? FxBandEnd);
+
+/// <summary>
+/// The FTMO 2-Step challenge race result (ftmo-challenge-race). Null on the parent run's own
+/// <c>FtmoRunSimulationResultDto</c> iff that run is <c>Refused</c>. <see cref="Refusal"/> non-null
+/// means the race itself is refused (the run stays <c>Evaluated</c>): <see cref="Phase1"/>/<see cref="Phase2"/>
+/// are then both null.
+/// </summary>
+public sealed record FtmoChallengeRaceDto(
+    FtmoChallengeRaceRefusal? Refusal,
+    decimal? StoredProfitTargetPct,
+    FtmoChallengeRulesDto Rules,
+    FtmoChallengePhaseDto? Phase1,
+    FtmoChallengePhaseDto? Phase2,
+    bool FxRoundingSensitive,
+    string Disclosure);
