@@ -102,8 +102,11 @@ public sealed class TradeImportService(
         Dictionary<(Guid StrategyId, long Ticket), StrategyTrade> existing;
         if (strategyIds.Count > 0 && tickets.Count > 0)
         {
+            // EF.Parameter sends each list as a single JSON parameter (OPENJSON). EF Core 10's default
+            // expands one SQL parameter per element, which breaks past SQL Server's 2100-parameter limit.
             existing = await db.StrategyTrades
-                .Where(t => strategyIds.Contains(t.StrategyId) && tickets.Contains(t.Ticket))
+                .Where(t => EF.Parameter(strategyIds).Contains(t.StrategyId)
+                            && EF.Parameter(tickets).Contains(t.Ticket))
                 .ToDictionaryAsync(t => (t.StrategyId, t.Ticket), ct);
         }
         else
