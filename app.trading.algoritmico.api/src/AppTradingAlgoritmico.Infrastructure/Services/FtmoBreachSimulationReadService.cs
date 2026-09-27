@@ -241,7 +241,7 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
         {
             var winning = firstLimit == FtmoFirstBreachingLimit.Max ? maxFirstBreachMerged!.Value : dailyFirstBreachMerged!.Value;
             var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
-                anchor, winning.Point.FtmoDay, low.Projected, sourceZone, berlinZone);
+                anchor, winning.Point.FtmoDay, winning.Point.SourceTime, low.Projected, sourceZone, berlinZone);
             firstLimitBreach = new FtmoFirstLimitBreachDto(
                 firstLimit.Value, winning.Point.SourceTime, winning.Point.FtmoDay, tradingDays, calendarDays);
         }
@@ -356,7 +356,7 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             return null;
 
         var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
-            anchor, merged.Value.Point.FtmoDay, projectedForCalendar, sourceZone, berlinZone);
+            anchor, merged.Value.Point.FtmoDay, merged.Value.Point.SourceTime, projectedForCalendar, sourceZone, berlinZone);
         return FtmoBreachTiming.ToDto(merged.Value, tradingDays, calendarDays);
     }
 

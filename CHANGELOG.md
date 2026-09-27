@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.37.3] - 2026-09-27
+
+### Fixed
+
+- FTMO trading days in the breach simulation now follow FTMO's definition: a day on which at least one position was opened. They previously counted days on which a trade closed. The field name is unchanged, so the value you see for `ftmoTradingDaysElapsed` can differ from earlier runs; calendar-day figures are unaffected.
+- Positions opened after the breaching close, on the same day, no longer count towards that day. Trades that open and close in the same minute still count their own day; 38 of the 30,266 imported backtest trades are like that.
+
 ## [0.37.0] - 2026-09-27
 
 ### Added

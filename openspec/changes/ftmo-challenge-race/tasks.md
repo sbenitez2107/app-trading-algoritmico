@@ -63,7 +63,7 @@ design decision.
 
 ### Phase 1.0 — Snapshot pin (written FIRST, on unchanged code — NOT RED-first)
 
-- [ ] 1.0.1 Write a characterization test (new file or addition to
+- [x] 1.0.1 Write a characterization test (new file or addition to
   `FtmoBreachSimulationReadServiceTests.cs`) on unmodified code: run an existing multi-limit,
   multi-day fixture (reuse a fixture already exercising `FtmoTradingDaysElapsed`, e.g. the
   first-breach-timing suite's day-gap fixture) through the CURRENT, unmodified
@@ -72,38 +72,38 @@ design decision.
   be green today, before any production change in PR1, and MUST stay green, unedited, through PR1.
   _Satisfies: spec.md "The Race Leaves The Shipped Breach Result Byte-Identical" posture applied to
   PR1's own scope; design.md Testing Strategy row 1 ("Characterization, captured on main FIRST")._
-- [ ] 1.0.2 Run 1.0.1 now and confirm GREEN before touching any production file.
+- [x] 1.0.2 Run 1.0.1 now and confirm GREEN before touching any production file.
 
 ### Phase 1.1 — Cutoff-rule characterization and correction
 
-- [ ] 1.1.1 RED: `FtmoReplayCalendarTests.ElapsedFtmoTradingDays_CountsDistinctDaysWithAScalablePositionOpened_NotClosed` —
+- [x] 1.1.1 RED: `FtmoReplayCalendarTests.ElapsedFtmoTradingDays_CountsDistinctDaysWithAScalablePositionOpened_NotClosed` —
   anchor day D, breach on D+10, with non-`Unscalable` position OPENS on 6 distinct FTMO trading days
   between D and D+10 inclusive, and closes (no same-day opens) on 2 further distinct days in that
   range; asserts `FtmoTradingDaysElapsed == 6`, not 8, and no holiday calendar is consulted.
   _Satisfies: spec.md (breach-simulation MODIFIED) "Elapsed FTMO trading days counts distinct days
   with a position opened, not closed" scenario; design.md Decision 5 in the challenge-race design._
-- [ ] 1.1.2 RED: `..._APositionOpenedLaterOnTheBreachDayAfterTheBreachClose_IsNotCounted` — a breach
+- [x] 1.1.2 RED: `..._APositionOpenedLaterOnTheBreachDayAfterTheBreachClose_IsNotCounted` — a breach
   whose source close instant is `c`; a position opens later that same FTMO day, strictly after `c`,
   with no other position opened that day before `c`; asserts that later open does not satisfy
   `Open < c ∨ Close ≤ c` and does not contribute to the count, even though its FTMO day is within
   `[anchor, eventDay]`. **This is the falsification-bearing cutoff-rule test (hard rule 5).**
   _Satisfies: spec.md "A position opened later on the breach day, after the breach close, is not
   counted" scenario._
-- [ ] 1.1.3 RED: `..._ADayContainingOnlyACloseNoOpen_IsNotCounted` — a day within the elapsed window
+- [x] 1.1.3 RED: `..._ADayContainingOnlyACloseNoOpen_IsNotCounted` — a day within the elapsed window
   where a position opened on a prior day closes, and no position opens that day; asserts that day
   does not contribute.
   _Satisfies: spec.md "A day containing only a close, no open, is not counted" scenario._
-- [ ] 1.1.4 RED: `..._AnUnscalableOpen_DoesNotCountAsATradingDay` — a day whose only replayed open is
+- [x] 1.1.4 RED: `..._AnUnscalableOpen_DoesNotCountAsATradingDay` — a day whose only replayed open is
   `Unscalable`; asserts that day does not contribute.
   _Satisfies: spec.md "An Unscalable open does not count as a trading day" scenario._
-- [ ] 1.1.5 RED: `..._AFlatCountByCloseImplementation_WouldFailThisRequirement` — reuse 1.1.1's series
+- [x] 1.1.5 RED: `..._AFlatCountByCloseImplementation_WouldFailThisRequirement` — reuse 1.1.1's series
   and assert the shipped (pre-PR1) count-by-close behavior produces a DIFFERENT number than the
   by-open count, proving the two definitions are observably distinct (guards against a no-op "fix").
   _Satisfies: spec.md "A flat count-by-close implementation would fail this requirement" scenario._
-- [ ] 1.1.6 RED: `..._CalendarDaysElapsedIsUnaffectedByTheTradingDayCorrection` — anchor day D, breach
+- [x] 1.1.6 RED: `..._CalendarDaysElapsedIsUnaffectedByTheTradingDayCorrection` — anchor day D, breach
   on D+45; `CalendarDaysElapsed == 45` both before and after the correction.
   _Satisfies: spec.md "Calendar days elapsed is unaffected by the trading-day correction" scenario._
-- [ ] 1.1.7 GREEN: modify `FtmoReplayCalendar.ElapsedDays` to accept the close's own source-time
+- [x] 1.1.7 GREEN: modify `FtmoReplayCalendar.ElapsedDays` to accept the close's own source-time
   cutoff (`Point.SourceTime`, per design.md's file-changes note "1: pass Point.SourceTime") and count
   distinct `BookkeepingDay(Open)` values for scalable trades satisfying `Open < c ∨ Close ≤ c`, where
   the trade's attributed day falls within `[anchor.FtmoDay, eventDay]`. Exclude `Unscalable` trades
@@ -114,7 +114,7 @@ design decision.
   path.
   _Satisfies: spec.md (breach-simulation MODIFIED) "Elapsed Time Is Measured From The Replay-Start
   Anchor" requirement; design.md Decision 5 (cutoff rule, shared with PR2's sweep)._
-- [ ] 1.1.8 Wire the corrected cutoff instant through `FtmoBreachSimulationReadService`: pass each
+- [x] 1.1.8 Wire the corrected cutoff instant through `FtmoBreachSimulationReadService`: pass each
   breach/clean-breach point's own `SourceTime` as the cutoff `c` into `ElapsedDays`, replacing
   whatever cutoff value is passed today. Confirm 1.1.1–1.1.6 and 1.0.1 all still pass.
   _Satisfies: design.md File Changes table row `FtmoBreachSimulationReadService.cs` ("1: pass
@@ -122,7 +122,7 @@ design decision.
 
 ### Phase 1.2 — The one permitted existing-assertion edit
 
-- [ ] 1.2.1 Edit `FtmoReplayCalendarTests.AnchorDayItselfHasNoReplayedClose_IsNotCountedInFtmoTradingDaysElapsed`:
+- [x] 1.2.1 Edit `FtmoReplayCalendarTests.AnchorDayItselfHasNoReplayedClose_IsNotCountedInFtmoTradingDaysElapsed`:
   change `tradingDays.Should().Be(1)` to `tradingDays.Should().Be(2)` (trade 0 opens day 1, closes day
   3; trade 1 opens day 3, closes day 3 — counting by open now attributes day 1 AND day 3). Update the
   inline comment accordingly. Confirm this is the ONLY existing assertion edited anywhere in PR1
@@ -132,16 +132,16 @@ design decision.
 
 ### Phase 1.3 — PR1 gates
 
-- [ ] 1.3.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror > build.log 2>&1` — zero
+- [x] 1.3.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror > build.log 2>&1` — zero
   warnings.
-- [ ] 1.3.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log
+- [x] 1.3.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log
   2>&1` — no diffs.
-- [ ] 1.3.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx > test.log 2>&1` (full suite, once) —
+- [x] 1.3.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx > test.log 2>&1` (full suite, once) —
   confirm the **888 pre-existing tests** all still pass with NO existing assertion edited other than
   1.2.1, plus every new PR1 test passes.
-- [ ] 1.3.4 Confirm the golden pin (`FtmoBreachSimulationReadServiceGoldenPinTests.cs`) and the 1.0.1
+- [x] 1.3.4 Confirm the golden pin (`FtmoBreachSimulationReadServiceGoldenPinTests.cs`) and the 1.0.1
   snapshot pin are both present in the final green run and unedited since their creation.
-- [ ] 1.3.5 If any pre-existing test fails or a warning/format diff appears, STOP and investigate
+- [x] 1.3.5 If any pre-existing test fails or a warning/format diff appears, STOP and investigate
   before patching — a failing pre-existing test means a verdict silently changed.
 
 ---

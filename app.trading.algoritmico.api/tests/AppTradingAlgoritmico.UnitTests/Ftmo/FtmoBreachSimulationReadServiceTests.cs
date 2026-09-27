@@ -902,4 +902,103 @@ public class FtmoBreachSimulationReadServiceTests
         resultA.Runs.Single().Daily!.Verdict.Should().Be(FtmoBreachVerdict.NoBreachObserved);
         resultB.Runs.Single().Daily!.Verdict.Should().Be(FtmoBreachVerdict.NoBreachObserved);
     }
+
+    // =====================================================================
+    // ftmo-challenge-race PR1, Phase 1.0 — the snapshot pin (tasks.md task 1.0.1). Captured on
+    // UNMODIFIED code before any PR1 production change (design.md Testing Strategy row 1) and MUST
+    // stay green, unedited, EXCLUDING only the FtmoTradingDaysElapsed paths (which are the ONE thing
+    // PR1 is allowed to change). A day-gap fixture is used deliberately (trade 3 opens day 5, closes
+    // day 10; trade 4 opens day 10, closes day 10) so open-days and close-days genuinely differ:
+    // old (by-close) counts {0,1,2,10} = 4; new (by-open) counts {0,1,2,5,10} = 5.
+    // =====================================================================
+
+    private static async Task<Guid> SeedTradingDaySnapshotScenarioAsync(AppDbContext db)
+    {
+        var strategyId = await SeedStrategyAsync(db);
+        var trades = SlCalibrationTrades(); // rowIndex 0,1,2 — opens/closes days 0,1,2
+        trades.Add(MakeTrade(
+            3, size: 1.00m, profit: 5m, closeType: "TP",
+            open: SafeDay.AddDays(5), close: SafeDay.AddDays(10)));
+        trades.Add(MakeTrade(
+            4, size: 1.00m, profit: -900m, closeType: "SL",
+            open: SafeDay.AddDays(10).AddHours(-1), close: SafeDay.AddDays(10)));
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, trades);
+        await SeedBrokerRiskLimitsAsync(db);
+        await SeedInstrumentSpecAsync(db);
+        await SeedCalibrationAsync(db);
+        return strategyId;
+    }
+
+    [Fact]
+    public async Task Simulate_TradingDayRecalculationFixture_SnapshotPin_OnlyFtmoTradingDaysElapsedChanges()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedTradingDaySnapshotScenarioAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var run = result.Runs.Single();
+
+        // Captured by actually running this exact fixture through the UNMODIFIED (pre-PR1)
+        // FtmoBreachSimulationReadService/FtmoReplayCalendar (a temporary probe harness, discarded
+        // after capture) — not hand-derived. Every field below is byte-identical to that capture,
+        // EXCEPT the FtmoTradingDaysElapsed paths (excluded below), which is PR1's only change.
+        var breachClose = SafeDay.AddDays(10);
+        var breachDay = DateOnly.FromDateTime(breachClose);
+        var timing = new FtmoBreachTimingDto(
+            breachClose, breachDay, BalanceAfterClose: 9102m, FloorLevel: 9497.00m,
+            FtmoBreachPointClass.Clean, Causes: [], FtmoTradingDaysElapsed: -1, CalendarDaysElapsed: 10,
+            FtmoFxBandEnd.BothEnds);
+        var expected = new FtmoRunSimulationResultDto(
+            run.RunId, BacktestRunKind.Deploy, BacktestSegment.InSample, FtmoSimulationStatus.Evaluated, Refusal: null,
+            new FtmoLimitFindingDto(
+                FtmoBreachVerdict.Breached, Causes: [],
+                DisclosureText: "A closed-trade breach with no identified contingency was detected in the replayed series.")
+            {
+                FirstBreach = timing,
+                FirstCleanBreach = timing,
+            },
+            new FtmoLimitFindingDto(
+                FtmoBreachVerdict.NoBreachObserved, Causes: [],
+                DisclosureText: "No breach was found in the replayed closed-trade data. A closed-trade replay and "
+                    + "unmodelled swap both push the result toward looking less risky than reality allows; this "
+                    + "finding makes no claim about what a live equity path would have done.")
+            {
+                FirstBreach = null,
+                FirstCleanBreach = null,
+            },
+            RaisedToMinimumCount: 0, CappedAtMaximumCount: 0, UnscalableCount: 0,
+            FxLow: 1m, FxHigh: 1m,
+            FtmoRunSimulationResultDto.DefaultNotModelled,
+            FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
+        {
+            FirstLimitBreach = new FtmoFirstLimitBreachDto(
+                FtmoFirstBreachingLimit.Daily, breachClose, breachDay, FtmoTradingDaysElapsed: -1, CalendarDaysElapsed: 10),
+            ReplayStartSourceTime = SafeDay.AddDays(-0).AddHours(-1), // trade 0's open: SafeDay - 1h, day 0
+            ReplayStartFtmoDay = DateOnly.FromDateTime(SafeDay),
+        };
+
+        result.Runs.Single().Should().BeEquivalentTo(expected, options => options
+            .Excluding(member => member.Name == nameof(FtmoBreachTimingDto.FtmoTradingDaysElapsed))
+            .Excluding(member => member.Name == nameof(FtmoFirstLimitBreachDto.FtmoTradingDaysElapsed)));
+    }
+
+    /// <summary>
+    /// Pins the corrected values directly (task 1.0.1's second half — "Then pin the new values"):
+    /// with the by-open cutoff rule, this fixture's elapsed FTMO trading days is 5 (days 0, 1, 2, 5,
+    /// 10 — trade 3's open on day 5 is now counted), not the shipped by-close count of 4.
+    /// </summary>
+    [Fact]
+    public async Task Simulate_TradingDayRecalculationFixture_ReportsFiveElapsedTradingDays_NotFour()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedTradingDaySnapshotScenarioAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+        var run = result.Runs.Single();
+
+        run.Daily!.FirstBreach!.FtmoTradingDaysElapsed.Should().Be(5);
+        run.FirstLimitBreach!.FtmoTradingDaysElapsed.Should().Be(5);
+    }
 }
