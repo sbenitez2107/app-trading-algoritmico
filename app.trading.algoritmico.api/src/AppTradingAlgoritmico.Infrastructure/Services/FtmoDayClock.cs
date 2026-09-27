@@ -33,7 +33,16 @@ internal static class FtmoDayClock
     public readonly record struct DayAttribution(
         IReadOnlySet<DateOnly> CandidateDays,
         DateTime FtmoLocal,
-        AttributionFlags Flags);
+        AttributionFlags Flags)
+    {
+        /// <summary>
+        /// design.md Decision 2 — one source of truth for the evaluator's floor bookkeeping (formerly
+        /// duplicated at <c>FtmoBreachEvaluator.cs:157</c>), the replay anchor and the close-day set:
+        /// the EARLIEST candidate day. Conservative — it never grants the account extra floor room it
+        /// might not actually have had.
+        /// </summary>
+        public DateOnly BookkeepingDay => CandidateDays.Min();
+    }
 
     public readonly record struct ZoneResolutionResult(
         bool IsSuccess,

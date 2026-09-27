@@ -23,13 +23,28 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// </summary>
 internal static class FtmoBreachEvaluator
 {
-    /// <summary>The FTMO instant, source instant, balance, floor level and margin past it for one breaching close.</summary>
+    /// <summary>
+    /// The FTMO instant, source instant, balance, floor level and margin past it for one breaching
+    /// close.
+    /// <para>
+    /// ftmo-first-breach-timing (design.md Decision 3) appends <see cref="RowIndex"/>,
+    /// <see cref="FtmoDay"/> and <see cref="Causes"/>: the source trade's row (for same-close tie
+    /// detection), its <see cref="FtmoDayClock.DayAttribution.BookkeepingDay"/> (the day the floor
+    /// bookkeeping actually used), and this CLOSE's OWN causes — captured at construction, distinct
+    /// from the run-level <c>Causes</c> that <see cref="BuildFinding"/> still discards to <c>[]</c>
+    /// once a later clean breach exists (proposal.md's shipped-code finding #1). No verdict branch
+    /// reads these three members; they exist only for first-breach timing to read later.
+    /// </para>
+    /// </summary>
     internal readonly record struct BreachPoint(
         DateTime FtmoTime,
         DateTime SourceTime,
         decimal Balance,
         decimal Level,
-        decimal MarginPastLevel);
+        decimal MarginPastLevel,
+        int RowIndex,
+        DateOnly FtmoDay,
+        IReadOnlyList<BreachContingencyCause> Causes);
 
     /// <summary>
     /// One limit's three-state finding. The constructor is private; use <see cref="Clean"/>,
@@ -154,7 +169,7 @@ internal static class FtmoBreachEvaluator
             }
 
             var attribution = FtmoDayClock.Attribute(trade.CloseSource, sourceZone, berlinZone);
-            var day = attribution.CandidateDays.Min();
+            var day = attribution.BookkeepingDay;
 
             if (currentDay is null || day != currentDay)
             {
@@ -193,7 +208,9 @@ internal static class FtmoBreachEvaluator
                 if (attribution.Flags.HasFlag(FtmoDayClock.AttributionFlags.DstMismatchWindow))
                     dailyCauses.Add(BreachContingencyCause.DstMismatchWindow);
 
-                var point = new BreachPoint(attribution.FtmoLocal, trade.CloseSource, balance, dailyFloor, dailyFloor - balance);
+                var point = new BreachPoint(
+                    attribution.FtmoLocal, trade.CloseSource, balance, dailyFloor, dailyFloor - balance,
+                    trade.RowIndex, day, dailyCauses);
                 dailyFirstBreach ??= point;
 
                 if (dailyCauses.Count == 0 && dailyFirstCleanBreach is null)
@@ -208,7 +225,9 @@ internal static class FtmoBreachEvaluator
 
             if (maxBreached)
             {
-                var point = new BreachPoint(attribution.FtmoLocal, trade.CloseSource, balance, maxFloor, maxFloor - balance);
+                var point = new BreachPoint(
+                    attribution.FtmoLocal, trade.CloseSource, balance, maxFloor, maxFloor - balance,
+                    trade.RowIndex, day, maxCauses);
                 maxFirstBreach ??= point;
 
                 if (maxCauses.Count == 0 && maxFirstCleanBreach is null)

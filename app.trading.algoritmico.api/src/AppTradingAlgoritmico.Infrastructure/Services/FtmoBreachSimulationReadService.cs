@@ -227,8 +227,24 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             trades, estimated, targetRiskPerTrade, pointValue, contractSize, fxBand.High, ftmoGrid,
             sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
 
-        var daily = MergeFinding(low.Evaluation.Daily, high.Evaluation.Daily);
-        var max = MergeFinding(low.Evaluation.Max, high.Evaluation.Max);
+        // ftmo-first-breach-timing (design.md Data Flow): the anchor and elapsed-day close-set do not
+        // depend on FX (open/close instants are shared by both projections) — either FX end's
+        // projected trades yields the same anchor and close-day set. Called ONCE per run.
+        var anchor = FtmoReplayCalendar.Build(low.Projected, sourceZone, berlinZone);
+
+        var (dailyFirstBreachMerged, daily) = MergeFinding(low.Evaluation.Daily, high.Evaluation.Daily, anchor, low.Projected, sourceZone, berlinZone);
+        var (maxFirstBreachMerged, max) = MergeFinding(low.Evaluation.Max, high.Evaluation.Max, anchor, low.Projected, sourceZone, berlinZone);
+
+        var firstLimit = FtmoBreachTiming.FirstLimit(dailyFirstBreachMerged?.Point, maxFirstBreachMerged?.Point);
+        FtmoFirstLimitBreachDto? firstLimitBreach = null;
+        if (firstLimit is not null)
+        {
+            var winning = firstLimit == FtmoFirstBreachingLimit.Max ? maxFirstBreachMerged!.Value : dailyFirstBreachMerged!.Value;
+            var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
+                anchor, winning.Point.FtmoDay, low.Projected, sourceZone, berlinZone);
+            firstLimitBreach = new FtmoFirstLimitBreachDto(
+                firstLimit.Value, winning.Point.SourceTime, winning.Point.FtmoDay, tradingDays, calendarDays);
+        }
 
         return new FtmoRunSimulationResultDto(
             runId, kind, segment, FtmoSimulationStatus.Evaluated, Refusal: null,
@@ -236,11 +252,20 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             low.Raised, low.Capped, low.Unscalable,
             fxBand.Low, fxBand.High,
             FtmoRunSimulationResultDto.DefaultNotModelled,
-            FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure);
+            FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
+        {
+            FirstLimitBreach = firstLimitBreach,
+            ReplayStartSourceTime = anchor.SourceOpen,
+            ReplayStartFtmoDay = anchor.FtmoDay,
+        };
     }
 
     private readonly record struct FxEvaluation(
-        FtmoBreachEvaluator.FtmoBreachEvaluation Evaluation, int Raised, int Capped, int Unscalable);
+        FtmoBreachEvaluator.FtmoBreachEvaluation Evaluation,
+        List<FtmoTradeProjector.ProjectedTrade> Projected,
+        int Raised,
+        int Capped,
+        int Unscalable);
 
     private static FxEvaluation EvaluateAtFx(
         List<BacktestTrade> trades,
@@ -264,6 +289,7 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
 
         return new FxEvaluation(
             evaluation,
+            projected,
             projected.Count(p => p.Outcome == ResizeOutcome.RaisedToMinimum),
             projected.Count(p => p.Outcome == ResizeOutcome.CappedAtMaximum),
             projected.Count(p => p.Outcome == ResizeOutcome.Unscalable));
@@ -272,12 +298,35 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
     /// <summary>
     /// FX-band merge (design.md Decision 3): disagreeing verdicts across <c>fxLow</c>/<c>fxHigh</c>
     /// become <see cref="FtmoBreachVerdict.BreachContingent"/> with cause <see cref="BreachContingencyCause.FxRoundingSensitive"/>.
+    /// <para>
+    /// ftmo-first-breach-timing: <c>FirstBreach</c>/<c>FirstCleanBreach</c> timing is merged
+    /// SEPARATELY and INDEPENDENTLY from this verdict-level merge (design.md Decision 6) — this
+    /// verdict/causes/disclosure branch is UNCHANGED by the addition. Returns the merged
+    /// <c>FirstBreach</c> point (for the run-level first-limit pick) alongside the DTO.
+    /// </para>
     /// </summary>
-    private static FtmoLimitFindingDto MergeFinding(
-        FtmoBreachEvaluator.FtmoLimitFinding low, FtmoBreachEvaluator.FtmoLimitFinding high)
+    private static ((FtmoBreachEvaluator.BreachPoint Point, FtmoFxBandEnd End)? FirstBreachMerged, FtmoLimitFindingDto Dto) MergeFinding(
+        FtmoBreachEvaluator.FtmoLimitFinding low,
+        FtmoBreachEvaluator.FtmoLimitFinding high,
+        FtmoReplayCalendar.ReplayAnchor anchor,
+        List<FtmoTradeProjector.ProjectedTrade> projectedForCalendar,
+        TimeZoneInfo sourceZone,
+        TimeZoneInfo berlinZone)
     {
+        var firstBreachMerged = FtmoBreachTiming.Earliest(low.FirstBreach, high.FirstBreach);
+        var firstCleanBreachMerged = FtmoBreachTiming.Earliest(low.FirstCleanBreach, high.FirstCleanBreach);
+
+        var firstBreachDto = ToTimingDto(firstBreachMerged, anchor, projectedForCalendar, sourceZone, berlinZone);
+        var firstCleanBreachDto = ToTimingDto(firstCleanBreachMerged, anchor, projectedForCalendar, sourceZone, berlinZone);
+
         if (low.Verdict == high.Verdict)
-            return new FtmoLimitFindingDto(low.Verdict, low.Causes, low.DisclosureText);
+        {
+            return (firstBreachMerged, new FtmoLimitFindingDto(low.Verdict, low.Causes, low.DisclosureText)
+            {
+                FirstBreach = firstBreachDto,
+                FirstCleanBreach = firstCleanBreachDto,
+            });
+        }
 
         var causes = new List<BreachContingencyCause> { BreachContingencyCause.FxRoundingSensitive };
         foreach (var cause in low.Causes.Concat(high.Causes))
@@ -289,7 +338,26 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
         var text = "A closed-trade breach was detected, but it coincides with a condition that makes it "
             + "uncertain: " + string.Join(", ", causes) + ".";
 
-        return new FtmoLimitFindingDto(FtmoBreachVerdict.BreachContingent, causes, text);
+        return (firstBreachMerged, new FtmoLimitFindingDto(FtmoBreachVerdict.BreachContingent, causes, text)
+        {
+            FirstBreach = firstBreachDto,
+            FirstCleanBreach = firstCleanBreachDto,
+        });
+    }
+
+    private static FtmoBreachTimingDto? ToTimingDto(
+        (FtmoBreachEvaluator.BreachPoint Point, FtmoFxBandEnd End)? merged,
+        FtmoReplayCalendar.ReplayAnchor anchor,
+        List<FtmoTradeProjector.ProjectedTrade> projectedForCalendar,
+        TimeZoneInfo sourceZone,
+        TimeZoneInfo berlinZone)
+    {
+        if (merged is null)
+            return null;
+
+        var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
+            anchor, merged.Value.Point.FtmoDay, projectedForCalendar, sourceZone, berlinZone);
+        return FtmoBreachTiming.ToDto(merged.Value, tradingDays, calendarDays);
     }
 
     private static FtmoBreachSimulationDto RefuseAll(
@@ -304,5 +372,10 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             RaisedToMinimumCount: 0, CappedAtMaximumCount: 0, UnscalableCount: 0,
             FxLow: null, FxHigh: null,
             FtmoRunSimulationResultDto.DefaultNotModelled,
-            FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure);
+            FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
+        {
+            FirstLimitBreach = null,
+            ReplayStartSourceTime = null,
+            ReplayStartFtmoDay = null,
+        };
 }

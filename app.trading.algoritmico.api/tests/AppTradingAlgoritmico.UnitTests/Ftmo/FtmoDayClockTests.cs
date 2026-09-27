@@ -145,4 +145,26 @@ public class FtmoDayClockTests
         act.Should().Throw<ArgumentException>()
             .Which.ParamName.Should().Be("sourceLocal");
     }
+
+    /// <summary>
+    /// design.md Decision 2 — one source of truth for the evaluator's floor-bookkeeping day (line
+    /// 157) and, later, the replay anchor/close-day set: an ambiguous candidate-day set resolves to
+    /// its EARLIEST member, matching the evaluator's existing <c>CandidateDays.Min()</c> rule.
+    /// </summary>
+    [Fact]
+    public void BookkeepingDay_AmbiguousCandidateDays_ReturnsTheMinimum()
+    {
+        // The same ambiguous fixture as Attribute_2013_10_27_01_30Jerusalem_FlagsAmbiguousSourceTime.
+        // For THIS real IL/Berlin transition pair, both ambiguous offsets happen to land on the same
+        // calendar day (measured — see that test's own comment), so the candidate-day set here has one
+        // member; `BookkeepingDay` still equals `CandidateDays.Min()` for a singleton set, which is the
+        // same code path a genuinely split candidate-day set would take (`HashSet<DateOnly>.Min()` does
+        // not special-case count == 1).
+        var sourceLocal = new DateTime(2013, 10, 27, 1, 30, 0, DateTimeKind.Unspecified);
+
+        var result = FtmoDayClock.Attribute(sourceLocal, Jerusalem, Berlin);
+
+        result.Flags.Should().HaveFlag(FtmoDayClock.AttributionFlags.AmbiguousSourceTime);
+        result.BookkeepingDay.Should().Be(result.CandidateDays.Min());
+    }
 }

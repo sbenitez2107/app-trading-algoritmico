@@ -382,11 +382,12 @@ public class StrategyBacktestsControllerTests
             [
                 new FtmoRunSimulationResultDto(
                     runId, BacktestRunKind.Deploy, BacktestSegment.InSample, FtmoSimulationStatus.Evaluated, null,
-                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach"),
-                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach"),
+                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach") { FirstBreach = null, FirstCleanBreach = null },
+                    new FtmoLimitFindingDto(FtmoBreachVerdict.NoBreachObserved, [], "no breach") { FirstBreach = null, FirstCleanBreach = null },
                     0, 0, 0, null, null,
                     FtmoRunSimulationResultDto.DefaultNotModelled,
-                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure),
+                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
+                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null },
             ]);
         _ftmoBreachMock
             .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
@@ -419,7 +420,8 @@ public class StrategyBacktestsControllerTests
                     FtmoSimulationRefusal.FxRateNotDeclared,
                     null, null, 0, 0, 0, null, null,
                     FtmoRunSimulationResultDto.DefaultNotModelled,
-                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure),
+                    FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
+                { FirstLimitBreach = null, ReplayStartSourceTime = null, ReplayStartFtmoDay = null },
             ]);
         _ftmoBreachMock
             .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))

@@ -1,3 +1,4 @@
+using AppTradingAlgoritmico.Application.DTOs.Backtests;
 using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.Infrastructure.Services;
 using FluentAssertions;
@@ -261,6 +262,61 @@ public class FtmoBreachEvaluatorTests
         result.Max.Verdict.Should().Be(FtmoBreachVerdict.NoBreachObserved);
     }
 
+    // =====================================================================
+    // Phase 3 (ftmo-first-breach-timing) — BreachPoint widened: RowIndex, FtmoDay, Causes.
+    // =====================================================================
+
+    [Fact]
+    public void Evaluate_ContingentDailyBreach_FirstBreachCausesEqualTheCloseOwnCauses()
+    {
+        const decimal initial = 10_000m;
+        var breachingClose = Close(10, 9, 0);
+        var trades = new[]
+        {
+            Trade(0, Close(10, 7, 0), Close(10, 11, 0), net: 500m), // overlap span
+            Trade(1, Close(10, 8, 0), breachingClose, net: -800m), // contingent breach
+        };
+
+        var result = FtmoBreachEvaluator.Evaluate(trades, Jerusalem, Berlin, initial, dailyPct: 0.05m, maxPct: 0.10m);
+
+        result.Daily.Verdict.Should().Be(FtmoBreachVerdict.BreachContingent);
+        // Independent of the run-level Causes (equal here since this IS the run-level cause, but
+        // captured on the point itself, not read from the finding's Causes property).
+        result.Daily.FirstBreach!.Value.Causes.Should().Equal(BreachContingencyCause.ConcurrentOpenPosition);
+    }
+
+    [Fact]
+    public void Evaluate_FirstCleanBreach_CausesAreEmpty_WhenTheCleanCloseHasNoCauses()
+    {
+        const decimal initial = 10_000m;
+        var firstBreachClose = Close(10, 9, 0);
+        var trades = new[]
+        {
+            Trade(0, Close(10, 7, 0), Close(10, 11, 0), net: 500m), // overlap span
+            Trade(1, Close(10, 8, 0), firstBreachClose, net: -800m), // contingent
+            Trade(2, Close(11, 8, 0), Close(11, 9, 0), net: -600m), // later clean breach
+        };
+
+        var result = FtmoBreachEvaluator.Evaluate(trades, Jerusalem, Berlin, initial, dailyPct: 0.05m, maxPct: 0.30m);
+
+        result.Daily.FirstBreach!.Value.Causes.Should().NotBeEmpty();
+        result.Daily.FirstCleanBreach!.Value.Causes.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Evaluate_BreachPoint_CarriesRowIndexAndFtmoDay_MatchingTheSourceTradeAndBookkeepingDay()
+    {
+        const decimal initial = 10_000m;
+        var closeTime = Close(10, 9, 0);
+        var trades = new[] { Trade(5, Close(10, 8, 0), closeTime, net: -800m) };
+
+        var attribution = FtmoDayClock.Attribute(closeTime, Jerusalem, Berlin);
+        var result = FtmoBreachEvaluator.Evaluate(trades, Jerusalem, Berlin, initial, dailyPct: 0.05m, maxPct: 0.10m);
+
+        result.Daily.FirstBreach!.Value.RowIndex.Should().Be(5);
+        result.Daily.FirstBreach.Value.FtmoDay.Should().Be(attribution.BookkeepingDay);
+    }
+
     [Fact]
     public void Evaluate_NoOutputContainsPassSurvivedSafeWording()
     {
@@ -284,6 +340,71 @@ public class FtmoBreachEvaluatorTests
                     verdictText.Should().NotContain(word);
             }
         }
+    }
+
+    /// <summary>
+    /// tasks.md 9.1 — extends the shipped no-pass-wording coverage to every new discriminator
+    /// introduced by ftmo-first-breach-timing: none is typed as a boolean, and none of their string
+    /// values affirm survival (spec.md "Every new discriminator is inspected for boolean or survival
+    /// wording").
+    /// </summary>
+    [Fact]
+    public void Evaluate_NewTimingDiscriminators_AreNeverBooleanAndCarryNoSurvivalWording()
+    {
+        var banned = new[] { "passed", "safe", "survived", "would have passed" };
+
+        foreach (var enumType in new[]
+        {
+            typeof(FtmoBreachPointClass), typeof(FtmoFxBandEnd), typeof(FtmoFirstBreachingLimit),
+        })
+        {
+            enumType.IsEnum.Should().BeTrue();
+            Enum.GetUnderlyingType(enumType).Should().NotBe(typeof(bool));
+
+            foreach (var name in Enum.GetNames(enumType))
+            {
+                var lower = name.ToLowerInvariant();
+                foreach (var word in banned)
+                    lower.Should().NotContain(word);
+            }
+        }
+
+        foreach (var dtoType in new[] { typeof(FtmoBreachTimingDto), typeof(FtmoFirstLimitBreachDto) })
+        {
+            foreach (var property in dtoType.GetProperties())
+            {
+                property.PropertyType.Should().NotBe(typeof(bool));
+                property.PropertyType.Should().NotBe(typeof(bool?));
+            }
+        }
+    }
+
+    /// <summary>
+    /// design.md Decision 2 / tasks.md 2.3 — line 157 now reads <c>attribution.BookkeepingDay</c>
+    /// instead of duplicating <c>.CandidateDays.Min()</c>. This is a compile-level confirmation, not a
+    /// behavioral one: for an ambiguous-day fixture, the day the evaluator actually used for floor
+    /// bookkeeping still equals <c>CandidateDays.Min()</c> (the evaluator's daily floor is anchored on
+    /// day 1 to Initial Capital regardless of which day is chosen; the assertion here is that
+    /// <c>BookkeepingDay</c> is exactly the earliest candidate, not a behavioral divergence — no fixture
+    /// is contrived to reach a difference that design.md notes is unreachable in current code).
+    /// </summary>
+    [Fact]
+    public void Evaluate_AmbiguousSourceTime_DailyBreachDayEqualsCandidateDaysMin()
+    {
+        const decimal initial = 10_000m;
+        // Same ambiguous Jerusalem instant as FtmoDayClockTests's own ambiguous fixture.
+        var ambiguousClose = new DateTime(2013, 10, 27, 1, 30, 0, DateTimeKind.Unspecified);
+        var trades = new[] { Trade(0, ambiguousClose.AddHours(-1), ambiguousClose, net: -800m) };
+
+        var attribution = FtmoDayClock.Attribute(ambiguousClose, Jerusalem, Berlin);
+        var result = FtmoBreachEvaluator.Evaluate(trades, Jerusalem, Berlin, initial, dailyPct: 0.05m, maxPct: 0.10m);
+
+        // The ambiguity itself downgrades the verdict (AmbiguousSourceTime cause) regardless of which
+        // candidate day is chosen for bookkeeping — this test only pins that the CHOSEN day is the
+        // earliest candidate, per design.md Decision 2.
+        result.Daily.Verdict.Should().Be(FtmoBreachVerdict.BreachContingent);
+        result.Daily.Causes.Should().Contain(BreachContingencyCause.AmbiguousSourceTime);
+        attribution.BookkeepingDay.Should().Be(attribution.CandidateDays.Min());
     }
 
     [Fact]

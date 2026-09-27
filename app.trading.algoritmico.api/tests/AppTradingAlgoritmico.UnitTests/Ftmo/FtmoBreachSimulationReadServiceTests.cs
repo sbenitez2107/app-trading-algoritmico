@@ -789,6 +789,96 @@ public class FtmoBreachSimulationReadServiceTests
         }
     }
 
+    // =====================================================================
+    // ftmo-first-breach-timing Phase 7 — first-breach timing wiring.
+    // =====================================================================
+
+    [Fact]
+    public async Task Simulate_UsdSymbol_SameCurrencyBoth_FirstBreachReportsBothEnds()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        var trades = SlCalibrationTrades();
+        trades.Add(MakeTrade(3, size: 1.00m, profit: -800m, closeType: "SL"));
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, trades);
+        await SeedBrokerRiskLimitsAsync(db);
+        await SeedInstrumentSpecAsync(db); // USD
+        await SeedCalibrationAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+
+        var run = result.Runs.Single();
+        run.Daily!.FirstBreach.Should().NotBeNull();
+        // USD settles on the identity band (1,1): both ends coincide — pinned as BothEnds (task 5.6 /
+        // the orchestrator's resolved reading), never a "skip the comparison" special case.
+        run.Daily.FirstBreach!.FxBandEnd.Should().Be(FtmoFxBandEnd.BothEnds);
+    }
+
+    [Fact]
+    public async Task Simulate_RefusedRun_EveryNewFieldIsNull()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, SlCalibrationTrades());
+        // No BrokerRiskLimits row -> LimitsNotConfigured (refused).
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+
+        var run = result.Runs.Single();
+        run.Status.Should().Be(FtmoSimulationStatus.Refused);
+        run.Daily.Should().BeNull();
+        run.Max.Should().BeNull();
+        run.FirstLimitBreach.Should().BeNull();
+        run.ReplayStartSourceTime.Should().BeNull();
+        run.ReplayStartFtmoDay.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Simulate_NonRefusedRun_EchoesTheReplayStartAnchor()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedStrategyAsync(db);
+        var trades = SlCalibrationTrades();
+        await SeedRunAsync(db, strategyId, BacktestRunKind.Deploy, trades);
+        await SeedBrokerRiskLimitsAsync(db);
+        await SeedInstrumentSpecAsync(db);
+        await SeedCalibrationAsync(db);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(Request(strategyId), CancellationToken.None);
+
+        var run = result.Runs.Single();
+        run.Status.Should().Be(FtmoSimulationStatus.Evaluated);
+        run.ReplayStartSourceTime.Should().NotBeNull();
+        run.ReplayStartFtmoDay.Should().NotBeNull();
+        var earliestOpen = trades.Min(t => t.OpenTime);
+        run.ReplayStartSourceTime.Should().Be(earliestOpen);
+    }
+
+    [Fact]
+    public async Task Simulate_DisagreeingFxBandOnDailyLimit_OneEndNeverBreaches_FirstBreachReportsTheBreachingEnd()
+    {
+        await using var db = InMemoryDbContextFactory.Create();
+        var strategyId = await SeedEurFxScenarioAsync(db, bigTradeProfit: -501m);
+
+        var sut = new FtmoBreachSimulationReadService(db);
+        var result = await sut.SimulateAsync(
+            Request(strategyId, sqxSymbol: EurSymbol, fxLow: 1.0m, fxHigh: 1.5m), CancellationToken.None);
+
+        var run = result.Runs.Single();
+        // This is the existing FxRoundingSensitive fixture, on the DAILY limit: fxLow=1.0 breaches
+        // (balance < floor) while fxHigh=1.5 never breaches at all (Simulate_DisagreeingFxBand...
+        // above). With no high-end BreachPoint to merge against, FtmoBreachTiming.Earliest reports
+        // the low end's point verbatim (design.md Decision 6) — pinned here as FxLow, not "any of
+        // the enum's values". Row 3 (the big loss trade) is the only trade whose loss can cross the
+        // daily floor, so its close time is the expected SourceCloseTime.
+        run.Daily!.FirstBreach.Should().NotBeNull();
+        run.Daily.FirstBreach!.FxBandEnd.Should().Be(FtmoFxBandEnd.FxLow);
+        run.Daily.FirstBreach.SourceCloseTime.Should().Be(SafeDay.AddDays(3));
+    }
+
     [Fact]
     public async Task Simulate_TwoStrategiesEachNoBreachObserved_NoCombinedPortfolioFindingProduced()
     {

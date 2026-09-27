@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.37.0] - 2026-09-27
+
+### Added
+
+- The FTMO breach simulation now says when each loss limit was first breached: the close, the FTMO trading day, the balance and the floor it fell below, and whether that close was a clean or a contingent breach, with its own causes. Each run also reports which limit breaks first, or that both break on the same close.
+- Elapsed time from the start of the replay to that first breach, in calendar days and FTMO trading days, counted from the first trade's open. A first-breach date describes that start date, not the strategy: a breach two months in means the account lasted two months when started at the beginning of the backtest.
+
+### Changed
+
+- None of the existing findings change. The timing is added alongside the verdicts rather than cutting the replay short at the first breach, because a first breach can be contingent and cutting there could hide a later clean one.
+
 ## [0.36.0] - 2026-09-25
 
 ### Added

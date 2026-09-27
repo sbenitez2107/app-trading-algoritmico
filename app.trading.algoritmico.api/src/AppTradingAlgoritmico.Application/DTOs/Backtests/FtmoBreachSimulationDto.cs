@@ -63,7 +63,43 @@ public sealed record FtmoBreachSimulationRequest(
 public sealed record FtmoLimitFindingDto(
     FtmoBreachVerdict Verdict,
     IReadOnlyList<BreachContingencyCause> Causes,
-    string DisclosureText);
+    string DisclosureText)
+{
+    /// <summary>The limit's first breaching close's timing (ftmo-first-breach-timing). Null when the limit was never breached.</summary>
+    public required FtmoBreachTimingDto? FirstBreach { get; init; }
+
+    /// <summary>The limit's first CLEAN breaching close's timing. Null when no clean breach exists (or the limit was never breached).</summary>
+    public required FtmoBreachTimingDto? FirstCleanBreach { get; init; }
+}
+
+/// <summary>
+/// One breaching close's first-breach timing (ftmo-first-breach-timing, design.md Decision 1, 8).
+/// <see cref="PointClass"/> is derived when mapping (<c>Causes.Count == 0 ? Clean : Contingent</c>) —
+/// there is one source of truth, so the class and the causes cannot disagree.
+/// </summary>
+public sealed record FtmoBreachTimingDto(
+    DateTime SourceCloseTime,
+    DateOnly FtmoTradingDay,
+    decimal BalanceAfterClose,
+    decimal FloorLevel,
+    FtmoBreachPointClass PointClass,
+    IReadOnlyList<BreachContingencyCause> Causes,
+    int FtmoTradingDaysElapsed,
+    int CalendarDaysElapsed,
+    FtmoFxBandEnd FxBandEnd);
+
+/// <summary>
+/// Which limit broke first, per run (ftmo-first-breach-timing, design.md Decision 7). No nested
+/// <c>Timing</c> field: with <see cref="FtmoFirstBreachingLimit.BothSameClose"/>, one <c>Timing</c>
+/// would have to pick one limit's floor, causes and class, which contradicts the two limits' findings
+/// staying independent.
+/// </summary>
+public sealed record FtmoFirstLimitBreachDto(
+    FtmoFirstBreachingLimit Limit,
+    DateTime SourceCloseTime,
+    DateOnly FtmoTradingDay,
+    int FtmoTradingDaysElapsed,
+    int CalendarDaysElapsed);
 
 /// <summary>
 /// One run's (Deploy or Evaluation, i.e. one segment) simulation outcome. A <see cref="FtmoSimulationStatus.Refused"/>
@@ -97,6 +133,15 @@ public sealed record FtmoRunSimulationResultDto(
     public const string DefaultEmbeddedCommissionDisclosure =
         "Swap/overnight financing is not modelled. The source backtest's Profit already embeds the "
         + "configured commission, rescaled together with the P/L during resizing — it is not absent.";
+
+    /// <summary>Which limit broke first, and when (ftmo-first-breach-timing). Null when neither limit was breached, or the run was refused.</summary>
+    public required FtmoFirstLimitBreachDto? FirstLimitBreach { get; init; }
+
+    /// <summary>The replay-start anchor's source instant (ftmo-first-breach-timing). Null on a refused run.</summary>
+    public required DateTime? ReplayStartSourceTime { get; init; }
+
+    /// <summary>The replay-start anchor's FTMO trading day (ftmo-first-breach-timing). Null on a refused run.</summary>
+    public required DateOnly? ReplayStartFtmoDay { get; init; }
 }
 
 /// <summary>Root result: one <see cref="FtmoRunSimulationResultDto"/> per held run, never merged (spec.md IS/OOS requirement).</summary>
