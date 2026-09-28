@@ -28,7 +28,8 @@ public class StrategyBacktestsController(
     IBacktestReadService readService,
     IDemoBacktestComparabilityReadService comparabilityReadService,
     ICostDecompositionReadService costDecompositionReadService,
-    IFtmoBreachSimulationReadService ftmoBreachSimulationReadService) : ControllerBase
+    IFtmoBreachSimulationReadService ftmoBreachSimulationReadService,
+    IFtmoMultiStartReadService ftmoMultiStartReadService) : ControllerBase
 {
     private const string AllowedExtension = ".csv";
 
@@ -213,18 +214,74 @@ public class StrategyBacktestsController(
         [FromQuery] decimal? maxLots,
         CancellationToken ct)
     {
+        if (!TryValidateFtmoBreachQuery(
+                strategyId, broker, sqxSymbol, initialCapital, targetRiskPerTrade, fxLow, fxHigh,
+                sizeDecimals, step, minLot, maxLots, out var request, out var error))
+        {
+            return BadRequest(new { message = error });
+        }
+
+        return Ok(await ftmoBreachSimulationReadService.SimulateAsync(request!, ct));
+    }
+
+    /// <summary>
+    /// The FTMO multi-start replay for every held run of one strategy (ftmo-multi-start, design.md
+    /// Data Flow — PR4). Same request shape as <see cref="GetFtmoBreachSimulation"/> (design.md
+    /// Decision 8): the two endpoints share the same guard chain and the same query-validation rules,
+    /// via <see cref="TryValidateFtmoBreachQuery"/>, so the single-start endpoint's own validation is
+    /// never duplicated or allowed to drift.
+    /// </summary>
+    [HttpGet("ftmo-breach/multi-start")]
+    [ProducesResponseType(typeof(FtmoMultiStartDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<FtmoMultiStartDto>> GetFtmoMultiStart(
+        [FromRoute] Guid strategyId,
+        [FromQuery] string? broker,
+        [FromQuery] string? sqxSymbol,
+        [FromQuery] decimal? initialCapital,
+        [FromQuery] decimal? targetRiskPerTrade,
+        [FromQuery] decimal? fxLow,
+        [FromQuery] decimal? fxHigh,
+        [FromQuery] int? sizeDecimals,
+        [FromQuery] decimal? step,
+        [FromQuery] decimal? minLot,
+        [FromQuery] decimal? maxLots,
+        CancellationToken ct)
+    {
+        if (!TryValidateFtmoBreachQuery(
+                strategyId, broker, sqxSymbol, initialCapital, targetRiskPerTrade, fxLow, fxHigh,
+                sizeDecimals, step, minLot, maxLots, out var request, out var error))
+        {
+            return BadRequest(new { message = error });
+        }
+
+        return Ok(await ftmoMultiStartReadService.SimulateAsync(request!, ct));
+    }
+
+    /// <summary>
+    /// Shared query validation for both <see cref="GetFtmoBreachSimulation"/> and
+    /// <see cref="GetFtmoMultiStart"/> (design.md File Changes table, "shared query validation helper +
+    /// action"): both endpoints take the identical request shape, so the required-parameter checks and
+    /// the <see cref="FtmoBreachSimulationRequest"/> construction live in exactly one place.
+    /// </summary>
+    private static bool TryValidateFtmoBreachQuery(
+        Guid strategyId, string? broker, string? sqxSymbol, decimal? initialCapital, decimal? targetRiskPerTrade,
+        decimal? fxLow, decimal? fxHigh, int? sizeDecimals, decimal? step, decimal? minLot, decimal? maxLots,
+        out FtmoBreachSimulationRequest? request, out string? error)
+    {
+        request = null;
+        error = null;
+
         if (string.IsNullOrWhiteSpace(broker) || string.IsNullOrWhiteSpace(sqxSymbol)
             || initialCapital is null || targetRiskPerTrade is null
             || sizeDecimals is null || step is null || minLot is null || maxLots is null)
         {
-            return BadRequest(new
-            {
-                message = "The 'broker', 'sqxSymbol', 'initialCapital', 'targetRiskPerTrade', 'sizeDecimals', "
-                    + "'step', 'minLot' and 'maxLots' query parameters are required. There is no default.",
-            });
+            error = "The 'broker', 'sqxSymbol', 'initialCapital', 'targetRiskPerTrade', 'sizeDecimals', "
+                + "'step', 'minLot' and 'maxLots' query parameters are required. There is no default.";
+            return false;
         }
 
-        var request = new FtmoBreachSimulationRequest(
+        request = new FtmoBreachSimulationRequest(
             strategyId,
             broker,
             sqxSymbol,
@@ -236,8 +293,7 @@ public class StrategyBacktestsController(
             step.Value,
             minLot.Value,
             maxLots.Value);
-
-        return Ok(await ftmoBreachSimulationReadService.SimulateAsync(request, ct));
+        return true;
     }
 
     /// <summary>

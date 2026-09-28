@@ -109,6 +109,9 @@ public static class DependencyInjection
         // ftmo-breach-simulation, PR P4 — read service.
         services.AddScoped<IFtmoBreachSimulationReadService, FtmoBreachSimulationReadService>();
 
+        // ftmo-multi-start, PR4 — read service.
+        services.AddScoped<IFtmoMultiStartReadService, FtmoMultiStartReadService>();
+
         return services;
     }
 }

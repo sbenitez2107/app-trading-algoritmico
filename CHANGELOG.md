@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.41.0] - 2026-09-28
+
+### Added
+
+- New endpoint `GET api/strategies/{strategyId}/ftmo-breach/multi-start` replays the FTMO 2-Step simulation from one start per FTMO calendar month instead of only from the first trade. It takes the same query parameters as `ftmo-breach`.
+- For each start it reports phase 1, phase 2 and a funded phase, which runs on a fresh account at initial capital until the first breach. Starts still undecided at the end of the data report how many days of data were left, not an invented end date.
+- The response summarises how many starts fell into each of the six outcomes, zeros included, and gives nearest-rank order statistics of the days elapsed.
+- Start windows overlap, so the starts are not independent samples. A target reached remains an optimistic result.
+
 ## [0.40.1] - 2026-09-28
 
 ### Changed

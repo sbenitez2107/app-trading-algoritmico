@@ -28,11 +28,12 @@ public class StrategyBacktestsControllerTests
     private readonly Mock<IDemoBacktestComparabilityReadService> _comparabilityMock = new();
     private readonly Mock<ICostDecompositionReadService> _costDecompositionMock = new();
     private readonly Mock<IFtmoBreachSimulationReadService> _ftmoBreachMock = new();
+    private readonly Mock<IFtmoMultiStartReadService> _ftmoMultiStartMock = new();
 
     private StrategyBacktestsController CreateSut()
         => new(
             _importMock.Object, _wfMock.Object, _readMock.Object, _comparabilityMock.Object,
-            _costDecompositionMock.Object, _ftmoBreachMock.Object);
+            _costDecompositionMock.Object, _ftmoBreachMock.Object, _ftmoMultiStartMock.Object);
 
     private static Mock<IFormFile> MockFile(string name, string content = "x")
     {
@@ -524,6 +525,129 @@ public class StrategyBacktestsControllerTests
         var badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
         badRequest.Value!.ToString().Should().Contain(omitted);
         _ftmoBreachMock.Verify(
+            s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    // ---- PR4 follow-up (task 4.3.7): before/after pin of the single-start ftmo-breach endpoint ----
+
+    /// <summary>
+    /// Verbatim copy of the SHIPPED <c>GetFtmoBreachSimulation</c> body at commit <c>368cd6b</c> (the
+    /// HEAD this PR4 batch started from), captured via <c>git show 368cd6b:...StrategyBacktestsController.cs</c>
+    /// BEFORE this session's <c>TryValidateFtmoBreachQuery</c> extraction. Kept test-local as the "before"
+    /// oracle for spec.md "The single-start endpoint is untouched" — this pins BEHAVIOUR, not the
+    /// extracted implementation, so a future refactor of the shared helper cannot silently change the
+    /// single-start endpoint's contract without this test catching it.
+    /// </summary>
+    private static async Task<ActionResult<FtmoBreachSimulationDto>> Pre368cd6bGetFtmoBreachSimulation(
+        IFtmoBreachSimulationReadService service, Guid strategyId, string? broker, string? sqxSymbol,
+        decimal? initialCapital, decimal? targetRiskPerTrade, decimal? fxLow, decimal? fxHigh,
+        int? sizeDecimals, decimal? step, decimal? minLot, decimal? maxLots, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(broker) || string.IsNullOrWhiteSpace(sqxSymbol)
+            || initialCapital is null || targetRiskPerTrade is null
+            || sizeDecimals is null || step is null || minLot is null || maxLots is null)
+        {
+            return new BadRequestObjectResult(new
+            {
+                message = "The 'broker', 'sqxSymbol', 'initialCapital', 'targetRiskPerTrade', 'sizeDecimals', "
+                    + "'step', 'minLot' and 'maxLots' query parameters are required. There is no default.",
+            });
+        }
+
+        var request = new FtmoBreachSimulationRequest(
+            strategyId, broker, sqxSymbol, initialCapital.Value, targetRiskPerTrade.Value, fxLow, fxHigh,
+            sizeDecimals.Value, step.Value, minLot.Value, maxLots.Value);
+
+        return new OkObjectResult(await service.SimulateAsync(request, ct));
+    }
+
+    [Fact]
+    public async Task GetFtmoBreachSimulation_MissingParams_MatchesThePre368cd6bResponseVerbatim()
+    {
+        var strategyId = Guid.NewGuid();
+
+        var before = await Pre368cd6bGetFtmoBreachSimulation(
+            _ftmoBreachMock.Object, strategyId, broker: null, sqxSymbol: null, initialCapital: null,
+            targetRiskPerTrade: null, fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m,
+            maxLots: 10m, default);
+        var after = await CreateSut().GetFtmoBreachSimulation(
+            strategyId, broker: null, sqxSymbol: null, initialCapital: null, targetRiskPerTrade: null,
+            fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 10m, default);
+
+        var beforeBody = before.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        var afterBody = after.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        afterBody.Value.Should().BeEquivalentTo(beforeBody.Value, "the 400 path must be byte-identical before and after the TryValidateFtmoBreachQuery extraction");
+        _ftmoBreachMock.Verify(
+            s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetFtmoBreachSimulation_Valid_MatchesThePre368cd6bResponseVerbatim()
+    {
+        var strategyId = Guid.NewGuid();
+        var dto = new FtmoBreachSimulationDto(strategyId, []);
+        _ftmoBreachMock
+            .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var before = await Pre368cd6bGetFtmoBreachSimulation(
+            _ftmoBreachMock.Object, strategyId, broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m,
+            maxLots: 10m, default);
+        var after = await CreateSut().GetFtmoBreachSimulation(
+            strategyId, broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m,
+            maxLots: 10m, default);
+
+        var beforeOk = before.Result.Should().BeOfType<OkObjectResult>().Subject;
+        var afterOk = after.Result.Should().BeOfType<OkObjectResult>().Subject;
+        afterOk.Value.Should().BeEquivalentTo(beforeOk.Value, "the 200 path (request construction + service passthrough) must be byte-identical before and after the extraction");
+    }
+
+    // ---- PR4: GET ftmo-breach/multi-start ----
+
+    [Fact]
+    public async Task MultiStart_ReturnsTheServiceResult()
+    {
+        var strategyId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var dto = new FtmoMultiStartDto(
+            strategyId,
+            [
+                new FtmoMultiStartRunDto(
+                    runId, BacktestRunKind.Deploy, BacktestSegment.InSample, FtmoSimulationStatus.Evaluated, null,
+                    null, null, FtmoStartGrain.Monthly,
+                    new FtmoChallengeRulesDto(0.10m, 0.05m, 4, null),
+                    [], null, [], false, null, null, 0,
+                    FtmoRunSimulationResultDto.DefaultNotModelled, "disclosure"),
+            ]);
+        _ftmoMultiStartMock
+            .Setup(s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await CreateSut().GetFtmoMultiStart(
+            strategyId, broker: "FTMO", sqxSymbol: "XAUUSD_M1_UTC02", initialCapital: 10_000m,
+            targetRiskPerTrade: 100m, fxLow: null, fxHigh: null,
+            sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 10m, default);
+
+        var body = (result.Result as OkObjectResult)!.Value as FtmoMultiStartDto;
+        body!.StrategyId.Should().Be(strategyId);
+        body.Runs.Single().RunId.Should().Be(runId);
+    }
+
+    [Fact]
+    public async Task MultiStart_InvalidRequestReturns400()
+    {
+        var strategyId = Guid.NewGuid();
+
+        var result = await CreateSut().GetFtmoMultiStart(
+            strategyId, broker: null, sqxSymbol: null, initialCapital: null, targetRiskPerTrade: null,
+            fxLow: null, fxHigh: null, sizeDecimals: 2, step: 0.01m, minLot: 0.01m, maxLots: 10m, default);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        _ftmoMultiStartMock.Verify(
             s => s.SimulateAsync(It.IsAny<FtmoBreachSimulationRequest>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }

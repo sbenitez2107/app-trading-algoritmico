@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using AppTradingAlgoritmico.Application.DTOs.Backtests;
+using AppTradingAlgoritmico.Domain.Enums;
 using AppTradingAlgoritmico.Infrastructure.Services;
 using FluentAssertions;
+using Xunit.Abstractions;
 
 namespace AppTradingAlgoritmico.UnitTests.Ftmo;
 
@@ -13,7 +16,7 @@ namespace AppTradingAlgoritmico.UnitTests.Ftmo;
 /// Build in Release and take the median of 3 for a stable reading; run with
 /// <c>-c Release -p:BaseOutputPath=bin-scratch/</c>.
 /// </summary>
-public class FtmoMultiStartBenchmarkTests
+public class FtmoMultiStartBenchmarkTests(ITestOutputHelper output)
 {
     private static readonly TimeZoneInfo Jerusalem = TimeZoneInfo.FindSystemTimeZoneById("Asia/Jerusalem");
     private static readonly TimeZoneInfo Berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
@@ -96,6 +99,74 @@ public class FtmoMultiStartBenchmarkTests
         }
 
         sw.Stop();
+        return sw.Elapsed;
+    }
+
+    // ---- PR4 follow-up: the SERVICE-LEVEL composition (phase 1, phase 2, funded, Merge3, Classify,
+    // order statistics) — the benchmark above only proxies RunChain + Evaluate; this exercises the
+    // ACTUAL FtmoMultiStartReadService.ComputeRun production method, not a reimplementation. ----
+
+    [BenchmarkFact]
+    public void NeverProfile_FullMultiStartComposition_StaysUnderTheFiveSecondGate()
+    {
+        var elapsed = MedianOfThreeFullComposition(FtmoMultiStartBenchmarkFixture.Profile.Never);
+        output.WriteLine($"MEDIAN never={elapsed.TotalSeconds:F3}s");
+
+        elapsed.Should().BeLessThanOrEqualTo(
+            Gate, "the 'never' profile is the scanner's worst case across every phase — it never exits early");
+    }
+
+    [BenchmarkFact]
+    public void FastProfile_FullMultiStartComposition_StaysUnderTheFiveSecondGate()
+    {
+        var elapsed = MedianOfThreeFullComposition(FtmoMultiStartBenchmarkFixture.Profile.Fast);
+        output.WriteLine($"MEDIAN fast={elapsed.TotalSeconds:F3}s");
+
+        elapsed.Should().BeLessThanOrEqualTo(Gate);
+    }
+
+    private static TimeSpan MedianOfThreeFullComposition(FtmoMultiStartBenchmarkFixture.Profile profile)
+    {
+        var samples = new[]
+        {
+            MeasureOneFullCompositionRequest(profile),
+            MeasureOneFullCompositionRequest(profile),
+            MeasureOneFullCompositionRequest(profile),
+        };
+        Array.Sort(samples);
+        return samples[1];
+    }
+
+    /// <summary>
+    /// One full multi-start request's real composition cost: <see cref="FtmoMultiStartReadService.ComputeRun"/>
+    /// — start enumeration, per-start phase 1 + phase 2 + funded (<see cref="FtmoFundedPhase"/>), the
+    /// three-phase merge (<see cref="FtmoMultiStartChain.Merge3"/>) and classification
+    /// (<see cref="FtmoMultiStartChain.Classify"/>), and the aggregate order statistics
+    /// (<see cref="FtmoOrderStatistics"/>) — over BOTH FX ends (the same trades reused for both, exactly
+    /// like the RunChain-only proxy above; a degenerate <c>fxLow == fxHigh</c> band, USD-settling).
+    /// <c>FtmoBreachEvaluator.cs</c> is exercised UNEDITED, via <see cref="FtmoChallengeRace.RunChain"/>
+    /// and <see cref="FtmoFundedPhase.Run"/>; it is never touched by this benchmark or by production code.
+    /// <para>
+    /// Unlike the <c>RunChain</c>-only proxy above, production does NOT precompute the phase-1
+    /// evaluation here: <see cref="FtmoMultiStartReadService.RunOneEnd"/> passes
+    /// <c>precomputedPhase1Evaluation: null</c> into <c>RunChain</c> for every start, so <c>RunChain</c>
+    /// evaluates phase 1 once internally, per start, per FX end. This method measures that real cost
+    /// directly by calling <c>ComputeRun</c> — the actual production entry point — rather than by
+    /// asserting anything about precomputation; it is the check that gates production cost.
+    /// </para>
+    /// </summary>
+    private static TimeSpan MeasureOneFullCompositionRequest(FtmoMultiStartBenchmarkFixture.Profile profile)
+    {
+        var trades = FtmoMultiStartBenchmarkFixture.Build(profile);
+        var rules = new FtmoChallengeRulesDto(0.10m, 0.05m, 4, TimeLimitDays: null);
+
+        var sw = Stopwatch.StartNew();
+        FtmoMultiStartReadService.ComputeRun(
+            Guid.NewGuid(), BacktestRunKind.Deploy, BacktestSegment.InSample,
+            trades, trades, Jerusalem, Berlin, Capital, DailyPct, MaxPct,
+            profitTargetPct: null, fxBand: (1m, 1m), unscalableCount: 0, rules, CancellationToken.None);
+        sw.Stop();
+
         return sw.Elapsed;
     }
 }
