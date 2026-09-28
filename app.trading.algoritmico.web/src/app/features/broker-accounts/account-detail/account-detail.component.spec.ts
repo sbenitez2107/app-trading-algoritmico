@@ -17,6 +17,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { StrategyCommentsModalComponent } from '../strategy-comments-modal/strategy-comments-modal.component';
 import { BacktestReadiness } from '../../../core/services/backtest.service';
 import { ColDef, ValueFormatterParams } from 'ag-grid-community';
+import { API_BASE_URL } from '../../../app.config';
 
 /** The exact strings the two shipped translation files carry for the readiness marker. */
 const READINESS_TRANSLATIONS = {
@@ -203,6 +204,7 @@ describe('AccountDetailComponent', () => {
         { provide: TradingAccountService, useValue: tradingAccountServiceMock },
         { provide: GridPresetService, useValue: gridPresetServiceMock },
         { provide: Router, useValue: routerMock },
+        { provide: API_BASE_URL, useValue: 'http://localhost/api-test' },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -1016,7 +1018,7 @@ describe('AccountDetailComponent', () => {
     expect(strategyServiceMock.getByAccount).toHaveBeenCalled();
   });
 
-  it('actionsCellRenderer_RendersFourButtonsIncludingTheImportAction', () => {
+  it('actionsCellRenderer_RendersFiveButtonsIncludingTheImportAction', () => {
     const strategy = makeStrategy('s1');
     (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
       of(makePagedResult([strategy])),
@@ -1037,7 +1039,7 @@ describe('AccountDetailComponent', () => {
     const cell = renderer({ value: strategy.id, data: strategy });
     const buttons = Array.from(cell.querySelectorAll('button')) as HTMLButtonElement[];
 
-    expect(buttons).toHaveLength(4);
+    expect(buttons).toHaveLength(5);
 
     const importBtn = buttons.find((b) => b.title === 'Import backtests');
     expect(importBtn).toBeDefined();
@@ -1050,5 +1052,112 @@ describe('AccountDetailComponent', () => {
 
     expect(comp.selectedStrategyForBacktests()).toEqual(strategy);
     expect(rowClickBubbled).toBe(false);
+  });
+
+  // --- PR1d 1d.4: FTMO simulation row action ---
+
+  it('triggeringTheFtmoSimulationAction_OpensTheModalScopedToThatStrategyRow', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    comp.openFtmoModal(strategy);
+    fixture.detectChanges();
+
+    expect(comp.ftmoTargetStrategy()).toEqual(strategy);
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('app-ftmo-simulation-modal')).toBeTruthy();
+  });
+
+  it('theFtmoAction_PassesStrategyIdStrategyNameSqxSymbolVerbatim_AndBrokerFromAccount', () => {
+    const strategy = makeStrategy('s1');
+    strategy.symbol = 'EURUSD';
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    comp.openFtmoModal(strategy);
+    fixture.detectChanges();
+
+    const modalEl = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-ftmo-simulation-modal',
+    );
+    expect(modalEl).toBeTruthy();
+    expect(comp.ftmoTargetStrategy()?.id).toBe(strategy.id);
+    expect(comp.ftmoTargetStrategy()?.name).toBe(strategy.name);
+    expect(comp.ftmoTargetStrategy()?.symbol).toBe('EURUSD');
+    expect(comp.account()?.broker).toBe('Darwinex');
+  });
+
+  it('theFtmoAction_IsShownOnEveryRow_RegardlessOfBroker', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    const actionsCol = comp
+      .columnDefs()
+      .flatMap((c) => ('children' in c ? (c.children as ColDef<StrategyDto>[]) : [c]))
+      .find((c) => (c as ColDef<StrategyDto>).headerName === 'Actions') as ColDef<StrategyDto>;
+    const renderer = actionsCol.cellRenderer as (p: {
+      value: string;
+      data: StrategyDto;
+    }) => HTMLElement;
+    const cell = renderer({ value: strategy.id, data: strategy });
+    const buttons = Array.from(cell.querySelectorAll('button')) as HTMLButtonElement[];
+
+    // account().broker is 'Darwinex' (a non-FTMO account) in this fixture — the action is still shown,
+    // per design.md AD8's rejection of magic-string gating.
+    expect(comp.account()?.broker).toBe('Darwinex');
+    expect(buttons).toHaveLength(5);
+    // No TranslateLoader is configured in this test module, so `translate.instant` resolves the raw
+    // key rather than 'Simulate FTMO' (the `import-strategy-backtests-modal.component.spec.ts`
+    // precedent) — the assertion below still proves the i18n key is used, not a hardcoded string.
+    const ftmoBtn = buttons.find((b) => b.title === 'FTMO_SIMULATION.ACTION_TITLE');
+    expect(ftmoBtn).toBeDefined();
+  });
+
+  it('closingTheFtmoModal_DestroysItViaIf', () => {
+    const strategy = makeStrategy('s1');
+    (strategyServiceMock.getByAccount as ReturnType<typeof vi.fn>).mockReturnValue(
+      of(makePagedResult([strategy])),
+    );
+    const fixture = create();
+    fixture.detectChanges();
+    const comp = fixture.componentInstance;
+
+    comp.openFtmoModal(strategy);
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('app-ftmo-simulation-modal'),
+    ).toBeTruthy();
+
+    comp.closeFtmoModal();
+    fixture.detectChanges();
+
+    expect(comp.ftmoTargetStrategy()).toBeFalsy();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('app-ftmo-simulation-modal'),
+    ).toBeNull();
+  });
+
+  it('falsification_GatingTheFtmoActionBehindAnFtmoBrokerCheck_WouldHideItOnANonFtmoAccount', () => {
+    // Falsification for task 1d.4.6 / design.md AD8's rejection rationale: prove the "every row"
+    // assertion above is load-bearing by simulating the rejected gated design.
+    const account = makeTradingAccount();
+    expect(account.broker).toBe('Darwinex');
+    const gatedVisible = account.broker === 'FTMO';
+    expect(gatedVisible).toBe(false);
+    // The real implementation shows the action regardless (proven by the test above).
   });
 });

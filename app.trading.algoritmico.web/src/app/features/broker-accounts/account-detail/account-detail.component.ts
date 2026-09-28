@@ -43,6 +43,7 @@ import { ImportTradesModalComponent } from '../import-trades-modal/import-trades
 import { ImportStrategyBacktestsModalComponent } from './import-strategy-backtests-modal/import-strategy-backtests-modal.component';
 import { StrategyTradesGridComponent } from '../strategy-trades-grid/strategy-trades-grid.component';
 import { StrategyAnalyticsModalComponent } from '../strategy-analytics-modal/strategy-analytics-modal.component';
+import { FtmoSimulationModalComponent } from '../ftmo-simulation-modal/ftmo-simulation-modal.component';
 import { StrategyMonthlyReturnsComponent } from '../strategy-monthly-returns/strategy-monthly-returns.component';
 import { EquityChartComponent } from '../../portfolios/equity-chart/equity-chart.component';
 import { TradeImportResultDto } from '../../../core/services/trading-account.service';
@@ -188,6 +189,7 @@ export const FIXED_COL_IDS: ReadonlySet<string> = new Set(['name', 'symbol', 'ti
     ImportStrategyBacktestsModalComponent,
     StrategyTradesGridComponent,
     StrategyAnalyticsModalComponent,
+    FtmoSimulationModalComponent,
     StrategyMonthlyReturnsComponent,
     EquityChartComponent,
   ],
@@ -277,6 +279,10 @@ export class AccountDetailComponent implements OnInit {
   readonly activeStrategyId = signal<string | null>(null);
   /** Target of the analytics modal — set from any row (Actions column) or the trades panel header. */
   readonly analyticsTargetStrategy = signal<StrategyDto | null>(null);
+  /** The FTMO simulation modal's target row (design.md AD1, AD8). Shown on every row, regardless of
+   * broker — the backend's own refusal (e.g. `LimitsNotConfigured`) is displayed honestly on a
+   * non-FTMO account, with no magic-string gating. */
+  readonly ftmoTargetStrategy = signal<StrategyDto | null>(null);
   /** Equity curve of the active strategy, over the period its trades span (shown above the grid). */
   readonly equityCurve = signal<StrategyEquityPointDto[]>([]);
 
@@ -474,7 +480,7 @@ export class AccountDetailComponent implements OnInit {
     const deleteDef: ColDef<StrategyDto> = {
       headerName: 'Actions',
       field: 'id',
-      width: 190,
+      width: 230,
       sortable: false,
       filter: false,
       resizable: false,
@@ -510,6 +516,15 @@ export class AccountDetailComponent implements OnInit {
           this.openBacktestsImport(params.data);
         });
 
+        const ftmoBtn = document.createElement('button');
+        ftmoBtn.className = 'grid-action-btn';
+        ftmoBtn.title = this.translate.instant('FTMO_SIMULATION.ACTION_TITLE');
+        ftmoBtn.innerHTML = '&#x1F6E1;';
+        ftmoBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.openFtmoModal(params.data);
+        });
+
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'grid-delete-btn';
         deleteBtn.title = 'Delete strategy';
@@ -522,6 +537,7 @@ export class AccountDetailComponent implements OnInit {
         container.appendChild(performanceBtn);
         container.appendChild(commentsBtn);
         container.appendChild(importBacktestsBtn);
+        container.appendChild(ftmoBtn);
         container.appendChild(deleteBtn);
         return container;
       },
@@ -665,6 +681,14 @@ export class AccountDetailComponent implements OnInit {
 
   closeAnalyticsModal(): void {
     this.analyticsTargetStrategy.set(null);
+  }
+
+  openFtmoModal(strategy: StrategyDto): void {
+    this.ftmoTargetStrategy.set(strategy);
+  }
+
+  closeFtmoModal(): void {
+    this.ftmoTargetStrategy.set(null);
   }
 
   // Split indicator strings into one-line-per-item for readability.

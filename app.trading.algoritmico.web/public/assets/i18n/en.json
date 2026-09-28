@@ -339,6 +339,7 @@
     "MODAL_TITLE": "FTMO simulation",
     "ACTION_TITLE": "Simulate FTMO",
     "RUN": "Run",
+    "RUNNING": "Running…",
     "NO_RUN_HELD": "No run held for this slot",
     "NOT_REPORTED": "Not reported",
     "UNKNOWN_VALUE": "Unknown value ({{value}})",

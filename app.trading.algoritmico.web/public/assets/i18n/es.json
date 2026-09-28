@@ -339,6 +339,7 @@
     "MODAL_TITLE": "Simulación FTMO",
     "ACTION_TITLE": "Simular FTMO",
     "RUN": "Ejecutar",
+    "RUNNING": "Ejecutando…",
     "NO_RUN_HELD": "No hay ejecución registrada para esta ranura",
     "NOT_REPORTED": "No reportado",
     "UNKNOWN_VALUE": "Valor desconocido ({{value}})",

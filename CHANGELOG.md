@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.45.0] - 2026-09-28
+
+### Added
+
+- Each strategy row in an account now has an "FTMO simulation" action. It opens a window that replays the FTMO 2-Step challenge from every monthly start date and shows Deploy and Evaluation side by side, never merged.
+- The form comes prefilled: broker and symbol from the account and strategy, 10,000 initial capital, and the backtest lot grid of the IMOX retester. You type the risk per trade; the FX band is optional. The simulation runs only when you press Run, and a second Run is blocked while one is in progress.
+- Each panel shows how many starts fell into each of the six outcomes, zeros included, with the days elapsed. The funded phase is measured from the start of the funded account.
+- Each refusal reason gets its own message, and months without a start are disclosed. The disclosure that this is elimination, not certification, is always visible.
+
 ## [0.44.0] - 2026-09-28
 
 ### Added

@@ -450,4 +450,14 @@
       (closed)="closeAnalyticsModal()"
     />
   }
+
+  @if (ftmoTargetStrategy(); as t) {
+    <app-ftmo-simulation-modal
+      [strategyId]="t.id"
+      [strategyName]="t.name"
+      [symbol]="t.symbol"
+      [broker]="account()?.broker ?? null"
+      (closed)="closeFtmoModal()"
+    />
+  }
 </div>

@@ -1,0 +1,158 @@
+.ftmo-sim-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+}
+
+.ftmo-sim-modal {
+  background: var(--color-surface, #1e1e2e);
+  border: 1px solid var(--color-border, #313244);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 72rem;
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--color-border, #313244);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary, #cdd6f4);
+  }
+
+  &__subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #a6adc8);
+  }
+
+  &__close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-text-secondary, #a6adc8);
+    cursor: pointer;
+  }
+
+  &__body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+}
+
+.ftmo-sim__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+
+.ftmo-sim__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  label {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #a6adc8);
+  }
+
+  input {
+    background: var(--color-surface-alt, #181825);
+    border: 1px solid var(--color-border, #313244);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    color: var(--color-text-primary, #cdd6f4);
+  }
+}
+
+.ftmo-sim__source-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.75rem 1rem;
+  border: 1px solid var(--color-border, #313244);
+  border-radius: 6px;
+  padding: 0.75rem;
+
+  legend {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary, #a6adc8);
+    padding: 0 0.25rem;
+  }
+}
+
+.ftmo-sim__run-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ftmo-sim__run-btn {
+  background: var(--color-accent, #89b4fa);
+  color: #1e1e2e;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.ftmo-sim__loading {
+  color: var(--color-text-secondary, #a6adc8);
+  font-size: 0.85rem;
+}
+
+.ftmo-sim__error {
+  border: 1px solid var(--color-loss, #f38ba8);
+  color: var(--color-loss, #f38ba8);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+}
+
+.ftmo-sim__disclosure {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary, #a6adc8);
+  margin: 0;
+}
+
+.ftmo-sim__runs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  gap: 1rem;
+}
+
+.ftmo-sim__no-run {
+  border: 1px dashed var(--color-border, #313244);
+  border-radius: 8px;
+  padding: 1rem;
+  color: var(--color-text-secondary, #a6adc8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

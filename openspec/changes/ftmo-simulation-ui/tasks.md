@@ -548,117 +548,141 @@ gets its first importer here.
 
 ### Phase 1d.1 — Form signals and `canRun`
 
-- [ ] 1d.1.1 RED: `ftmo-simulation-modal.component.spec.ts` — `on open, the source-grid fields are
+- [x] 1d.1.1 RED: `ftmo-simulation-modal.component.spec.ts` — `on open, the source-grid fields are
   prefilled from IMOX_RETESTER_LOT_GRID, broker from account context, and initialCapital to 10000` —
   TestBed with a mocked `FtmoSimulationService`; asserts the rendered field values.
   _Satisfies: spec.md "The source lot grid is prefilled from the IMOX retester constant"; hard rule 5._
-- [ ] 1d.1.2 RED: `..._the source-grid fields stay editable after prefill` — simulates editing
+- [x] 1d.1.2 RED: `..._the source-grid fields stay editable after prefill` — simulates editing
   `maxLots`; asserts the new value is accepted and Run stays available.
   _Satisfies: spec.md "The source-grid fields stay editable"._
-- [ ] 1d.1.3 RED: `..._Run is disabled while targetRiskPerTrade is empty` — asserts the Run button's
+- [x] 1d.1.3 RED: `..._Run is disabled while targetRiskPerTrade is empty` — asserts the Run button's
   `disabled` state.
   _Satisfies: spec.md "Run is disabled while targetRiskPerTrade is empty"._
-- [ ] 1d.1.4 RED: `..._Run is enabled once all 8 required fields are filled, fxLow/fxHigh left empty`
+- [x] 1d.1.4 RED: `..._Run is enabled once all 8 required fields are filled, fxLow/fxHigh left empty`
   — asserts Run enabled.
   _Satisfies: spec.md "Run is enabled once all 8 required fields are filled"._
-- [ ] 1d.1.5 RED: `..._sizeDecimals=0 does not disable Run` — asserts Run stays enabled with
+- [x] 1d.1.5 RED: `..._sizeDecimals=0 does not disable Run` — asserts Run stays enabled with
   `sizeDecimals: 0` and every other field filled.
   _Satisfies: spec.md "A zero sizeDecimals value does not disable Run"; hard rule 2._
-- [ ] 1d.1.6 GREEN: implement the form signals (`number | null` per field, `string` for
+- [x] 1d.1.6 GREEN: implement the form signals (`number | null` per field, `string` for
   broker/sqxSymbol), prefill on construction/open from `IMOX_RETESTER_LOT_GRID` and account context,
   and `canRun = computed(...)` per AD6 (all 8 required fields `!== null` and finite, `!running()`).
   Confirm 1d.1.1–1d.1.5 pass.
   _Satisfies: design.md AD6, AD7, AD8._
-- [ ] 1d.1.7 Falsification: temporarily change `canRun`'s `sizeDecimals` check to `!!sizeDecimals()`
+- [x] 1d.1.7 Falsification: temporarily change `canRun`'s `sizeDecimals` check to `!!sizeDecimals()`
   (truthy); confirm 1d.1.5 goes RED; restore; confirm green again.
   _Satisfies: hard rule 2, hard rule 7._
 
 ### Phase 1d.2 — Run lifecycle
 
-- [ ] 1d.2.1 RED: `..._editing an input after a completed run does not send a new request` — one
+- [x] 1d.2.1 RED: `..._editing an input after a completed run does not send a new request` — one
   `expectOne` for the initial run, then an edit; asserts `httpTestingController.verify()` finds no
   additional request.
   _Satisfies: spec.md "Editing an input does not trigger a request"._
-- [ ] 1d.2.2 RED: `..._a second Run activation while one is in flight sends no second request and Run
+- [x] 1d.2.2 RED: `..._a second Run activation while one is in flight sends no second request and Run
   stays disabled` — activates Run twice before flushing; asserts exactly one `expectOne` and Run
   disabled until resolution.
   _Satisfies: spec.md "A second Run is blocked while one is in flight"._
-- [ ] 1d.2.3 RED: `..._a 400 response shows an explicit error, re-enables Run, and renders no partial
+- [x] 1d.2.3 RED: `..._a 400 response shows an explicit error, re-enables Run, and renders no partial
   result` — flushes a 400; asserts an error state element is present, Run re-enabled, no run panels
   rendered.
   _Satisfies: spec.md "A 400 response shows an explicit error"._
-- [ ] 1d.2.4 RED: `..._a network failure shows an explicit error and re-enables Run` — flushes a
+- [x] 1d.2.4 RED: `..._a network failure shows an explicit error and re-enables Run` — flushes a
   network error; asserts error state and Run re-enabled.
   _Satisfies: spec.md "A network failure shows an explicit error"._
-- [ ] 1d.2.5 RED: `..._destroying the fixture while a request is in flight cancels the request` —
+- [x] 1d.2.5 RED: `..._destroying the fixture while a request is in flight cancels the request` —
   destroys the fixture mid-flight; asserts the `HttpTestingController` request was cancelled/aborted
   (no dangling open request at `verify()`).
   _Satisfies: design.md AD10 (`takeUntilDestroyed`)._
-- [ ] 1d.2.6 GREEN: implement `run()` per AD10: early return while `running()`; clear `result`/`error`;
+- [x] 1d.2.6 GREEN: implement `run()` per AD10: early return while `running()`; clear `result`/`error`;
   `getMultiStart` via `takeUntilDestroyed(destroyRef)`; on success `result.set(dto)`, `lastQuery`
   already snapshotted on activation; on error set the mapped `FtmoRequestError` and clear any stale
   result. Confirm 1d.2.1–1d.2.5 pass.
   _Satisfies: design.md AD10._
-- [ ] 1d.2.7 Falsification: temporarily omit the `running()` early-return guard in `run()`; confirm
+- [x] 1d.2.7 Falsification: temporarily omit the `running()` early-return guard in `run()`; confirm
   1d.2.2 goes RED (a second `expectOne` now exists); restore; confirm green again.
   _Satisfies: hard rule 7._
 
 ### Phase 1d.3 — Panel composition and layout
 
-- [ ] 1d.3.1 RED: `..._a successful multi-start result renders two separately labelled panels, Deploy
+- [x] 1d.3.1 RED: `..._a successful multi-start result renders two separately labelled panels, Deploy
   then Evaluation` — asserts `panels = computed(() => toPanels(result()))` drives exactly two
   `FtmoRunPanelComponent` instances in kind order.
   _Satisfies: spec.md "Deploy and Eval render as separate panels"; design.md AD9._
-- [ ] 1d.3.2 RED: `..._a missing run kind renders NO_RUN_HELD in that slot instead of omitting it` —
+- [x] 1d.3.2 RED: `..._a missing run kind renders NO_RUN_HELD in that slot instead of omitting it` —
   a DTO with only one run present; asserts the second slot renders the `NO_RUN_HELD` key.
   _Satisfies: design.md AD9._
-- [ ] 1d.3.3 RED: `..._the disclosure block is visible before any run has completed` — fresh fixture,
+- [x] 1d.3.3 RED: `..._the disclosure block is visible before any run has completed` — fresh fixture,
   no run activated; asserts the i18n-keyed disclosure block is present.
   _Satisfies: spec.md "The disclosure block is visible before any run"._
-- [ ] 1d.3.4 GREEN: wire `panels = computed(() => toPanels(result()))`, the `.ftmo-sim__runs` grid
+- [x] 1d.3.4 GREEN: wire `panels = computed(() => toPanels(result()))`, the `.ftmo-sim__runs` grid
   layout per AD9 (`repeat(auto-fit, minmax(min(100%, 30rem), 1fr))`), the always-visible disclosure
   block, and the two fixed Deploy/Evaluation slots. Confirm 1d.3.1–1d.3.3 pass.
   _Satisfies: design.md AD3, AD9._
-- [ ] 1d.3.5 Falsification: temporarily render only `panels()` present entries (skip missing kinds)
+- [x] 1d.3.5 Falsification: temporarily render only `panels()` present entries (skip missing kinds)
   instead of two fixed slots; confirm 1d.3.2 goes RED; restore; confirm green again.
   _Satisfies: hard rule 7._
 
 ### Phase 1d.4 — account-detail wiring
 
-- [ ] 1d.4.1 RED: `account-detail.component.spec.ts` — `triggering the FTMO simulation action on a
+- [x] 1d.4.1 RED: `account-detail.component.spec.ts` — `triggering the FTMO simulation action on a
   strategy row opens the modal scoped to that strategy` — asserts `ftmoTargetStrategy()` is set to the
   clicked row's strategy and the modal host (`@if`) renders.
   _Satisfies: spec.md "Opening the modal from a strategy row"._
-- [ ] 1d.4.2 RED: `..._the action passes strategyId, strategyName, sqxSymbol verbatim from
+- [x] 1d.4.2 RED: `..._the action passes strategyId, strategyName, sqxSymbol verbatim from
   strategy.symbol, and broker from account()?.broker` — asserts the modal's inputs match the row's
   strategy and the account's broker.
   _Satisfies: design.md AD8; proposal.md "Defaults to confirm" #1–2._
-- [ ] 1d.4.3 RED: `..._the action is shown on every row, regardless of broker` — asserts the action is
+- [x] 1d.4.3 RED: `..._the action is shown on every row, regardless of broker` — asserts the action is
   present even for a non-FTMO account (per AD8's rejection of magic-string gating).
   _Satisfies: design.md AD8._
-- [ ] 1d.4.4 RED: `..._closing the modal destroys it via @if, cancelling any in-flight request` —
+- [x] 1d.4.4 RED: `..._closing the modal destroys it via @if, cancelling any in-flight request` —
   asserts `ftmoTargetStrategy()` resets to falsy and the modal component is removed from the DOM.
   _Satisfies: design.md AD1, AD10._
-- [ ] 1d.4.5 GREEN: add the row action (i18n title, `FTMO_SIMULATION.*` key) to
+- [x] 1d.4.5 GREEN: add the row action (i18n title, `FTMO_SIMULATION.*` key) to
   `account-detail.component.html`, the `ftmoTargetStrategy` signal and `@if (ftmoTargetStrategy(); as
   t)` host to `account-detail.component.ts`, following the Analytics/Monthly modal precedent
   (`account-detail.component.html:446-452`, `:97`, `:482-527`). Confirm 1d.4.1–1d.4.4 pass.
   _Satisfies: design.md AD1, AD8; spec.md "The Modal Opens From The Strategy Row"._
-- [ ] 1d.4.6 Falsification: temporarily hide the row action behind `account()?.broker === 'FTMO'`;
+- [x] 1d.4.6 Falsification: temporarily hide the row action behind `account()?.broker === 'FTMO'`;
   confirm 1d.4.3 goes RED; restore; confirm green again.
   _Satisfies: hard rule 7; design.md AD8 rejection rationale._
 
 ### Phase 1d.5 — PR1d gates
 
-- [ ] 1d.5.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.html src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.scss src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.spec.ts src/app/features/broker-accounts/account-detail/account-detail.component.ts src/app/features/broker-accounts/account-detail/account-detail.component.html src/app/features/broker-accounts/account-detail/account-detail.component.spec.ts` — no diffs.
-- [ ] 1d.5.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 1d.5.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1d specs plus every new
+- [x] 1d.5.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.html src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.scss src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.spec.ts src/app/features/broker-accounts/account-detail/account-detail.component.ts src/app/features/broker-accounts/account-detail/account-detail.component.html src/app/features/broker-accounts/account-detail/account-detail.component.spec.ts` — no diffs.
+- [x] 1d.5.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
+- [x] 1d.5.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1d specs plus every new
   PR1d spec pass, **0 existing assertions edited**. This is also PR1's own completion gate: confirm
   proposal.md's Success Criteria for PR1 (Deploy/Eval separate, all six outcomes with zero counts,
   every refusal path including value-0 ones, disclosure/MonthsWithoutStart/Start-1 always shown,
   banned-word test green) are all covered by passing specs.
-- [ ] 1d.5.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
+- [x] 1d.5.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
   patching.
+
+### Phase 1d.6 — Correction: modal error-text rendering (RELIABILITY-101 CRITICAL)
+
+- [x] 1d.6.1 RED: real-dictionary block (`setTranslation('en'|'es', <real json>)` + `use(...)`, the
+  1c.5 precedent) added to `ftmo-simulation-modal.component.spec.ts`: 400 `{ message: 'X' }` renders
+  exactly `The request was rejected: X` / `La solicitud fue rechazada: X`; network failure renders
+  `REQUEST_FAILED` in EN and ES; 400 with `{}` and with `{ message: null }`; Evaluated result with
+  both panels (EN and ES) contains no `{{` and no raw `FTMO_SIMULATION.`; form labels/legend, the
+  RUNNING state, and `NO_RUN_HELD` (EN and ES) render dictionary text.
+  _Apply note: RED against the unchanged template only on the null-detail cases —
+  `expected 'The request was rejected: null' to be 'The request was rejected: Not reported'` and
+  `expected 'La solicitud fue rechazada: null' ...`. ngx-translate 17 `formatValue(null)` returns the
+  literal `"null"` (not the `{{detail}}` placeholder); the other 8 new tests were already green._
+- [x] 1d.6.2 GREEN: `errorParams(err, notReported)` returns `{ detail: err.detail ?? notReported }`;
+  the template passes `'FTMO_SIMULATION.NOT_REPORTED' | translate` (the 1c.5.5 null fallback).
+  No i18n JSON change.
+- [x] 1d.6.3 Falsification: temporarily rendered `errorFullKey(e) | translate` without params; 4 error
+  tests went RED (`expected 'The request was rejected: {{detail}}' to be 'The request was rejected:
+  X'`, and ES); restored; 26/26 green again.
+- [x] 1d.6.4 Gates: prettier --check on the 3 touched modal files clean; tsc --noEmit exit 0; full
+  `ng test` 41 files / 518 tests passed (508 + 10 new).
+  _Note (RELIABILITY-102, WARNING, not changed): the sibling row-action buttons in
+  `account-detail.component.ts` use hardcoded English `title` literals, so there is no reactive
+  pattern to match; `translate.instant` for the FTMO action title stays as is._
 
 ---
 

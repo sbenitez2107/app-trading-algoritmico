@@ -1,0 +1,164 @@
+<div class="ftmo-sim-backdrop" (click)="onBackdropClick($event)">
+  <div class="ftmo-sim-modal" role="dialog" aria-modal="true">
+    <header class="ftmo-sim-modal__header">
+      <div>
+        <h2 class="ftmo-sim-modal__title">{{ 'FTMO_SIMULATION.MODAL_TITLE' | translate }}</h2>
+        <p class="ftmo-sim-modal__subtitle">{{ strategyName() }}</p>
+      </div>
+      <button class="ftmo-sim-modal__close" type="button" (click)="close()" aria-label="Close">
+        &times;
+      </button>
+    </header>
+
+    <div class="ftmo-sim-modal__body">
+      <form class="ftmo-sim__form" (ngSubmit)="run()">
+        <div class="ftmo-sim__field">
+          <label for="ftmo-broker">{{ 'FTMO_SIMULATION.FIELDS.BROKER' | translate }}</label>
+          <input
+            id="ftmo-broker"
+            type="text"
+            name="broker"
+            [ngModel]="brokerValue()"
+            (ngModelChange)="brokerValue.set($event)"
+          />
+        </div>
+        <div class="ftmo-sim__field">
+          <label for="ftmo-sqx-symbol">{{ 'FTMO_SIMULATION.FIELDS.SQX_SYMBOL' | translate }}</label>
+          <input
+            id="ftmo-sqx-symbol"
+            type="text"
+            name="sqxSymbol"
+            [ngModel]="sqxSymbol()"
+            (ngModelChange)="sqxSymbol.set($event)"
+          />
+        </div>
+        <div class="ftmo-sim__field">
+          <label for="ftmo-initial-capital">{{
+            'FTMO_SIMULATION.FIELDS.INITIAL_CAPITAL' | translate
+          }}</label>
+          <input
+            id="ftmo-initial-capital"
+            type="number"
+            name="initialCapital"
+            [ngModel]="initialCapital()"
+            (ngModelChange)="initialCapital.set($event)"
+          />
+        </div>
+        <div class="ftmo-sim__field">
+          <label for="ftmo-target-risk">{{
+            'FTMO_SIMULATION.FIELDS.TARGET_RISK_PER_TRADE' | translate
+          }}</label>
+          <input
+            id="ftmo-target-risk"
+            type="number"
+            name="targetRiskPerTrade"
+            [ngModel]="targetRiskPerTrade()"
+            (ngModelChange)="targetRiskPerTrade.set($event)"
+          />
+        </div>
+
+        <fieldset class="ftmo-sim__source-grid">
+          <legend>{{ 'FTMO_SIMULATION.FIELDS.SOURCE_LOT_GRID_LABEL' | translate }}</legend>
+          <div class="ftmo-sim__field">
+            <label for="ftmo-size-decimals">{{
+              'FTMO_SIMULATION.FIELDS.SIZE_DECIMALS' | translate
+            }}</label>
+            <input
+              id="ftmo-size-decimals"
+              type="number"
+              name="sizeDecimals"
+              [ngModel]="sizeDecimals()"
+              (ngModelChange)="sizeDecimals.set($event)"
+            />
+          </div>
+          <div class="ftmo-sim__field">
+            <label for="ftmo-step">{{ 'FTMO_SIMULATION.FIELDS.STEP' | translate }}</label>
+            <input
+              id="ftmo-step"
+              type="number"
+              name="step"
+              [ngModel]="step()"
+              (ngModelChange)="step.set($event)"
+            />
+          </div>
+          <div class="ftmo-sim__field">
+            <label for="ftmo-min-lot">{{ 'FTMO_SIMULATION.FIELDS.MIN_LOT' | translate }}</label>
+            <input
+              id="ftmo-min-lot"
+              type="number"
+              name="minLot"
+              [ngModel]="minLot()"
+              (ngModelChange)="minLot.set($event)"
+            />
+          </div>
+          <div class="ftmo-sim__field">
+            <label for="ftmo-max-lots">{{ 'FTMO_SIMULATION.FIELDS.MAX_LOTS' | translate }}</label>
+            <input
+              id="ftmo-max-lots"
+              type="number"
+              name="maxLots"
+              [ngModel]="maxLots()"
+              (ngModelChange)="maxLots.set($event)"
+            />
+          </div>
+        </fieldset>
+
+        <div class="ftmo-sim__field">
+          <label for="ftmo-fx-low">{{ 'FTMO_SIMULATION.FIELDS.FX_LOW' | translate }}</label>
+          <input
+            id="ftmo-fx-low"
+            type="number"
+            name="fxLow"
+            [ngModel]="fxLow()"
+            (ngModelChange)="fxLow.set($event)"
+          />
+        </div>
+        <div class="ftmo-sim__field">
+          <label for="ftmo-fx-high">{{ 'FTMO_SIMULATION.FIELDS.FX_HIGH' | translate }}</label>
+          <input
+            id="ftmo-fx-high"
+            type="number"
+            name="fxHigh"
+            [ngModel]="fxHigh()"
+            (ngModelChange)="fxHigh.set($event)"
+          />
+        </div>
+
+        <div class="ftmo-sim__run-row">
+          <button type="submit" class="ftmo-sim__run-btn" [disabled]="!canRun()">
+            {{ 'FTMO_SIMULATION.RUN' | translate }}
+          </button>
+          @if (running()) {
+            <span class="ftmo-sim__loading" role="status">{{
+              'FTMO_SIMULATION.RUNNING' | translate
+            }}</span>
+          }
+        </div>
+      </form>
+
+      @if (error(); as e) {
+        <div class="ftmo-sim__error" role="alert">
+          {{
+            errorFullKey(e) | translate: errorParams(e, 'FTMO_SIMULATION.NOT_REPORTED' | translate)
+          }}
+        </div>
+      }
+
+      <p class="ftmo-sim__disclosure">
+        {{ 'FTMO_SIMULATION.DISCLOSURE_ALWAYS_VISIBLE' | translate }}
+      </p>
+
+      <div class="ftmo-sim__runs">
+        @for (kind of runKinds; track kind) {
+          @if (panelFor(kind); as vm) {
+            <app-ftmo-run-panel [vm]="vm" />
+          } @else {
+            <section class="ftmo-sim__no-run">
+              {{ 'FTMO_SIMULATION.NO_RUN_HELD' | translate }}
+            </section>
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>
