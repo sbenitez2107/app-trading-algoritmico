@@ -41,6 +41,259 @@ internal static class FtmoChallengeRace
     internal readonly record struct ChainResult(PhaseResult Phase1, PhaseResult Phase2);
 
     /// <summary>
+    /// ftmo-multi-start PR1, task 1.1.4/1.6 (design.md Decision 1's optimisation clause) — a race-private
+    /// <see cref="FtmoReplayCalendar.ElapsedDays"/> equivalent. The shipped helper re-attributes every
+    /// trade's own-open bookkeeping day (a <see cref="TimeZoneInfo"/> conversion) on EVERY close-group
+    /// cutoff check inside <see cref="RunPhase"/> — O(n) TimeZoneInfo work, n times, once per group, so
+    /// O(n^2) overall. This memoises each trade's own-open day ONCE per <see cref="RunPhase"/> call, and
+    /// answers the <b>monotonic</b> close-group scan (cutoffs only ever increase within that loop) with a
+    /// two-pointer incremental distinct-day count, backed by a Fenwick tree over the trades' own
+    /// bookkeeping days so an out-of-order (non-monotonic) query — <see cref="RunPhase"/>'s post-loop
+    /// breach-point cutoff can land BEFORE the loop's last cutoff, since the loop keeps scanning after a
+    /// breach to look for a later decided close — still gets an exact answer via a same-semantics direct
+    /// O(n) fallback scan (used at most once per phase, so the phase stays O(n log n) overall, never
+    /// O(n^2)). Proven equal to <see cref="FtmoReplayCalendar.ElapsedDays"/> at every close-group cutoff
+    /// of both benchmark fixture profiles (including the non-monotonic breach cutoff), plus
+    /// <see cref="RunChain"/> equality on every monthly start against the unoptimised implementation
+    /// (FtmoChallengeRaceElapsedDaysCacheEquivalenceTests). <c>internal</c> so those tests exercise the
+    /// production type directly, not a hand-copied reimplementation.
+    /// </summary>
+    internal sealed class CachedOpenDays
+    {
+        private readonly (DateTime OpenSource, DateTime CloseSource, bool Scalable, DateOnly Day)[] _rows;
+        private readonly int[] _scalableByOpen;
+        private readonly int[] _scalableByClose;
+        private readonly DateOnly[] _sortedDistinctDays;
+        private readonly int[] _dayRankOfRow;
+        private readonly int[] _bit;
+        private readonly bool[] _entered;
+        private readonly bool[] _dayEntered;
+
+        private int _openPtr;
+        private int _closePtr;
+        private DateTime? _lastEventSourceClose;
+
+        /// <summary>
+        /// ftmo-multi-start PR1 apply follow-up (option A, PR1 gate rework) — <paramref name="attribution"/>
+        /// is an optional PRECOMPUTED own-open bookkeeping day per <see cref="FtmoTradeProjector.ProjectedTrade.RowIndex"/>,
+        /// from <see cref="AttributeOpenDays"/>. When supplied, the per-row <see cref="TimeZoneInfo"/>
+        /// conversion is skipped entirely — the caller already paid for it once, for the whole chain (both
+        /// phases) and, since open/close instants and the scalable flag never depend on FX (verified in
+        /// <see cref="FtmoTradeProjector.Project"/> — <c>Net is null</c> depends only on <c>trade.Size</c>,
+        /// never on the FX rate), both FX ends too. <c>null</c> falls back to the original per-call
+        /// attribution, so every existing caller keeps its exact behaviour unedited.
+        /// </summary>
+        internal CachedOpenDays(
+            IReadOnlyList<FtmoTradeProjector.ProjectedTrade> trades,
+            TimeZoneInfo sourceZone,
+            TimeZoneInfo berlinZone,
+            IReadOnlyDictionary<int, DateOnly>? attribution = null)
+        {
+            var rows = new (DateTime, DateTime, bool, DateOnly)[trades.Count];
+            for (var i = 0; i < trades.Count; i++)
+            {
+                var trade = trades[i];
+                // Unscalable rows never actually opened on FTMO (FtmoReplayCalendar's own rule) — skip
+                // the attribution entirely; their day is never read.
+                var day = trade.Net is null
+                    ? default
+                    : attribution is not null
+                        ? attribution[trade.RowIndex]
+                        : FtmoDayClock.Attribute(trade.OpenSource, sourceZone, berlinZone).BookkeepingDay;
+                rows[i] = (trade.OpenSource, trade.CloseSource, trade.Net is not null, day);
+            }
+
+            _rows = rows;
+
+            var scalableIndices = new List<int>();
+            for (var i = 0; i < rows.Length; i++)
+                if (rows[i].Item3)
+                    scalableIndices.Add(i);
+
+            _scalableByOpen = scalableIndices.OrderBy(i => rows[i].Item1).ToArray();
+            _scalableByClose = scalableIndices.OrderBy(i => rows[i].Item2).ToArray();
+
+            _sortedDistinctDays = scalableIndices.Select(i => rows[i].Item4).Distinct().OrderBy(d => d).ToArray();
+
+            _dayRankOfRow = new int[rows.Length];
+            foreach (var i in scalableIndices)
+                _dayRankOfRow[i] = Array.BinarySearch(_sortedDistinctDays, rows[i].Item4);
+
+            _bit = new int[_sortedDistinctDays.Length + 1];
+            _entered = new bool[rows.Length];
+            _dayEntered = new bool[_sortedDistinctDays.Length];
+        }
+
+        /// <summary>Same cutoff rule as <see cref="FtmoReplayCalendar.ElapsedDays"/>: distinct cached days in range.</summary>
+        internal int CountOpenDays(DateOnly anchorDay, DateOnly breachDay, DateTime eventSourceClose)
+        {
+            if (_lastEventSourceClose is not null && eventSourceClose < _lastEventSourceClose.Value)
+                return CountOpenDaysDirect(anchorDay, breachDay, eventSourceClose);
+
+            _lastEventSourceClose = eventSourceClose;
+
+            while (_openPtr < _scalableByOpen.Length && _rows[_scalableByOpen[_openPtr]].OpenSource < eventSourceClose)
+            {
+                Enter(_scalableByOpen[_openPtr]);
+                _openPtr++;
+            }
+
+            while (_closePtr < _scalableByClose.Length && _rows[_scalableByClose[_closePtr]].CloseSource <= eventSourceClose)
+            {
+                Enter(_scalableByClose[_closePtr]);
+                _closePtr++;
+            }
+
+            return CountLessOrEqual(breachDay) - CountLessOrEqual(anchorDay.AddDays(-1));
+        }
+
+        /// <summary>
+        /// Non-monotonic fallback, semantically identical to <see cref="FtmoReplayCalendar.ElapsedDays"/>'s
+        /// own O(n) scan: used only when a cutoff arrives smaller than one already answered by the
+        /// incremental (monotonic) path above, so the two-pointer state cannot be trusted for it.
+        /// </summary>
+        private int CountOpenDaysDirect(DateOnly anchorDay, DateOnly breachDay, DateTime eventSourceClose)
+        {
+            var openDays = new HashSet<DateOnly>();
+            foreach (var row in _rows)
+            {
+                if (!row.Scalable)
+                    continue;
+
+                if (!(row.OpenSource < eventSourceClose || row.CloseSource <= eventSourceClose))
+                    continue;
+
+                if (row.Day >= anchorDay && row.Day <= breachDay)
+                    openDays.Add(row.Day);
+            }
+
+            return openDays.Count;
+        }
+
+        private void Enter(int rowIndex)
+        {
+            if (_entered[rowIndex])
+                return;
+
+            _entered[rowIndex] = true;
+
+            // Distinct-day semantics (HashSet<DateOnly>.Add in the direct fallback): only the FIRST row
+            // to reach a given day counts it — a second row sharing the same day must not double it.
+            var rank = _dayRankOfRow[rowIndex];
+            if (_dayEntered[rank])
+                return;
+
+            _dayEntered[rank] = true;
+            BitAdd(rank);
+        }
+
+        private void BitAdd(int rank)
+        {
+            for (var i = rank + 1; i < _bit.Length; i += i & -i)
+                _bit[i]++;
+        }
+
+        private int BitSum(int rank)
+        {
+            var sum = 0;
+            for (var i = rank + 1; i > 0; i -= i & -i)
+                sum += _bit[i];
+            return sum;
+        }
+
+        /// <summary>Count of distinct ENTERED days &lt;= <paramref name="day"/> (0 if none qualify).</summary>
+        private int CountLessOrEqual(DateOnly day)
+        {
+            var lo = 0;
+            var hi = _sortedDistinctDays.Length - 1;
+            var found = -1;
+            while (lo <= hi)
+            {
+                var mid = (lo + hi) / 2;
+                if (_sortedDistinctDays[mid] <= day)
+                {
+                    found = mid;
+                    lo = mid + 1;
+                }
+                else
+                {
+                    hi = mid - 1;
+                }
+            }
+
+            return found < 0 ? 0 : BitSum(found);
+        }
+    }
+
+    /// <summary>
+    /// ftmo-multi-start PR1 apply follow-up (option A) — each trade's own-open bookkeeping day, computed
+    /// ONCE per chain (not per phase, and not per FX end). Open/close instants and the scalable flag
+    /// (<c>Net is null</c>) depend only on <see cref="FtmoTradeProjector.ProjectedTrade.OpenSource"/> and
+    /// the source trade's declared size (see <see cref="FtmoTradeProjector.Project"/>) — never on the FX
+    /// rate — so this attribution is valid for BOTH FX ends' projected series when keyed by
+    /// <see cref="FtmoTradeProjector.ProjectedTrade.RowIndex"/>, and for a phase-2 subset of the same
+    /// series (a phase-2 subset's rows are the same rows, same <c>RowIndex</c>, as the full series passed
+    /// in here). Skips <c>Unscalable</c> rows (their day is never read, matching <see cref="CachedOpenDays"/>'s
+    /// own skip).
+    /// </summary>
+    internal static IReadOnlyDictionary<int, DateOnly> AttributeOpenDays(
+        IReadOnlyList<FtmoTradeProjector.ProjectedTrade> trades, TimeZoneInfo sourceZone, TimeZoneInfo berlinZone)
+    {
+        var attribution = new Dictionary<int, DateOnly>(trades.Count);
+        foreach (var trade in trades)
+        {
+            if (trade.Net is null)
+                continue;
+
+            attribution[trade.RowIndex] = FtmoDayClock.Attribute(trade.OpenSource, sourceZone, berlinZone).BookkeepingDay;
+        }
+
+        return attribution;
+    }
+
+    private static (int CalendarDaysElapsed, int FtmoTradingDaysElapsed) ElapsedDaysCached(
+        FtmoReplayCalendar.ReplayAnchor anchor, DateOnly breachDay, DateTime eventSourceClose, CachedOpenDays cache)
+    {
+        var calendarDays = breachDay.DayNumber - anchor.FtmoDay.DayNumber;
+        var tradingDays = cache.CountOpenDays(anchor.FtmoDay, breachDay, eventSourceClose);
+        return (calendarDays, tradingDays);
+    }
+
+    /// <summary>
+    /// ftmo-multi-start PR1, task 1.2 (design.md Decision 2) — the earliest-breach selection across
+    /// the daily and max limits, extracted VERBATIM from <see cref="RunPhase"/>'s breach-limit
+    /// selection block. <c>null</c> when neither limit ever breaches. On a tie between the two limits
+    /// at the SAME close (<see cref="FtmoBreachEvaluator.BreachPoint.RowIndex"/> equal), daily wins and
+    /// is tagged <see cref="FtmoFirstBreachingLimit.BothSameClose"/>; otherwise the earlier of the two
+    /// by <c>(SourceTime, RowIndex)</c> wins. Called by <see cref="RunPhase"/> and the funded phase
+    /// (Phase 1.3).
+    /// </summary>
+    internal static (FtmoBreachEvaluator.BreachPoint BreachPoint, FtmoFirstBreachingLimit BreachLimit)? FirstBreach(
+        FtmoBreachEvaluator.FtmoBreachEvaluation evaluation)
+    {
+        if (evaluation.Daily.FirstBreach is null && evaluation.Max.FirstBreach is null)
+            return null;
+
+        var daily = evaluation.Daily.FirstBreach;
+        var max = evaluation.Max.FirstBreach;
+
+        if (daily is null)
+            return (max!.Value, FtmoFirstBreachingLimit.Max);
+
+        if (max is null)
+            return (daily.Value, FtmoFirstBreachingLimit.Daily);
+
+        if (daily.Value.RowIndex == max.Value.RowIndex)
+            return (daily.Value, FtmoFirstBreachingLimit.BothSameClose);
+
+        var dailyIsEarlier = (daily.Value.SourceTime, daily.Value.RowIndex)
+            .CompareTo((max.Value.SourceTime, max.Value.RowIndex)) < 0;
+        return dailyIsEarlier
+            ? (daily.Value, FtmoFirstBreachingLimit.Daily)
+            : (max.Value, FtmoFirstBreachingLimit.Max);
+    }
+
+    /// <summary>
     /// Runs one phase's scanner (target, close groups, flat-book check) plus the unchanged evaluator
     /// (breach) over <paramref name="phaseTrades"/>, and combines them per design.md Decision 3
     /// (breach wins on a tie).
@@ -52,7 +305,9 @@ internal static class FtmoChallengeRace
         decimal capital,
         decimal dailyPct,
         decimal maxPct,
-        decimal targetPct)
+        decimal targetPct,
+        FtmoBreachEvaluator.FtmoBreachEvaluation? precomputedEvaluation = null,
+        IReadOnlyDictionary<int, DateOnly>? openDayAttribution = null)
     {
         ArgumentNullException.ThrowIfNull(phaseTrades);
         ArgumentNullException.ThrowIfNull(sourceZone);
@@ -63,6 +318,7 @@ internal static class FtmoChallengeRace
 
         var anchor = FtmoReplayCalendar.Build(phaseTrades, sourceZone, berlinZone);
         var startOpen = anchor.SourceOpen;
+        var openDaysCache = new CachedOpenDays(phaseTrades, sourceZone, berlinZone, openDayAttribution);
 
         var ordered = phaseTrades
             .OrderBy(t => t.CloseSource)
@@ -95,8 +351,7 @@ internal static class FtmoChallengeRace
                 firstTouch = groupClose;
 
             var groupDay = FtmoDayClock.Attribute(groupClose, sourceZone, berlinZone).BookkeepingDay;
-            var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
-                anchor, groupDay, groupClose, phaseTrades, sourceZone, berlinZone);
+            var (calendarDays, tradingDays) = ElapsedDaysCached(anchor, groupDay, groupClose, openDaysCache);
 
             if (minDaysMetDay is null && tradingDays >= FtmoChallengeRules.MinTradingDaysPerPhase)
             {
@@ -117,44 +372,25 @@ internal static class FtmoChallengeRace
             }
         }
 
-        var evaluation = FtmoBreachEvaluator.Evaluate(phaseTrades, sourceZone, berlinZone, capital, dailyPct, maxPct);
+        // ftmo-multi-start PR1 apply follow-up (option A): the caller (RunChain's phase-1 call, the
+        // benchmark, or FtmoBreachSimulationReadService) may already hold this EXACT phase's evaluation —
+        // reuse it instead of re-running the O(n log n) evaluator on the identical series. The contract
+        // is enforced by the caller, never validated here (this method has no way to tell "this
+        // evaluation" from "a look-alike one for a different series" without re-evaluating, which would
+        // defeat the optimisation) — see FtmoChallengeRaceSharedEvaluationTests for the equivalence proof
+        // and its falsification.
+        var evaluation = precomputedEvaluation
+            ?? FtmoBreachEvaluator.Evaluate(phaseTrades, sourceZone, berlinZone, capital, dailyPct, maxPct);
 
-        FtmoBreachEvaluator.BreachPoint? breachPoint = null;
-        FtmoFirstBreachingLimit? breachLimit = null;
-        if (evaluation.Daily.FirstBreach is not null || evaluation.Max.FirstBreach is not null)
-        {
-            var daily = evaluation.Daily.FirstBreach;
-            var max = evaluation.Max.FirstBreach;
-
-            if (daily is null)
-            {
-                breachPoint = max;
-                breachLimit = FtmoFirstBreachingLimit.Max;
-            }
-            else if (max is null)
-            {
-                breachPoint = daily;
-                breachLimit = FtmoFirstBreachingLimit.Daily;
-            }
-            else if (daily.Value.RowIndex == max.Value.RowIndex)
-            {
-                breachPoint = daily;
-                breachLimit = FtmoFirstBreachingLimit.BothSameClose;
-            }
-            else
-            {
-                var dailyIsEarlier = (daily.Value.SourceTime, daily.Value.RowIndex)
-                    .CompareTo((max.Value.SourceTime, max.Value.RowIndex)) < 0;
-                breachPoint = dailyIsEarlier ? daily : max;
-                breachLimit = dailyIsEarlier ? FtmoFirstBreachingLimit.Daily : FtmoFirstBreachingLimit.Max;
-            }
-        }
+        var firstBreach = FirstBreach(evaluation);
+        var breachPoint = firstBreach?.BreachPoint;
+        var breachLimit = firstBreach?.BreachLimit;
 
         // Breach wins on a tie (design.md Decision 3): breach at or before the decided close.
         if (breachPoint is not null && (decidedClose is null || breachPoint.Value.SourceTime <= decidedClose.Value))
         {
-            var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
-                anchor, breachPoint.Value.FtmoDay, breachPoint.Value.SourceTime, phaseTrades, sourceZone, berlinZone);
+            var (calendarDays, tradingDays) = ElapsedDaysCached(
+                anchor, breachPoint.Value.FtmoDay, breachPoint.Value.SourceTime, openDaysCache);
 
             // Bug A fix (ftmo-multi-start PR0, spec.md "A breached phase whose balance later touches
             // the target reports no post-breach touch"): a live FTMO account never reaches a touch or
@@ -183,8 +419,7 @@ internal static class FtmoChallengeRace
 
         var last = ordered[^1];
         var lastDay = FtmoDayClock.Attribute(last.CloseSource, sourceZone, berlinZone).BookkeepingDay;
-        var (lastCalendarDays, lastTradingDays) = FtmoReplayCalendar.ElapsedDays(
-            anchor, lastDay, last.CloseSource, phaseTrades, sourceZone, berlinZone);
+        var (lastCalendarDays, lastTradingDays) = ElapsedDaysCached(anchor, lastDay, last.CloseSource, openDaysCache);
 
         return new PhaseResult(
             FtmoPhaseOutcome.NeitherByEndOfData, startOpen, firstTouch, minDaysMetDay,
@@ -198,16 +433,36 @@ internal static class FtmoChallengeRace
     /// <c>Unscalable</c> row spanning T) stays out of phase 2 — it belongs to phase 1's already-decided
     /// group, not to a fresh account starting at T (ftmo-multi-start PR0, bug B).
     /// </summary>
+    /// <param name="precomputedPhase1Evaluation">
+    /// ftmo-multi-start PR1 apply follow-up (option A) — an optional, ALREADY-COMPUTED
+    /// <see cref="FtmoBreachEvaluator.Evaluate"/> result for phase 1, i.e. for the EXACT series passed as
+    /// <paramref name="trades"/>, with the same <paramref name="capital"/>/<paramref name="dailyPct"/>/
+    /// <paramref name="maxPct"/>. The caller (the benchmark, or the future PR4 multi-start service, which
+    /// will call this the same way per design.md Decision 1) owns this contract; passing an evaluation of
+    /// a DIFFERENT series silently produces a wrong (but not exception-throwing) phase-1 result — see
+    /// FtmoChallengeRaceSharedEvaluationTests's falsification test. Phase 2 always evaluates fresh: its
+    /// series is a different subset, so there is nothing to share for it here.
+    /// </param>
+    /// <param name="precomputedOpenDayAttribution">
+    /// An optional, already-computed <see cref="AttributeOpenDays"/> result for <paramref name="trades"/>
+    /// (or a superset keyed by the same <c>RowIndex</c>s, e.g. shared across both FX ends). <c>null</c>
+    /// computes it once here, still only once per chain rather than once per phase.
+    /// </param>
     internal static ChainResult RunChain(
         IReadOnlyList<FtmoTradeProjector.ProjectedTrade> trades,
         TimeZoneInfo sourceZone,
         TimeZoneInfo berlinZone,
         decimal capital,
         decimal dailyPct,
-        decimal maxPct)
+        decimal maxPct,
+        FtmoBreachEvaluator.FtmoBreachEvaluation? precomputedPhase1Evaluation = null,
+        IReadOnlyDictionary<int, DateOnly>? precomputedOpenDayAttribution = null)
     {
+        var attribution = precomputedOpenDayAttribution ?? AttributeOpenDays(trades, sourceZone, berlinZone);
+
         var phase1 = RunPhase(
-            trades, sourceZone, berlinZone, capital, dailyPct, maxPct, FtmoChallengeRules.Phase1TargetPct);
+            trades, sourceZone, berlinZone, capital, dailyPct, maxPct, FtmoChallengeRules.Phase1TargetPct,
+            precomputedPhase1Evaluation, attribution);
 
         if (phase1.Outcome != FtmoPhaseOutcome.TargetReachedFirst)
             return new ChainResult(phase1, PhaseResult.NotStarted);
@@ -227,7 +482,8 @@ internal static class FtmoChallengeRace
         }
 
         var phase2 = RunPhase(
-            phase2Trades, sourceZone, berlinZone, capital, dailyPct, maxPct, FtmoChallengeRules.Phase2TargetPct);
+            phase2Trades, sourceZone, berlinZone, capital, dailyPct, maxPct, FtmoChallengeRules.Phase2TargetPct,
+            precomputedEvaluation: null, attribution);
 
         return new ChainResult(phase1, phase2);
     }
@@ -311,6 +567,13 @@ internal static class FtmoChallengeRace
     /// responsible for the whole-run refusal path (hard rule 7) — this method assumes a TwoStep,
     /// Evaluated run.
     /// </summary>
+    /// <param name="precomputedLowEvaluation">
+    /// ftmo-multi-start PR1 apply follow-up (option A) — an optional, already-computed
+    /// <see cref="FtmoBreachEvaluator.Evaluate"/> result for <paramref name="lowProjected"/>'s phase 1
+    /// (e.g. <see cref="FtmoBreachSimulationReadService"/> already computes this evaluation for its own
+    /// merged-finding readout — reused here instead of re-running the evaluator).
+    /// </param>
+    /// <param name="precomputedHighEvaluation">The same, for <paramref name="highProjected"/>'s phase 1.</param>
     internal static FtmoChallengeRaceDto Evaluate(
         decimal? profitTargetPct,
         IReadOnlyList<FtmoTradeProjector.ProjectedTrade> lowProjected,
@@ -319,7 +582,9 @@ internal static class FtmoChallengeRace
         TimeZoneInfo berlinZone,
         decimal capital,
         decimal dailyPct,
-        decimal maxPct)
+        decimal maxPct,
+        FtmoBreachEvaluator.FtmoBreachEvaluation? precomputedLowEvaluation = null,
+        FtmoBreachEvaluator.FtmoBreachEvaluation? precomputedHighEvaluation = null)
     {
         var rules = new FtmoChallengeRulesDto(
             FtmoChallengeRules.Phase1TargetPct, FtmoChallengeRules.Phase2TargetPct,
@@ -331,8 +596,15 @@ internal static class FtmoChallengeRace
                 FtmoChallengeRaceRefusal.ProfitTargetMismatch, profitTargetPct, rules, null, null, false, Disclosure);
         }
 
-        var low = RunChain(lowProjected, sourceZone, berlinZone, capital, dailyPct, maxPct);
-        var high = RunChain(highProjected, sourceZone, berlinZone, capital, dailyPct, maxPct);
+        // Open/close instants and the scalable flag never depend on FX (verified in
+        // FtmoTradeProjector.Project), so one attribution pass over lowProjected, keyed by RowIndex,
+        // answers both FX ends' phase-1 (and, via RunChain's own subset-by-RowIndex reuse, phase-2) calls.
+        var attribution = AttributeOpenDays(lowProjected, sourceZone, berlinZone);
+
+        var low = RunChain(
+            lowProjected, sourceZone, berlinZone, capital, dailyPct, maxPct, precomputedLowEvaluation, attribution);
+        var high = RunChain(
+            highProjected, sourceZone, berlinZone, capital, dailyPct, maxPct, precomputedHighEvaluation, attribution);
         var (chain, end, roundingSensitive) = MergeEnds(low, high);
 
         var phase1Dto = ToPhaseDto(chain.Phase1, end);

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.39.0] - 2026-09-28
+
+### Added
+
+- Groundwork for replaying the FTMO simulation from many start dates, not yet exposed through an endpoint. After phase 2 reaches its target, a funded phase now runs on a fresh account at initial capital, with the same loss limits and no target, until the first breach or the end of the data. Each start is classified into one of six chain outcomes, from breached in phase 1 to no breach observed by the end of the data in the funded phase.
+
 ## [0.38.3] - 2026-09-27
 
 ### Fixed
