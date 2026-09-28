@@ -203,18 +203,23 @@ every symbol here is consumed starting in PR1b (mappers) and PR1d (container).
 
 ### Phase 1b.1 — i18n namespace and banned-wording/parity tests
 
-- [ ] 1b.1.1 RED: `ftmo-simulation.i18n.spec.ts` — `every FTMO_SIMULATION key present in en.json has a
+- [x] 1b.1.1 RED: `ftmo-simulation.i18n.spec.ts` — `every FTMO_SIMULATION key present in en.json has a
   matching key in es.json, and vice versa` — imports both JSON files and diffs the flattened
   `FTMO_SIMULATION` key sets.
   _Satisfies: spec.md "Every Visible String Comes From i18n, In EN And ES"; hard rule 4._
-- [ ] 1b.1.2 RED: `..._no FTMO_SIMULATION key text contains banned survival/pass wording` — sweeps
+  _Apply note: RED confirmed — `expected 0 to be greater than 0` (no `FTMO_SIMULATION` namespace yet)._
+- [x] 1b.1.2 RED: `..._no FTMO_SIMULATION key text contains banned survival/pass wording` — sweeps
   every EN and ES value under `FTMO_SIMULATION` (lowercased, diacritics stripped) against the 9 banned
   substrings.
   _Satisfies: spec.md "Banned Wording Is Excluded From The FTMO i18n Keys"; hard rule 3._
-- [ ] 1b.1.3 RED: `..._an SQX pipeline key using "survived" is not scoped by the banned-wording check`
+- [x] 1b.1.3 RED: `..._an SQX pipeline key using "survived" is not scoped by the banned-wording check`
   — asserts a known SQX key containing "survived" is excluded from the swept key set.
   _Satisfies: spec.md "SQX pipeline keys using 'survived' are out of scope" scenario._
-- [ ] 1b.1.4 GREEN: add the `FTMO_SIMULATION` namespace to `en.json` and `es.json` — modal chrome,
+  _Apply note: no literal "survived" key exists anywhere in `en.json`/`es.json` (confirmed by grep); the
+  existing SQX out-of-scope word is "passed" (`SQX.WORKFLOW.PASSED`, `en.json`/`es.json`). The test
+  asserts that key exists and contains "PASSED", and that the flattened FTMO-scoped key set never
+  includes an `SQX`-prefixed key — the same out-of-scope behaviour the scenario describes._
+- [x] 1b.1.4 GREEN: add the `FTMO_SIMULATION` namespace to `en.json` and `es.json` — modal chrome,
   field labels (including the "backtest (IMOX retester) lot grid" label, never "FTMO grid"), the
   always-visible disclosure block copy, the six outcome-share labels, the order-stat row labels, every
   refusal-reason label (one per `FtmoSimulationRefusal`/`FtmoChallengeRaceRefusal` member, each
@@ -222,100 +227,128 @@ every symbol here is consumed starting in PR1b (mappers) and PR1d (container).
   shared generic message), `NOT_REPORTED`, `NO_RUN_HELD`, `ERRORS.INVALID_QUERY`,
   `ERRORS.REQUEST_FAILED`, and `UNKNOWN_VALUE`. Confirm 1b.1.1–1b.1.3 pass.
   _Satisfies: design.md AD4, AD11; spec.md D6/D4; proposal.md D4, D6._
-- [ ] 1b.1.5 Falsification: temporarily insert the literal word "safe" into one EN
+  _Apply note: 3/3 i18n tests green. Also added label groups for every enum needed by 1b.2 (STATUS,
+  REFUSAL, RACE_REFUSAL, CHAIN_OUTCOME, PHASE_OUTCOME, FUNDED_OUTCOME, FIRST_BREACHING_LIMIT,
+  BREACH_POINT_CLASS, FX_BAND_END, START_GRAIN) and the order-stats row labels, so 1b.2/1b.3 need no
+  further i18n additions. ES copy is neutral professional Spanish, no voseo; outcomes describe
+  elimination ("Eliminado en Fase 1") and target-reached is phrased as an optimistic result ("Objetivo
+  alcanzado primero"), never certification._
+- [x] 1b.1.5 Falsification: temporarily insert the literal word "safe" into one EN
   `FTMO_SIMULATION` value; confirm 1b.1.2 goes RED; revert; confirm green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (`expected [ Array(1) ] to deeply equal []`, parity test also
+  collaterally failed as expected); reverted; 3/3 green again._
 
 ### Phase 1b.2 — Label accessors (exact-value switch, zero-safe)
 
-- [ ] 1b.2.1 RED: `ftmo-simulation.mappers.spec.ts` — one test per zero-valued enum member listed in
+- [x] 1b.2.1 RED: `ftmo-simulation.mappers.spec.ts` — one test per zero-valued enum member listed in
   hard rule 2 (`Refused`, `InvalidRequest`, `ProfitTargetMismatch`, `Phase1UndecidedAtEndOfData`, both
   `NotStarted`, `Daily`, `Clean`, `FxLow`, `Monthly`): asserts the label accessor returns the correct
   i18n key for value `0`, not `UNKNOWN_VALUE` and not an empty string.
   _Satisfies: spec.md "Every FTMO Enum Is Mapped By Exact Value, Never By Truthiness"; hard rule 2._
-- [ ] 1b.2.2 RED: `..._a value with no matching label renders UNKNOWN_VALUE with the raw number, never
+  _Apply note: RED confirmed — `Could not resolve "./ftmo-simulation.mappers"` before the file existed._
+- [x] 1b.2.2 RED: `..._a value with no matching label renders UNKNOWN_VALUE with the raw number, never
   another member's label` — an out-of-range integer; asserts the `UNKNOWN_VALUE` key plus the raw
   value, and that it does not collide with any real member's label.
   _Satisfies: design.md AD4._
-- [ ] 1b.2.3 RED: `..._a null or undefined enum value returns null, not a label` — asserts the presence
+- [x] 1b.2.3 RED: `..._a null or undefined enum value returns null, not a label` — asserts the presence
   check short-circuits before the switch.
   _Satisfies: design.md AD4 (`!== null`/`!== undefined` presence checks)._
-- [ ] 1b.2.4 GREEN: implement the `Record<Enum, string>` label maps and the shared accessor
+- [x] 1b.2.4 GREEN: implement the `Record<Enum, string>` label maps and the shared accessor
   `x === null || x === undefined ? null : MAP[x] ?? UNKNOWN_KEY` for every enum mirrored in PR1a.
   Confirm 1b.2.1–1b.2.3 pass.
   _Satisfies: design.md AD4._
-- [ ] 1b.2.5 Falsification: temporarily replace one accessor's presence check with `if (x)` (a
+  _Apply note: 25/25 mapper tests green (10 zero-value + UNKNOWN_VALUE + null/undefined + 12 toPanels
+  tests, see 1b.3). All 10 PR1a enums have a `Record<Enum,string>` label map._
+- [x] 1b.2.5 Falsification: temporarily replace one accessor's presence check with `if (x)` (a
   truthy check); confirm the matching zero-value test from 1b.2.1 goes RED; restore; confirm green
   again.
   _Satisfies: hard rule 2, hard rule 7._
+  _Apply note: falsification confirmed RED — all 10 zero-value tests failed simultaneously (`if (!value)`
+  treats every zero-valued member as absent); restored; 25/25 green again._
 
 ### Phase 1b.3 — `toPanels` and formatters
 
-- [ ] 1b.3.1 RED: `..._a Refused run maps to state "refused" with no outcome shares or order stats` —
+- [x] 1b.3.1 RED: `..._a Refused run maps to state "refused" with no outcome shares or order stats` —
   a DTO with `status: Refused`; asserts the resulting VM's discriminant is `'refused'` and carries no
   outcome/order-stat data.
   _Satisfies: spec.md "A Whole-Run Refusal Shows Its Reason"._
-- [ ] 1b.3.2 RED: `..._InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand map to three
+- [x] 1b.3.2 RED: `..._InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand map to three
   distinct message keys` — three refused DTOs, one per reason; asserts three distinct resolved i18n
   keys.
   _Satisfies: spec.md "InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand each render a
   distinct message"._
-- [ ] 1b.3.3 RED: `..._a race refusal of ProfitTargetMismatch carries the stored value through to the
+- [x] 1b.3.3 RED: `..._a race refusal of ProfitTargetMismatch carries the stored value through to the
   VM` — a DTO with `raceRefusal: ProfitTargetMismatch, storedProfitTargetPct: 0.08`; asserts the VM
   surfaces both the refusal state and `0.08`.
   _Satisfies: spec.md "A Race Refusal Of ProfitTargetMismatch Shows Its Stored Value"; hard rule 2._
-- [ ] 1b.3.4 RED: `..._a summary with no starts maps to state "noStarts"` — `summary: null`; asserts
+- [x] 1b.3.4 RED: `..._a summary with no starts maps to state "noStarts"` — `summary: null`; asserts
   discriminant `'noStarts'`.
   _Satisfies: design.md Data Flow, per-run VM state ordering._
-- [ ] 1b.3.5 RED: `..._an evaluated run renders all six outcome rows including zero-count ones` — a
+- [x] 1b.3.5 RED: `..._an evaluated run renders all six outcome rows including zero-count ones` — a
   summary with `FundedBreached` count 0; asserts exactly six rows in the fixed order, the zero-count
   row present with `count: 0, share: 0`.
   _Satisfies: spec.md "The Six Outcome Shares Render With Counts, Zeros Included"._
-- [ ] 1b.3.6 RED: `..._an order-stat row with N=0 renders every quantile as absent, not zero` — asserts
+- [x] 1b.3.6 RED: `..._an order-stat row with N=0 renders every quantile as absent, not zero` — asserts
   the VM's quantile fields are `null`/a sentinel meaning "—", never `0`.
   _Satisfies: spec.md "The Order-Statistics Table..." — zero-observation scenario._
-- [ ] 1b.3.7 RED: `..._an order-stat row with Min=0 and N>0 renders "0", not "—"` — distinguishes a
+- [x] 1b.3.7 RED: `..._an order-stat row with Min=0 and N>0 renders "0", not "—"` — distinguishes a
   real zero value from an absent one.
   _Satisfies: design.md Data Flow, "A `null` renders '—'; `0` renders '0'."_
-- [ ] 1b.3.8 RED: `..._the funded-duration headline uses FundedDaysToBreachFromFundedStart, with
+- [x] 1b.3.8 RED: `..._the funded-duration headline uses FundedDaysToBreachFromFundedStart, with
   FromChainStart shown as secondary` — a summary where the two order-stat sets differ; asserts the
   VM's headline field equals the funded-start stats and a separate secondary field equals the
   chain-start stats.
   _Satisfies: spec.md "The Order-Statistics Table Renders With The Funded-Duration Headline..."._
-- [ ] 1b.3.9 RED: `..._months without a start are listed with their count, never dropped` — a run with
+- [x] 1b.3.9 RED: `..._months without a start are listed with their count, never dropped` — a run with
   3 `monthsWithoutStart` entries; asserts the VM lists all 3 with `count: 3`.
   _Satisfies: spec.md "Months Without A Start Are Disclosed"._
-- [ ] 1b.3.10 RED: `..._a "yyyy-MM" month string is sliced, never parsed with new Date` — a
+- [x] 1b.3.10 RED: `..._a "yyyy-MM" month string is sliced, never parsed with new Date` — a
   `monthsWithoutStart` entry `"2024-13"` style edge or a UTC-3-hazard date (e.g. `"2024-01-01"`);
   asserts the formatted output matches a direct string slice and does NOT match what `new Date(...)`
   would produce at UTC-3.
   _Satisfies: spec.md date handling per design.md; hard rule 6._
-- [ ] 1b.3.11 RED: `..._Start1DiffersFromSingleStartAnchor=true surfaces an explicit disclosure flag
+  _Apply note: the mapper passes `monthsWithoutStart` strings through unchanged (pure slice/pass-through,
+  no `new Date(...)` call anywhere in the mapper); pinned by asserting `"2024-01"` stays `"2024-01"` and
+  never becomes `"2023-..."` (the UTC-3 hazard a `new Date('2024-01-01')` parse would produce)._
+- [x] 1b.3.11 RED: `..._Start1DiffersFromSingleStartAnchor=true surfaces an explicit disclosure flag
   in the VM` — asserts a boolean/flag field is `true` and distinct from the generic disclosure text.
   _Satisfies: spec.md "The Start1DiffersFromSingleStartAnchor Flag Is Disclosed"._
-- [ ] 1b.3.12 RED: `..._the server Disclosure and NotModelled text pass through verbatim, never looked
+- [x] 1b.3.12 RED: `..._the server Disclosure and NotModelled text pass through verbatim, never looked
   up as an i18n key` — a DTO with arbitrary disclosure text; asserts the VM field equals that text
   exactly, unmodified.
   _Satisfies: spec.md "The Disclosure Text Is Always Visible, And Is Shown Verbatim As Data"; design.md
   AD11._
-- [ ] 1b.3.13 GREEN: implement `toPanels(dto: FtmoMultiStartDto | null): FtmoRunPanelVm[]` and its
+- [x] 1b.3.13 GREEN: implement `toPanels(dto: FtmoMultiStartDto | null): FtmoRunPanelVm[]` and its
   formatters (`FtmoRunPanelState` discriminant per AD3/design.md Data Flow's state-ordering rule:
   `Refused` → `raceRefusal !== null` → `summary === null` → `evaluated`), the fixed six-outcome-row
   builder, the order-stat "—"/"0" formatter, and the `yyyy-MM` slicer. Confirm 1b.3.1–1b.3.12 pass.
   _Satisfies: design.md AD3, Data Flow._
-- [ ] 1b.3.14 Falsification: temporarily reorder the state-priority check so `summary === null` is
+  _Apply note: implemented `toRunPanelVm(run)` (per-run) and `toPanels(dto)` (maps `dto.runs`, `[]` for
+  `null`). 25/25 mapper tests green. `CHAIN_OUTCOME_ORDER` fixes the six-row order; `statRow()` maps
+  `n === 0` to every quantile `null` and otherwise passes the raw value (including `0`) through
+  unchanged._
+- [x] 1b.3.14 Falsification: temporarily reorder the state-priority check so `summary === null` is
   tested before `status === Refused`; confirm 1b.3.1 or 1b.3.4 goes RED (a refused-with-null-summary
   fixture now maps to the wrong state); restore; confirm green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (3 failures: the Refused test, the three-distinct-refusals
+  test, and the race-refusal test — all now short-circuit into `noStarts` first since `summary: null` in
+  those fixtures); restored; 25/25 green again._
 
 ### Phase 1b.4 — PR1b gates
 
-- [ ] 1b.4.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.spec.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.i18n.spec.ts public/assets/i18n/en.json public/assets/i18n/es.json` — no diffs.
-- [ ] 1b.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 1b.4.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1b specs plus every new
+- [x] 1b.4.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.spec.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.i18n.spec.ts public/assets/i18n/en.json public/assets/i18n/es.json` — no diffs.
+  _Apply note: initial run flagged the 3 new `.ts` files (mechanical formatting only, no logic change);
+  the JSON files were already clean; `--write` applied to the `.ts` files, re-check passed clean._
+- [x] 1b.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
+- [x] 1b.4.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1b specs plus every new
   PR1b spec pass, **0 existing assertions edited**.
-- [ ] 1b.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
-  patching.
+  _Apply note: baseline (pre-PR1b) was 35 test files / 433 tests, all passing. After PR1b: 37 test files /
+  461 tests, all passing — the +2 files / +28 tests are exactly the 2 new PR1b spec files (3 i18n + 25
+  mappers); every pre-existing test file and count is unchanged._
+- [x] 1b.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
+  patching. (N/A — no failures or diffs occurred.)
 
 ---
 

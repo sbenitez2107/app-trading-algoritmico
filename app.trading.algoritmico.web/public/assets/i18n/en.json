@@ -334,5 +334,111 @@
       "BREACH_BASIS_CLOSED_TRADE_LOWER_BOUND": "Lower bound (closed trades only) — not the broker's verdict",
       "BREACH_BASIS_VAR_QUANTILE": "VaR95 comparison, not a real daily loss"
     }
+  },
+  "FTMO_SIMULATION": {
+    "MODAL_TITLE": "FTMO simulation",
+    "ACTION_TITLE": "Simulate FTMO",
+    "RUN": "Run",
+    "NO_RUN_HELD": "No run held for this slot",
+    "NOT_REPORTED": "Not reported",
+    "UNKNOWN_VALUE": "Unknown value ({{value}})",
+    "DISCLOSURE_ALWAYS_VISIBLE": "This simulation models elimination against FTMO limits from historical backtest data. It is not a certification, and a favorable result does not guarantee a real funded outcome.",
+    "MONTHS_WITHOUT_START": "Months without a start ({{count}})",
+    "START1_DIFFERS_DISCLOSURE": "Start 1 differs from the single-start anchor.",
+    "STORED_PROFIT_TARGET": "Stored profit target: {{value}}",
+    "FIELDS": {
+      "BROKER": "Broker",
+      "SQX_SYMBOL": "SQX symbol",
+      "INITIAL_CAPITAL": "Initial capital",
+      "TARGET_RISK_PER_TRADE": "Target risk per trade",
+      "SOURCE_LOT_GRID_LABEL": "Backtest (IMOX retester) lot grid",
+      "SIZE_DECIMALS": "Size decimals",
+      "STEP": "Step",
+      "MIN_LOT": "Min lot",
+      "MAX_LOTS": "Max lots",
+      "FX_LOW": "FX low (optional)",
+      "FX_HIGH": "FX high (optional)"
+    },
+    "ERRORS": {
+      "INVALID_QUERY": "The request was rejected: {{detail}}",
+      "REQUEST_FAILED": "The request could not be completed. Try again."
+    },
+    "KIND": {
+      "DEPLOY": "Deploy",
+      "EVALUATION": "Evaluation"
+    },
+    "STATUS": {
+      "REFUSED": "Refused",
+      "EVALUATED": "Evaluated"
+    },
+    "REFUSAL": {
+      "INVALID_REQUEST": "The request is invalid: one or more required fields could not be validated.",
+      "PRODUCT_NOT_TWO_STEP": "This account is not configured as a two-step challenge product.",
+      "LIMITS_NOT_CONFIGURED": "No FTMO limits are configured for this account.",
+      "DRAWDOWN_MODEL_NOT_STATIC": "The drawdown model is not the static model this simulation assumes.",
+      "INSTRUMENT_SPEC_MISSING": "No FTMO instrument specification is declared for this symbol.",
+      "POINT_VALUE_NOT_CALIBRATED": "The point value for this symbol has not been calibrated.",
+      "FX_RATE_NOT_DECLARED": "No FX rate is declared for converting this symbol into the account's profit currency.",
+      "INVALID_FX_BAND": "The declared FX band is invalid.",
+      "RISK_NOT_ESTIMABLE": "Risk per trade could not be estimated from this run's stop-loss closes.",
+      "RUN_SEGMENTS_DISAGREE": "The selected runs carry trades from more than one sample.",
+      "TIME_ZONE_DATA_UNAVAILABLE": "Time zone data required for this simulation is unavailable."
+    },
+    "RACE_REFUSAL": {
+      "PROFIT_TARGET_MISMATCH": "The stored profit target does not match the configured target."
+    },
+    "CHAIN_OUTCOME": {
+      "PHASE1_UNDECIDED": "Phase 1 undecided at end of data",
+      "PHASE1_BREACHED": "Eliminated in Phase 1",
+      "PHASE2_BREACHED": "Eliminated in Phase 2",
+      "PHASE2_UNDECIDED": "Phase 2 undecided at end of data",
+      "FUNDED_BREACHED": "Eliminated once funded",
+      "FUNDED_NO_BREACH": "No breach observed by end of data, funded"
+    },
+    "PHASE_OUTCOME": {
+      "NOT_STARTED": "Not started",
+      "TARGET_REACHED_FIRST": "Target reached first",
+      "BREACHED_FIRST": "Eliminated first",
+      "NEITHER_BY_END": "Neither reached by end of data"
+    },
+    "FUNDED_OUTCOME": {
+      "NOT_STARTED": "Not started",
+      "BREACHED_FIRST": "Eliminated first",
+      "NO_BREACH_BY_END": "No breach by end of data"
+    },
+    "FIRST_BREACHING_LIMIT": {
+      "DAILY": "Daily limit",
+      "MAX": "Maximum limit",
+      "BOTH_SAME_CLOSE": "Both limits, same close"
+    },
+    "BREACH_POINT_CLASS": {
+      "CLEAN": "Clean",
+      "CONTINGENT": "Contingent"
+    },
+    "FX_BAND_END": {
+      "FX_LOW": "FX low",
+      "FX_HIGH": "FX high",
+      "BOTH_ENDS": "Both ends"
+    },
+    "START_GRAIN": {
+      "MONTHLY": "Monthly"
+    },
+    "ORDER_STATS": {
+      "N": "N",
+      "MIN": "Min",
+      "Q1": "Q1",
+      "MEDIAN": "Median",
+      "Q3": "Q3",
+      "MAX": "Max",
+      "ABSENT": "—",
+      "ROW": {
+        "PHASE1_TARGET": "Days to Phase 1 target",
+        "PHASE2_TARGET": "Days to Phase 2 target",
+        "BOTH_TARGETS": "Days to both targets",
+        "FUNDED_FROM_FUNDED_START": "Funded days to breach, from funded start",
+        "FUNDED_FROM_CHAIN_START": "Funded days to breach, from chain start (secondary)",
+        "CENSORED_RUNWAY": "Censored runway"
+      }
+    }
   }
 }

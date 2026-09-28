@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.43.0] - 2026-09-28
+
+### Added
+
+- Groundwork for the FTMO simulation screen, not yet visible. English and Spanish copy for every outcome, refusal and disclosure, worded as elimination rather than certification. The mapping from the multi-start response to the Deploy and Evaluation panels keeps each refusal reason distinct and never hides a result code that arrives as 0.
+
 ## [0.42.0] - 2026-09-28
 
 ### Added

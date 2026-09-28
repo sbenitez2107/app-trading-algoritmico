@@ -334,5 +334,111 @@
       "BREACH_BASIS_CLOSED_TRADE_LOWER_BOUND": "Cota inferior (solo trades cerrados) — no es el veredicto del broker",
       "BREACH_BASIS_VAR_QUANTILE": "Comparación VaR95, no una pérdida diaria real"
     }
+  },
+  "FTMO_SIMULATION": {
+    "MODAL_TITLE": "Simulación FTMO",
+    "ACTION_TITLE": "Simular FTMO",
+    "RUN": "Ejecutar",
+    "NO_RUN_HELD": "No hay ejecución registrada para esta ranura",
+    "NOT_REPORTED": "No reportado",
+    "UNKNOWN_VALUE": "Valor desconocido ({{value}})",
+    "DISCLOSURE_ALWAYS_VISIBLE": "Esta simulación modela la eliminación frente a los límites de FTMO a partir de datos históricos de backtest. No es una certificación, y un resultado favorable no garantiza un resultado real fondeado.",
+    "MONTHS_WITHOUT_START": "Meses sin inicio ({{count}})",
+    "START1_DIFFERS_DISCLOSURE": "El inicio 1 difiere del ancla de inicio único.",
+    "STORED_PROFIT_TARGET": "Objetivo de ganancia almacenado: {{value}}",
+    "FIELDS": {
+      "BROKER": "Bróker",
+      "SQX_SYMBOL": "Símbolo SQX",
+      "INITIAL_CAPITAL": "Capital inicial",
+      "TARGET_RISK_PER_TRADE": "Riesgo objetivo por operación",
+      "SOURCE_LOT_GRID_LABEL": "Grilla de lotes del backtest (IMOX retester)",
+      "SIZE_DECIMALS": "Decimales de tamaño",
+      "STEP": "Paso",
+      "MIN_LOT": "Lote mínimo",
+      "MAX_LOTS": "Lotes máximos",
+      "FX_LOW": "FX bajo (opcional)",
+      "FX_HIGH": "FX alto (opcional)"
+    },
+    "ERRORS": {
+      "INVALID_QUERY": "La solicitud fue rechazada: {{detail}}",
+      "REQUEST_FAILED": "No se pudo completar la solicitud. Intente nuevamente."
+    },
+    "KIND": {
+      "DEPLOY": "Deploy",
+      "EVALUATION": "Evaluación"
+    },
+    "STATUS": {
+      "REFUSED": "Rechazado",
+      "EVALUATED": "Evaluado"
+    },
+    "REFUSAL": {
+      "INVALID_REQUEST": "La solicitud no es válida: uno o más campos requeridos no pudieron validarse.",
+      "PRODUCT_NOT_TWO_STEP": "Esta cuenta no está configurada como un producto de desafío en dos etapas.",
+      "LIMITS_NOT_CONFIGURED": "No hay límites de FTMO configurados para esta cuenta.",
+      "DRAWDOWN_MODEL_NOT_STATIC": "El modelo de drawdown no es el modelo estático que asume esta simulación.",
+      "INSTRUMENT_SPEC_MISSING": "No hay una especificación de instrumento FTMO declarada para este símbolo.",
+      "POINT_VALUE_NOT_CALIBRATED": "El valor del punto para este símbolo no ha sido calibrado.",
+      "FX_RATE_NOT_DECLARED": "No hay una tasa de cambio declarada para convertir este símbolo a la moneda de resultado de la cuenta.",
+      "INVALID_FX_BAND": "La banda de tipo de cambio declarada no es válida.",
+      "RISK_NOT_ESTIMABLE": "No se pudo estimar el riesgo por operación a partir de los cierres por stop loss de esta ejecución.",
+      "RUN_SEGMENTS_DISAGREE": "Las ejecuciones seleccionadas contienen operaciones de más de una muestra.",
+      "TIME_ZONE_DATA_UNAVAILABLE": "Los datos de zona horaria requeridos para esta simulación no están disponibles."
+    },
+    "RACE_REFUSAL": {
+      "PROFIT_TARGET_MISMATCH": "El objetivo de ganancia almacenado no coincide con el objetivo configurado."
+    },
+    "CHAIN_OUTCOME": {
+      "PHASE1_UNDECIDED": "Fase 1 sin definir al final de los datos",
+      "PHASE1_BREACHED": "Eliminado en Fase 1",
+      "PHASE2_BREACHED": "Eliminado en Fase 2",
+      "PHASE2_UNDECIDED": "Fase 2 sin definir al final de los datos",
+      "FUNDED_BREACHED": "Eliminado ya fondeado",
+      "FUNDED_NO_BREACH": "Sin incumplimiento observado al final de los datos, fondeado"
+    },
+    "PHASE_OUTCOME": {
+      "NOT_STARTED": "No iniciada",
+      "TARGET_REACHED_FIRST": "Objetivo alcanzado primero",
+      "BREACHED_FIRST": "Eliminado primero",
+      "NEITHER_BY_END": "Ninguno alcanzado al final de los datos"
+    },
+    "FUNDED_OUTCOME": {
+      "NOT_STARTED": "No iniciada",
+      "BREACHED_FIRST": "Eliminado primero",
+      "NO_BREACH_BY_END": "Sin incumplimiento al final de los datos"
+    },
+    "FIRST_BREACHING_LIMIT": {
+      "DAILY": "Límite diario",
+      "MAX": "Límite máximo",
+      "BOTH_SAME_CLOSE": "Ambos límites, mismo cierre"
+    },
+    "BREACH_POINT_CLASS": {
+      "CLEAN": "Limpio",
+      "CONTINGENT": "Contingente"
+    },
+    "FX_BAND_END": {
+      "FX_LOW": "FX bajo",
+      "FX_HIGH": "FX alto",
+      "BOTH_ENDS": "Ambos extremos"
+    },
+    "START_GRAIN": {
+      "MONTHLY": "Mensual"
+    },
+    "ORDER_STATS": {
+      "N": "N",
+      "MIN": "Mín",
+      "Q1": "Q1",
+      "MEDIAN": "Mediana",
+      "Q3": "Q3",
+      "MAX": "Máx",
+      "ABSENT": "—",
+      "ROW": {
+        "PHASE1_TARGET": "Días hasta el objetivo de Fase 1",
+        "PHASE2_TARGET": "Días hasta el objetivo de Fase 2",
+        "BOTH_TARGETS": "Días hasta ambos objetivos",
+        "FUNDED_FROM_FUNDED_START": "Días fondeado hasta incumplimiento, desde el inicio fondeado",
+        "FUNDED_FROM_CHAIN_START": "Días fondeado hasta incumplimiento, desde el inicio de la cadena (secundario)",
+        "CENSORED_RUNWAY": "Pista censurada"
+      }
+    }
   }
 }
