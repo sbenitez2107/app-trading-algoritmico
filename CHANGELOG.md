@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.40.0] - 2026-09-28
+
+### Added
+
+- Groundwork for the FTMO start-date distribution, not yet exposed through an endpoint: one start per FTMO calendar month (the month's first scalable open), months without a start counted rather than skipped, each start replaying only trades opened at or after it, and nearest-rank order statistics over the results.
+
 ## [0.39.0] - 2026-09-28
 
 ### Added
