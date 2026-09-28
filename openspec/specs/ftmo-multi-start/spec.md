@@ -37,6 +37,19 @@ be counted, reported as `MonthsWithoutStart`, not silently skipped.
 - WHEN start count is compared against a hypothetical weekly or every-trade enumeration
 - THEN only the monthly grain is produced by this capability
 
+#### Scenario: A run whose projected trades are entirely Unscalable reports no starts and no summary
+- GIVEN a run whose projected trades are entirely `Unscalable` (no first/last month exists to range
+  over)
+- WHEN starts are enumerated and the run is produced
+- THEN `Starts` is empty, `MonthsWithoutStart` is empty, and `Summary` is null, with no new refusal
+  reason invented
+- NOTE this path is unreachable through the `SimulateAsync` endpoint: `TradeRiskNormalizer` requires at
+  least 3 `Size > 0` SL trades to estimate risk at all, and those same rows are themselves scalable under
+  `FtmoTradeProjector.Project`'s own rule, so a run whose calibration succeeds always has at least one
+  scalable trade — a genuinely all-`Unscalable` run always refuses earlier as `RiskNotEstimable`. This
+  scenario is confirmed and pinned at the `FtmoMultiStartReadService.ComputeRun` seam directly, from
+  already-projected trades onward.
+
 ### Requirement: Each Start Runs Phase 1, Phase 2, Then A Funded Phase
 Each start's series MUST be every trade with `Open ≥ startOpen`. Phases 1 and 2 MUST run the shipped
 `FtmoChallengeRace.RunPhase` unchanged. The funded phase MUST start at the first trade opened after the

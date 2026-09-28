@@ -221,10 +221,22 @@ day 1 was. No verification delay MUST be modelled between the two phases. When p
 `TargetReachedFirst`, phase 2's outcome MUST be reported as `NotStarted` and no phase-2 timing or
 decision MUST be produced.
 
+**The post-target trade subset handed to phase 2 MUST contain exactly the rows whose `Open` is at or
+after the phase-1 decision close T AND whose `Close` is strictly after T. A row that opens before T and
+closes after T (an `Unscalable` row that spans T, ignored by the flat-book check) MUST stay out of phase
+2's subset; it belongs to phase 1's already-decided group.** A zero-duration row whose `Open` and `Close`
+both equal T belongs to phase 1's close group at T, not to phase 2.
+(Previously: the subset was every row with `Close > T`, with no lower bound on `Open`, so a straddling
+row could enter phase 2 and become its anchor even though it opened before T.)
+
 > The phase-1 decision close requires all positions flat (see the flat-close requirement above), so no
 > trade spans the handover — the first trade opened after that close is a genuine fresh start, not a
 > position inherited from phase 1. No FTMO-documented verification delay applies to this simulated
-> handover; modelling one would be a fabricated value with no source. *(Proposal D4.)*
+> handover; modelling one would be a fabricated value with no source. *(Proposal D4.)* Every row phase 2
+> receives has `Open >= T` by construction (the design's own invariant); a row that opens before T never
+> belongs to a fresh account that starts at T. Filtering on `Close > T` alone does not guarantee this
+> when a row spans T. *(Change: ftmo-multi-start PR0, bug B; the funded phase in ftmo-multi-start uses
+> the same corrected handover rule.)*
 
 #### Scenario: Phase 2 starts at the next trade opened after the phase-1 decision
 - GIVEN a phase 1 that reaches its target at a close on FTMO trading day 20, and a next trade opening
@@ -244,6 +256,20 @@ decision MUST be produced.
 - WHEN phase 2's result is produced
 - THEN phase 2's outcome is `NeitherByEndOfData` (not `NotStarted`, since phase 1 genuinely reached its
   target), with a null `StartSourceOpen` since no post-handover trade exists to start it
+
+#### Scenario: An Unscalable row straddling the phase-1 decision close does not enter phase 2
+- GIVEN an `Unscalable` trade whose `Open` is before phase 1's target-deciding close T and whose `Close`
+  is strictly after T, with no other trade opening in that gap
+- WHEN phase 2's trade subset is built
+- THEN that row is excluded from the subset, and phase 2's anchor is the first trade with `Open >= T`,
+  not the straddling row
+
+> **Disclosure note**: this fix changes a readout an existing consumer may have already seen — a phase's
+> `FirstTargetTouchSourceClose`/`MinTradingDaysMetFtmoDay` value, or a phase-2 anchor derived from a
+> straddling row — but it never changes any phase's `Outcome` or breach classification. Every existing
+> `TargetReachedFirst`/`BreachedFirst`/`NeitherByEndOfData` verdict already produced stays the same
+> verdict; only the two named readout fields and, in the straddling case, the phase-2 subset composition
+> can move.
 
 ### Requirement: Phase Outcome Is A Four-State Enum, Never A Boolean, With No Survival Wording For A Reached Target
 Each phase's outcome MUST be exactly one of `TargetReachedFirst`, `BreachedFirst`,
@@ -398,11 +424,24 @@ account would; continued full-risk trading between a premature target touch and 
 it look harder. The disclosure MUST state that a `TargetReachedFirst` outcome is an optimistic replay
 result, not a prediction, and that a `BreachedFirst` outcome remains a strong result.
 
+**On a `BreachedFirst` phase, the first target touch and the day-minimum-met close MUST each be reported
+only if that event occurs at or before the phase's breach close; otherwise the corresponding field MUST
+be null.** The phase's `Outcome` and its breach fields (`OutcomeSourceClose`, `BreachLimit`,
+`BreachPointClass`) are unaffected by this rule and MUST NOT change.
+(Previously: the scanner ran to completion regardless of the breach close, so a `BreachedFirst` phase
+could report a target touch or a day-minimum-met close that occurred AFTER the account had already
+breached — an event from a phase of the account's life that a live FTMO account never reaches.)
+
 > Reporting the first touch separately from the deciding close is how the day-4-minimum window's effect
 > (full-risk trading continuing after an early touch) becomes visible to the user rather than absorbed
 > into a single date, per the resolved question round. The two-directional bias disclosure follows the
 > same shape as `ftmo-breach-simulation`'s existing swap/closed-trade-replay disclosure, applied to a
-> different readout. *(Proposal D2, D11, disclosure section.)*
+> different readout. *(Proposal D2, D11, disclosure section.)* The scanner and the breach evaluator are
+> two independent passes over the same series (spec.md "The Race Leaves The Shipped Breach Result
+> Byte-Identical"); the scanner does not stop at the breach, so it can keep recording touches and
+> day-minimum closes past the point the account was already closed by the breach. Those post-breach
+> readings are not observable on a live account and MUST NOT be surfaced. *(Change: ftmo-multi-start
+> PR0, bug A.)*
 
 #### Scenario: A TargetReachedFirst phase reports all required timing fields
 - GIVEN a phase whose outcome is `TargetReachedFirst`
@@ -424,3 +463,18 @@ result, not a prediction, and that a `BreachedFirst` outcome remains a strong re
 - WHEN the race result is produced
 - THEN phase 2 is reported as `NotStarted` with no start point, touch, deciding close, or elapsed-time
   fields populated
+
+#### Scenario: A breached phase whose balance later touches the target reports no post-breach touch
+- GIVEN a phase whose account balance crosses the target percentage and meets the day-4 minimum only on
+  a close AFTER the phase's breach close
+- WHEN the phase result is produced
+- THEN the outcome is `BreachedFirst` (unchanged) and both `FirstTargetTouchSourceClose` and
+  `MinTradingDaysMetFtmoDay` are null, since the qualifying event happened after the account had already
+  breached
+
+#### Scenario: A breached phase whose balance touched the target before the breach still reports the touch
+- GIVEN a phase whose balance touches the target percentage on a close strictly before the phase's
+  breach close
+- WHEN the phase result is produced
+- THEN the outcome is `BreachedFirst` and `FirstTargetTouchSourceClose` reports that earlier, pre-breach
+  touch unchanged

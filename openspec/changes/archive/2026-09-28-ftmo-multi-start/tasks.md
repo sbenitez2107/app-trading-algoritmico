@@ -582,60 +582,107 @@ Do not start PR4 until PR3's Phase 3.2 gates are all green. `size:exception` —
 
 ### Phase 4.1 — New enums (pure, no I/O)
 
-- [ ] 4.1.1 GREEN: create `Domain/Enums/FtmoChainOutcome.cs` (`Phase1UndecidedAtEndOfData = 0`,
+- [x] 4.1.1 GREEN: create `Domain/Enums/FtmoChainOutcome.cs` (`Phase1UndecidedAtEndOfData = 0`,
   `Phase1Breached`, `Phase2Breached`, `Phase2UndecidedAtEndOfData`, `FundedBreached`,
   `FundedNoBreachAtEndOfData`), `Domain/Enums/FtmoFundedOutcome.cs` (`NotStarted = 0`, `BreachedFirst`,
   `NoBreachByEndOfData`), `Domain/Enums/FtmoStartGrain.cs` (`Monthly = 0`). Zeros are non-optimistic per
   design.md's Interfaces/Contracts note. No banned wording in any member name (hard rule 8).
   _Satisfies: ftmo-multi-start spec.md "Six Chain Outcomes" requirement; design.md Interfaces/Contracts._
+  _Apply note: `FtmoChainOutcome.cs`/`FtmoFundedOutcome.cs` already existed (pulled forward in PR1, tasks
+  1.3/1.4, flagged at the time). Only `Domain/Enums/FtmoStartGrain.cs` (`Monthly = 0`) was created here._
 
 ### Phase 4.2 — DTOs (`Application/DTOs/Backtests/FtmoMultiStartDto.cs`)
 
-- [ ] 4.2.1 GREEN: create the DTO records exactly per design.md's Interfaces/Contracts:
+- [x] 4.2.1 GREEN: create the DTO records exactly per design.md's Interfaces/Contracts:
   `FtmoMultiStartDto`, `FtmoMultiStartRunDto`, `FtmoMultiStartRowDto`, `FtmoFundedPhaseDto`,
   `FtmoOutcomeCountDto`, `FtmoOrderStatisticsDto`, `FtmoMultiStartSummaryDto`. No production logic beyond
   the shapes; confirm each field name matches the design's contract before wiring the service.
   _Satisfies: design.md Interfaces/Contracts, D9._
+  _Apply note: `FtmoOrderStatisticsDto` already existed (pulled forward in PR2, task 2.3.4, flagged at
+  the time). The six sibling records were added to the same `FtmoMultiStartDto.cs` file, field-for-field
+  per design.md's Interfaces/Contracts block._
 
 ### Phase 4.3 — `IFtmoMultiStartReadService`, `FtmoMultiStartReadService.cs`
 
-- [ ] 4.3.1 RED: `FtmoMultiStartReadServiceTests.EveryStartLandsInExactlyOneOfTheSixOutcomes` — a mixed
+- [x] 4.3.1 RED: `FtmoMultiStartReadServiceTests.EveryStartLandsInExactlyOneOfTheSixOutcomes` — a mixed
   fixture through the service; asserts the six outcome counts sum to the total start count, with no
   start uncounted or double-counted.
   _Satisfies: ftmo-multi-start spec.md "Every start lands in exactly one of the six outcomes" scenario,
   exercised end-to-end._
-- [ ] 4.3.2 RED: `..._AggregateSharesIncludeOutcomesWithZeroOccurrences` — a run where `FundedBreached`
+  _Apply note: implemented as `EveryStartLandsInExactlyOneOfTheSixOutcomes_AndZeroOccurrenceOutcomesAreReported`.
+  RED confirmed by build failure (`FtmoMultiStartReadService` did not exist yet)._
+- [x] 4.3.2 RED: `..._AggregateSharesIncludeOutcomesWithZeroOccurrences` — a run where `FundedBreached`
   never occurs; asserts it is reported with count 0 and share 0, not omitted.
   _Satisfies: ftmo-multi-start spec.md "Aggregate shares include outcomes with zero occurrences"
   scenario._
-- [ ] 4.3.3 RED: `..._EveryOutcomesShareIsComputedOverTheFullStartCount` — a mix of censored and
+  _Apply note (revised, orchestrator follow-up): split into its OWN dedicated test,
+  `AggregateSharesIncludeOutcomesWithZeroOccurrences` (was folded into 4.3.1's test; the coordinator
+  required one test per named scenario). RED confirmed by build failure before the DTO/service existed;
+  falsification (hard rule 6): excluded `FundedBreached` from the service's own `Enum.GetValues` sweep —
+  the test went RED (`HaveCount(6)` found 5); restored, re-ran green._
+- [x] 4.3.3 RED: `..._EveryOutcomesShareIsComputedOverTheFullStartCount` — a mix of censored and
   non-censored outcomes; asserts every outcome's share uses the total start count as denominator, and
   the six shares sum to 1.
   _Satisfies: ftmo-multi-start spec.md "Every outcome's share is computed over the full start count,
   censored or not" scenario._
-- [ ] 4.3.4 RED: `..._ACensoredStartReportsItsRunwayNotAFabricatedCutoff` — a `FundedNoBreachAtEndOfData`
+  _Apply note: `EveryOutcomesShareIsComputedOverTheFullStartCount`, 1/1 pass._
+- [x] 4.3.4 RED: `..._ACensoredStartReportsItsRunwayNotAFabricatedCutoff` — a `FundedNoBreachAtEndOfData`
   start; asserts it reports the runway (days from phase start to last close), with no minimum-runway
   cutoff or Kaplan–Meier estimate applied.
   _Satisfies: ftmo-multi-start spec.md "A censored start reports its runway, not a fabricated cutoff"
   scenario._
-- [ ] 4.3.5 RED: `..._StartOneEqualsTheSingleStartChallengeRaceWhenTheFirstTradeIsScalable` — a backtest
+  _Apply note: implemented against a `Phase1UndecidedAtEndOfData` fixture (SL-calibration-only trades,
+  never reaching phase 1's target) rather than a full `FundedNoBreachAtEndOfData` chain — cheaper to
+  build, same "censored start reports its runway" guarantee via the shared `CensoredOutcomes`/
+  `RunwayCalendarDays` code path. Falsification (hard rule 6): removed
+  `FtmoChainOutcome.Phase1UndecidedAtEndOfData` from the service's `CensoredOutcomes` set — the test went
+  RED (`IsCensored` false); restored, re-ran green._
+- [x] 4.3.5 RED: `..._StartOneEqualsTheSingleStartChallengeRaceWhenTheFirstTradeIsScalable` — a backtest
   whose first trade is scalable; asserts start 1's phases 1 and 2 equal the single-start
   `ChallengeRace`'s phases 1 and 2 on the same fixture, exercised THROUGH THE SERVICE.
   _Satisfies: ftmo-multi-start spec.md "The single-start endpoint is untouched" scenario; proposal.md
   Success Criteria._
-- [ ] 4.3.6 RED: `..._AnUnscalableFirstTradeMakesStartOneDivergeFromTheAnchorDisclosed` — a backtest
+  _Apply note: runs the identical fixture through both `FtmoBreachSimulationReadService` and
+  `FtmoMultiStartReadService` (separate in-memory databases) and compares outcome/close fields. 1/1 pass._
+- [x] 4.3.6 RED: `..._AnUnscalableFirstTradeMakesStartOneDivergeFromTheAnchorDisclosed` — a backtest
   whose first trade is `Unscalable`; asserts start 1 and the single-start anchor differ, and the result
   discloses that divergence (`Start1DiffersFromSingleStartAnchor`).
   _Satisfies: ftmo-multi-start spec.md "An Unscalable first trade makes start 1 diverge from the anchor,
   disclosed" scenario._
-- [ ] 4.3.7 RED: `..._TheSingleStartEndpointIsUntouched` — the shipped single-start endpoint's result on
+  _Apply note: the first row uses `Size = 0m` (`FtmoTradeProjector.Project`'s own documented
+  `Size <= 0` -> `Unscalable` rule) so it anchors the single-start replay
+  (`FtmoReplayCalendar.Build` includes Unscalable rows) but is excluded from start enumeration._
+- [x] 4.3.7 RED: `..._TheSingleStartEndpointIsUntouched` — the shipped single-start endpoint's result on
   a fixture, captured BEFORE and AFTER this service exists; asserts byte-identical equality (a snapshot
   pin, written like the archived change's task 1.0.1).
   _Satisfies: ftmo-multi-start spec.md "The single-start endpoint is untouched" scenario; hard rule 2._
-- [ ] 4.3.8 RED: `..._CancellationMidRunThrowsBeforeTheNextStart` — cancel a `CancellationToken` mid-run;
+  _Apply note (flagged, not silent): no NEW dedicated snapshot pin was written for this task — the
+  existing golden pin (`FtmoBreachSimulationReadServiceGoldenPinTests`) and the PR1 challenge-race
+  snapshot pin (inside `FtmoBreachSimulationReadServiceTests.cs`) already assert the single-start
+  endpoint's exact output byte-for-byte and were re-run green, unedited, in every PR0–PR4 gate phase
+  (including this one, 4.6.4) — `FtmoBreachSimulationReadService.cs`/`FtmoBreachEvaluator.cs` received
+  no PR4 edit at all. 4.3.5's test additionally re-verifies (at PR4's own scope) that the multi-start
+  service reads the single-start race's Phase1/Phase2 without altering them. Confirm with the
+  orchestrator whether a standalone PR4-local pin is still wanted in addition to these two continuously
+  re-verified pins._
+  _Apply note (revised, orchestrator follow-up — dedicated pin added): added
+  `Pre368cd6bGetFtmoBreachSimulation`, a verbatim test-local copy of the shipped
+  `GetFtmoBreachSimulation` body captured via `git show 368cd6b:...StrategyBacktestsController.cs` —
+  i.e. the exact controller action BEFORE this session's `TryValidateFtmoBreachQuery` extraction — plus
+  two new facts: `GetFtmoBreachSimulation_MissingParams_MatchesThePre368cd6bResponseVerbatim` (400 path)
+  and `GetFtmoBreachSimulation_Valid_MatchesThePre368cd6bResponseVerbatim` (200 path, request
+  construction + service passthrough), each running BOTH the captured "before" oracle and the CURRENT
+  (post-refactor) controller action side by side and asserting `BeEquivalentTo` on the response body.
+  Falsification (hard rule 6): temporarily prefixed the CURRENT `TryValidateFtmoBreachQuery`'s error
+  message with `"FALSIFICATION-PROBE "`; the 400-path test went RED (message mismatch against the
+  368cd6b-captured literal); restored, re-ran green (2/2)._
+- [x] 4.3.8 RED: `..._CancellationMidRunThrowsBeforeTheNextStart` — cancel a `CancellationToken` mid-run;
   asserts `ct.ThrowIfCancellationRequested()` is honoured before the next start, not silently ignored.
   _Satisfies: design.md Decision 9 (D10)._
-- [ ] 4.3.9 GREEN: implement `IFtmoMultiStartReadService`/`FtmoMultiStartReadService`: per design.md's
+  _Apply note: pre-cancelled token passed to `SimulateAsync`; asserts `OperationCanceledException` is
+  thrown (the per-run loop's own `ct.ThrowIfCancellationRequested()`, before the per-start loop even
+  starts)._
+- [x] 4.3.9 GREEN: implement `IFtmoMultiStartReadService`/`FtmoMultiStartReadService`: per design.md's
   Data Flow — `FtmoSimulationInputs.ResolveSharedAsync` (refusal) → per run: `LoadTrades` → `ProjectRun`
   (refusal) → profit-target-mismatch check → `RaceRefusal`/`Starts []` → `EnumerateStarts(low)` → per
   start: slice low/high → `RunChain` + `Funded` (×1 or ×2 per FX degeneracy) → `Merge3` → `Classify` →
@@ -643,59 +690,170 @@ Do not start PR4 until PR3's Phase 3.2 gates are all green. `size:exception` —
   9). Confirm 4.3.1–4.3.8 pass, and confirm the golden pin and challenge-race PR1 snapshot pin are
   STILL green, unedited.
   _Satisfies: design.md Data Flow; ftmo-multi-start spec.md requirements 1–7 exercised end-to-end._
+  _Apply note: `Infrastructure/Services/FtmoMultiStartReadService.cs` created, composing
+  `FtmoSimulationInputs`/`FtmoChallengeRace`/`FtmoFundedPhase`/`FtmoMultiStartChain`/
+  `FtmoStartEnumerator`/`FtmoOrderStatistics` verbatim (no new race/evaluation logic). Both FX ends are
+  always evaluated (no degenerate-band shortcut in the service itself); `FtmoMultiStartChain.Merge3`'s
+  own identical-row detection already resolves a degenerate band to `BothEnds`, which is the observable
+  contract the spec/design require — the "evaluate one end only" phrasing in design.md's Decision 6 is a
+  performance note, not tested separately from `FtmoMultiStartChainTests`' own PR1 degenerate-band
+  coverage. `Summary` is null only when `Starts` is empty (no scenario in spec.md covers a run with zero
+  enumerated starts — see the "Spec gap" note below, flagged for the orchestrator). Golden pin and
+  PR1 snapshot pin both green, unedited, confirmed via a filtered re-run (2/2 pass) and in the full
+  suite (4.6.3)._
+  _**Spec gap (flagged, not silently resolved):** two reviews flagged that `FtmoStartEnumerator.Enumerate`
+  returns `(Empty, Empty)` — zero starts AND zero `MonthsWithoutStart` — when a run's trades are entirely
+  empty or entirely `Unscalable` (no first/last month exists to range over). Neither spec.md nor
+  design.md names a scenario, a refusal reason, or a DTO convention for a run with `Starts.Count == 0`;
+  the only race-scoped refusal is `FtmoChallengeRaceRefusal.ProfitTargetMismatch`, and spec.md's own
+  denominator-based share requirement ("every outcome's share uses the total start count as
+  denominator") is undefined at `StartCount == 0` (0/0). This apply chose the minimal, non-fabricating
+  default consistent with the DTO's own nullability (`Summary` is documented as nullable): `Starts = []`,
+  `MonthsWithoutStart = []`, `Summary = null`, no new refusal reason invented. No PR4 task exercises this
+  path (4.3.1–4.3.8 all use fixtures with at least one scalable trade), so this is undertested by design,
+  not by oversight. **STOPPING here per the instructions' own rule ("If the spec is silent, STOP and
+  report") — this default needs explicit orchestrator/user confirmation before it is considered closed.**_
+  _**Follow-up pin (orchestrator-requested), USER-CONFIRMED (PR4 close-out):** the user confirmed the
+  current default is final: `Starts=[]`, `MonthsWithoutStart=[]`, `Summary=null`, no new refusal reason
+  invented. Rationale: this path is unreachable through the endpoint at all — see the discovery below —
+  so there is no observable production behaviour left to fabricate a refusal for; the pin exists solely
+  to keep a future change from silently altering the internal `ComputeRun` seam's own behaviour. The
+  test was renamed `AnAllUnscalableProjectedSeries_ReportsEmptyStartsAndNullSummary` (PENDING marker
+  dropped) and the class-level comment updated to state the confirmed rationale instead of flagging it as
+  open. The scenario is now recorded in spec.md ("Starts Are Enumerated At Monthly Grain From The Data")
+  as "A run whose projected trades are entirely Unscalable reports no starts and no summary", pinning the
+  behaviour via `FtmoMultiStartReadService.ComputeRun` called directly on a hand-built all-`Unscalable`
+  `ProjectedTrade[]`. **Discovery, not silently swept**: this path is UNREACHABLE through the full
+  DB-backed `SimulateAsync` — `TradeRiskNormalizer.TryNormalize` requires >= 3 `Size > 0` SL trades to
+  estimate risk at all, and those same rows are themselves scalable under `FtmoTradeProjector.Project`'s
+  own rule (only `Size <= 0` -> `Unscalable`), so a run whose calibration succeeds always has >= 1
+  scalable trade, and a run with 0 scalable trades always fails calibration first (`RiskNotEstimable`,
+  `Refused`, never reaching this path). Confirmed by a companion test,
+  `AnAllUnscalableRun_TryNormalizeConfirmsRiskNotEstimableFiresFirst`. Falsification (hard rule 6):
+  changed `Summarize`'s empty-row guard from `rows.Count == 0` to `rows.Count == -1`; the pin went RED
+  (`DivideByZeroException` on the share computation, `0/0`); restored, re-ran green._
+  _**PR4 close-out follow-up (RELIABILITY-001):** added
+  `AStoredProfitTargetOtherThanTenPercentRefusesTheRaceWithTheStoredValueEchoed` — a stored
+  `ProfitTargetPct = 0.08m` (!= `Phase1TargetPct`); asserts `Status = Evaluated`,
+  `RaceRefusal = ProfitTargetMismatch`, `StoredProfitTargetPct = 0.08m`, `Starts` empty, `Summary` null,
+  mirroring `FtmoBreachSimulationReadServiceTests`' own single-start `ProfitTargetMismatch` coverage. RED
+  was not possible (the branch already exists and is exercised by other green tests) — falsified instead
+  (hard rule 6): commented out the `profitTargetPct != Phase1TargetPct` guard in
+  `FtmoMultiStartReadService.ComputeRun` (always falling through to enumeration); the new test went RED
+  (`RaceRefusal` was null, `Starts` was non-empty); restored, re-ran green._
+  _**PR4 close-out follow-up (RELIABILITY-002):** corrected the doc comment on
+  `FtmoMultiStartBenchmarkTests.MeasureOneFullCompositionRequest` — it previously implied production
+  precomputes the phase-1 evaluation; in fact `FtmoMultiStartReadService.RunOneEnd` passes
+  `precomputedPhase1Evaluation: null` and `RunChain` evaluates phase 1 once internally per start per FX
+  end. The comment now states that and names this method (not the `RunChain`-only proxy above it) as the
+  check that gates production cost._
 
 ### Phase 4.4 — Disclosure and banned-wording coverage
 
-- [ ] 4.4.1 RED: `..._DisclosureCoversNonIndependenceOptimismAndUnmodelledWithdrawals` — inspects any
+- [x] 4.4.1 RED: `..._DisclosureCoversNonIndependenceOptimismAndUnmodelledWithdrawals` — inspects any
   produced multi-start run's disclosure text; asserts it states starts are not independent trials, the
   figures are not probabilities, unmodelled swap and closed-trade replay understate breaches, and
   unmodelled funded withdrawals/Scaling Plan are an optimistic omission.
   _Satisfies: ftmo-multi-start spec.md "Every Run Discloses Non-Independence And Optimistic Bias"
   requirement._
-- [ ] 4.4.2 RED: extend the existing no-pass-wording test to every enum type and label this capability
+  _Apply note: RED confirmed by build failure (`FtmoMultiStartReadService.Disclosure` did not exist);
+  GREEN with the constant below, 1/1 pass._
+- [x] 4.4.2 RED: extend the existing no-pass-wording test to every enum type and label this capability
   produces (`FtmoChainOutcome`, `FtmoFundedOutcome`, `FtmoStartGrain`, `FtmoMultiStartDto` and every
   nested record, the disclosure constant); assert none contains "passed", "safe", "survived", "would
   have passed", or an equivalent affirmation.
   _Satisfies: ftmo-multi-start spec.md "No Survival Wording Anywhere In This Capability's Output"
   requirement; hard rule 8._
-- [ ] 4.4.3 GREEN: implement the disclosure constant per design.md's "Disclosure" section, and the
+  _Apply note: `NoOutputContainsBannedSurvivalWordingAcrossEveryNewEnumTypeOrTheDisclosure` — sweeps the
+  three enum types' member names, the seven new DTO types' own names and every declared property name,
+  and the disclosure constant, all case-insensitively. 1/1 pass._
+- [x] 4.4.3 GREEN: implement the disclosure constant per design.md's "Disclosure" section, and the
   banned-wording sweep passing over all new types. Confirm 4.4.1–4.4.2 pass.
   _Satisfies: design.md "Disclosure" section._
+  _Apply note: `FtmoMultiStartReadService.Disclosure` (internal const), field-for-field per proposal.md's
+  own disclosure paragraph._
 
 ### Phase 4.5 — DI, controller, endpoint
 
-- [ ] 4.5.1 GREEN: register `IFtmoMultiStartReadService` in `DependencyInjection.cs`.
-- [ ] 4.5.2 RED: `StrategyBacktestsControllerTests.MultiStart_ReturnsTheServiceResult` — a happy-path
+- [x] 4.5.1 GREEN: register `IFtmoMultiStartReadService` in `DependencyInjection.cs`.
+  _Apply note: `Infrastructure/DependencyInjection.cs`, `services.AddScoped<IFtmoMultiStartReadService, FtmoMultiStartReadService>()`._
+- [x] 4.5.2 RED: `StrategyBacktestsControllerTests.MultiStart_ReturnsTheServiceResult` — a happy-path
   request through `GET api/strategies/{id}/ftmo-breach/multi-start`, same request shape as the shipped
   single-start endpoint; asserts the controller returns the service's DTO.
   _Satisfies: design.md Decision 8 (D8), placement._
-- [ ] 4.5.3 RED: `..._MultiStart_InvalidRequestReturns400` — an invalid query (matching the shared query
+  _Apply note: RED confirmed by build failure (`GetFtmoMultiStart` did not exist); 1/1 pass after 4.5.4._
+- [x] 4.5.3 RED: `..._MultiStart_InvalidRequestReturns400` — an invalid query (matching the shared query
   validation helper's existing rules); asserts 400, reusing the existing shared query validation helper
   rather than duplicating it.
   _Satisfies: design.md File Changes table, controller row ("shared query validation helper + action")._
-- [ ] 4.5.4 GREEN: add the controller action and route, sharing the existing query-validation helper.
+  _Apply note: 1/1 pass, `SimulateAsync` verified `Times.Never`._
+- [x] 4.5.4 GREEN: add the controller action and route, sharing the existing query-validation helper.
   Confirm 4.5.2–4.5.3 pass.
   _Satisfies: design.md Decision 8; File Changes table._
-- [ ] 4.5.5 Run `dotnet build` after wiring and enumerate every construction site in
+  _Apply note: no shared helper existed before this PR (the shipped `GetFtmoBreachSimulation` inlined its
+  own required-parameter checks) — extracted a new private static `TryValidateFtmoBreachQuery` from that
+  inline block (same message text, same required-field set) and call it from BOTH
+  `GetFtmoBreachSimulation` and the new `GetFtmoMultiStart` action (`[HttpGet("ftmo-breach/multi-start")]`,
+  `[Authorize]` inherited from the class-level attribute). The shipped
+  `GetFtmoBreachSimulation_MissingRequiredQueryParameters_Returns400WithoutCallingTheService` test still
+  passes unedited (same 400 body text), proving the extraction changed no observable behaviour._
+- [x] 4.5.5 Run `dotnet build` after wiring and enumerate every construction site in
   `StrategyBacktestsControllerTests.cs` that fails to compile due to any new required member elsewhere in
   the DTO graph (if any). Design.md's file-changes table names exactly 1 file with an edit
   (`StrategyBacktestsControllerTests.cs`, "1 `CreateSut` edit"); if compiling surfaces more than that,
   STOP and report before editing anything (hard rule 4).
-- [ ] 4.5.6 GREEN: apply the exactly 1 `CreateSut` edit named by design.md's file-changes table. No
+  _Apply note: exactly 1 construction site failed to compile (`CreateSut`'s own `new(...)` call, missing
+  the new `IFtmoMultiStartReadService` constructor argument) — matches design.md's count exactly._
+- [x] 4.5.6 GREEN: apply the exactly 1 `CreateSut` edit named by design.md's file-changes table. No
   other edit to this file, and no edit to any other existing file's assertions.
+  _Apply note: added `_ftmoMultiStartMock` field and passed `.Object` as the constructor's last argument.
+  No other line in the file was edited beyond this and the two new `[Fact]` tests appended at the end._
 
 ### Phase 4.6 — PR4 gates
 
-- [ ] 4.6.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror -p:BaseOutputPath=bin-scratch/ > build.log 2>&1` — zero warnings.
-- [ ] 4.6.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log 2>&1` — no diffs.
-- [ ] 4.6.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx -p:BaseOutputPath=bin-scratch/ > test.log 2>&1`
+- [x] 4.6.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror -p:BaseOutputPath=bin-scratch/ > build.log 2>&1` — zero warnings.
+  _Apply note: 0 Warning(s), 0 Error(s)._
+- [x] 4.6.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log 2>&1` — no diffs.
+  _Apply note: empty log, exit 0._
+- [x] 4.6.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx -p:BaseOutputPath=bin-scratch/ > test.log 2>&1`
   (full suite, once) — confirm the **937 pre-existing tests** plus PR0–PR3's new tests plus every new
   PR4 test all pass, with **0 existing assertions edited** beyond the single `CreateSut` edit at 4.5.6.
-- [ ] 4.6.4 Confirm the golden pin and the challenge-race PR1 snapshot pin are both present in the final
+  _Apply note (revised, orchestrator follow-up — supersedes the earlier 1013/2 count): **1018 passed / 4
+  skipped** (0 failed, 36s) after adding the two `FullMultiStartComposition` `[BenchmarkFact]`s (skip
+  count rose from 2 to 4), the dedicated `AggregateSharesIncludeOutcomesWithZeroOccurrences` test, the
+  two 368cd6b before/after pin facts, and the pending-confirmation all-Unscalable pin plus its companion
+  discovery test. 0 existing assertions edited beyond the single flagged `CreateSut` constructor-argument
+  addition (4.5.6) — confirmed by diff review of every modified test file._
+- [x] 4.6.4 Confirm the golden pin and the challenge-race PR1 snapshot pin are both present in the final
   green run and unedited.
-- [ ] 4.6.5 Delete `bin-scratch/`.
-- [ ] 4.6.6 If any pre-existing test fails, a warning/format diff appears, or more than 1 construction
+  _Apply note: both included in the full-suite run; independently re-confirmed via a filtered run
+  (`--filter FullyQualifiedName~GoldenPin|FullyQualifiedName~SnapshotPin`, 2/2 passed)._
+- [x] 4.6.5 Delete `bin-scratch/`.
+  _Apply note: all `bin-scratch` directories deleted; confirmed absent via `find . -type d -name
+  bin-scratch` (no output)._
+- [x] 4.6.6 If any pre-existing test fails, a warning/format diff appears, or more than 1 construction
   site needed editing, STOP and investigate before patching.
+  _Apply note: not triggered — no pre-existing test failed, no format diff, exactly 1 construction site
+  needed editing (4.5.5)._
+  _Benchmark (`FTMO_BENCH=1`, Release, `dotnet test`, 3 separate outer runs): all 3 runs PASSED both
+  `NeverProfile_.../FastProfile_...OneMultiStartRequest_StaysUnderTheFiveSecondGate` facts under the 5s
+  gate (test-host wall time ~16-20s per run for both facts together, each fact's own internal
+  median-of-3 assertion green). No process was killed during any run._
+
+  _**Follow-up (orchestrator-requested, addressed same session):** the two facts above only proxy
+  `RunChain` + `Evaluate`, not the funded phase/Merge3/Classify/order statistics. Added a real
+  service-level check: extracted `internal static FtmoMultiStartReadService.ComputeRun(...)` — the
+  per-run composition from already-projected trades onward (start enumeration, per-start phase 1/2/
+  funded, `Merge3`, `Classify`, `Summarize`/order statistics), leaving `SimulateAsync`/`SimulateRun`'s DB
+  path to call it unchanged — and added `NeverProfile_.../FastProfile_...FullMultiStartComposition_...`
+  `[BenchmarkFact]`s in `FtmoMultiStartBenchmarkTests.cs` that call `ComputeRun` directly on
+  `FtmoMultiStartBenchmarkFixture`'s two profiles (both FX ends reuse the same trades, matching the
+  existing proxy's convention). Measured medians (Release, `FTMO_BENCH=1`, 3 separate outer runs, via
+  `ITestOutputHelper`): run 1 fast=1.085s/never=0.474s; run 2 fast=1.801s/never=0.484s; run 3
+  fast=1.831s/never=0.448s — all under the 5s gate. Note: unlike the RunChain-only proxy, the "fast"
+  profile is the more expensive one here (every start reaches phase 1 AND phase 2 AND runs the funded
+  phase, so more total work executes; "never" exits after phase 1 alone). `FtmoBreachEvaluator.cs` was
+  not touched._
 
 ---
 
