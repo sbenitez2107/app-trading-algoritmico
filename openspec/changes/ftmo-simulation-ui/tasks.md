@@ -77,7 +77,7 @@ every symbol here is consumed starting in PR1b (mappers) and PR1d (container).
 
 ### Phase 1a.1 — Enums and the lot-grid constant
 
-- [ ] 1a.1.1 RED: `ftmo-simulation.model.spec.ts` — `FTMO_SIMULATION enums pin their exact numeric
+- [x] 1a.1.1 RED: `ftmo-simulation.model.spec.ts` — `FTMO_SIMULATION enums pin their exact numeric
   values`: one assertion per enum member in design.md's "Enum mirrors" table for PR1a
   (`FtmoSimulationStatus`, `FtmoSimulationRefusal`, `FtmoChallengeRaceRefusal`, `FtmoChainOutcome`,
   `FtmoPhaseOutcome`, `FtmoFundedOutcome`, `FtmoFirstBreachingLimit`, `FtmoBreachPointClass`,
@@ -86,65 +86,113 @@ every symbol here is consumed starting in PR1b (mappers) and PR1d (container).
   `Daily === 0`, `Clean === 0`, `FxLow === 0`, `Monthly === 0` explicitly, alongside every non-zero
   member.
   _Satisfies: design.md "Enum mirrors" table; hard rule 2 (zero values)._
-- [ ] 1a.1.2 GREEN: create `ftmo-simulation.model.ts` with the 10 enums as TS `enum` declarations with
+  _Apply note: RED confirmed — `Cannot find module './ftmo-simulation.model'` (TS2307) before the
+  file existed._
+- [x] 1a.1.2 GREEN: create `ftmo-simulation.model.ts` with the 10 enums as TS `enum` declarations with
   explicit numeric initializers copied verbatim from `Domain/Enums/*.cs`. Confirm 1a.1.1 passes.
   _Satisfies: design.md AD2; proposal.md D7._
-- [ ] 1a.1.3 RED: `IMOX_RETESTER_LOT_GRID pins the backtest lot grid, never the FTMO grid` — asserts
+  _Apply note: values verified against the live `.cs` sources (not just design.md's table): all 10
+  enums match exactly._
+- [x] 1a.1.3 RED: `IMOX_RETESTER_LOT_GRID pins the backtest lot grid, never the FTMO grid` — asserts
   `{ sizeDecimals: 2, step: 0.01, minLot: 0.01, maxLots: 10 }`.
   _Satisfies: spec.md "The Source Lot Grid Is Prefilled From The IMOX Retester Constant" requirement;
   hard rule 5._
-- [ ] 1a.1.4 GREEN: add the `IMOX_RETESTER_LOT_GRID` constant to the same file. Confirm 1a.1.3 passes.
+- [x] 1a.1.4 GREEN: add the `IMOX_RETESTER_LOT_GRID` constant to the same file. Confirm 1a.1.3 passes.
   _Satisfies: design.md AD7 (revised); "Resolved: the lot grid hazard"._
-- [ ] 1a.1.5 Falsification: temporarily set `maxLots: 1000` (the FTMO grid's own value) on the
+  _Apply note: 11/11 model tests green after 1a.1.2+1a.1.4._
+- [x] 1a.1.5 Falsification: temporarily set `maxLots: 1000` (the FTMO grid's own value) on the
   constant; confirm 1a.1.3 goes RED; restore; confirm green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (`toEqual` mismatch, `maxLots: 1000` vs expected `10`);
+  restored; 11/11 green again._
 
 ### Phase 1a.2 — Wire DTOs and query type
 
-- [ ] 1a.2.1 GREEN: add the wire DTO interfaces (`FtmoMultiStartDto`, `FtmoMultiStartRunDto`,
+- [x] 1a.2.1 GREEN: add the wire DTO interfaces (`FtmoMultiStartDto`, `FtmoMultiStartRunDto`,
   `FtmoMultiStartRowDto`, `FtmoFundedPhaseDto`, `FtmoOutcomeCountDto`, `FtmoOrderStatisticsDto`,
   `FtmoMultiStartSummaryDto`) mirroring the API's `Application/DTOs/Backtests/FtmoMultiStartDto.cs`
   records 1:1, and `FtmoSimulationQuery` (the 8 required fields + optional `fxLow`/`fxHigh`). No test
   needed for pure interface shapes; the mapper tests in PR1b are the behavioural proof.
   _Satisfies: design.md AD3, Interfaces/Contracts._
+  _Apply note: field names camelCased per ASP.NET's default JSON casing (confirmed — no
+  `JsonNamingPolicy`/`JsonStringEnumConverter` registered anywhere in `src/`, the only
+  `JsonSerializerOptions` is `GridPresetService.cs:12` and is unrelated to controller responses).
+  `kind`/`segment` on `FtmoMultiStartRunDto` are typed as `BacktestRunKind`/`BacktestSegment`, imported
+  from `backtest.service.ts`, per design.md AD2 ("`BacktestRunKind` and `BacktestSegment` are reused
+  from `backtest.service.ts:19-35`")._
+  _Correction note (review RELIABILITY-001, CRITICAL): the first pass was NOT 1:1 —
+  `FtmoMultiStartRowDto` lacked `phase1`/`phase2` (`FtmoChallengePhaseDto`) and `funded`
+  (`FtmoFundedPhaseDto`), and `FtmoMultiStartRunDto` lacked `rules` (`FtmoChallengeRulesDto`). Added
+  the four properties plus the `FtmoChallengePhaseDto` and `FtmoChallengeRulesDto` interfaces (C#
+  source: `FtmoBreachSimulationDto.cs`; `DateOnly`/`DateTime` → `string`, `decimal`/`int` → `number`,
+  `T?` → `T | null`). The "no test needed" premise above was wrong: `ftmo-simulation.model.spec.ts` now
+  pins the whole shape with typed, cast-free fixture literals carrying every C# field (enforced by
+  `tsc --build` via `tsconfig.spec.json`) plus 3 runtime key-list assertions. RED confirmed before the
+  fix — tsc exit 2: TS2305 (no exported `FtmoChallengePhaseDto`/`FtmoChallengeRulesDto`), TS2353
+  (`phase1` not in `FtmoMultiStartRowDto`, `rules` not in `FtmoMultiStartRunDto`), TS2339 (`phase1`,
+  `phase2`, `funded`, `rules`). Every other interface (`FtmoOrderStatisticsDto`, `FtmoFundedPhaseDto`,
+  `FtmoOutcomeCountDto`, `FtmoMultiStartSummaryDto`, `FtmoMultiStartDto`) and all 10 enums re-checked
+  against C#: no other gap._
 
 ### Phase 1a.3 — `FtmoSimulationService.getMultiStart`
 
-- [ ] 1a.3.1 RED: `ftmo-simulation.service.spec.ts` — `getMultiStart sends every required query
+- [x] 1a.3.1 RED: `ftmo-simulation.service.spec.ts` — `getMultiStart sends every required query
   param, with sizeDecimals=0 included` — a query with `sizeDecimals: 0` and no `fxLow`/`fxHigh`;
   asserts the request URL/params include all 8 required params (including the literal `"0"` for
   `sizeDecimals`) and omit `fxLow`/`fxHigh` entirely.
   _Satisfies: spec.md "A zero sizeDecimals value does not disable Run" (client parity); design.md
   Testing Strategy row 1; hard rule 2._
-- [ ] 1a.3.2 RED: `..._fxLow and fxHigh are included only when not null` — a query with both fx bounds
+  _Apply note: RED confirmed — `Could not resolve "./ftmo-simulation.service"` before the file
+  existed._
+- [x] 1a.3.2 RED: `..._fxLow and fxHigh are included only when not null` — a query with both fx bounds
   set; asserts both appear in the params.
   _Satisfies: design.md AD6, Interfaces/Contracts `buildFtmoQueryParams` note._
-- [ ] 1a.3.3 RED: `..._a 400 response maps to INVALID_QUERY with the server message as detail` —
+- [x] 1a.3.3 RED: `..._a 400 response maps to INVALID_QUERY with the server message as detail` —
   `HttpTestingController` flushes a 400 with `{ message: "..." }`; asserts the mapped
   `FtmoRequestError` has `key: 'ERRORS.INVALID_QUERY'` and `detail` equal to the server message.
   _Satisfies: spec.md "An HTTP Error Or 400 Response Is Shown, Never Silently Swallowed"; design.md
   AD10._
-- [ ] 1a.3.4 RED: `..._a network failure maps to REQUEST_FAILED with null detail` — a network-error
+- [x] 1a.3.4 RED: `..._a network failure maps to REQUEST_FAILED with null detail` — a network-error
   flush; asserts `key: 'ERRORS.REQUEST_FAILED'`, `detail: null`.
   _Satisfies: spec.md same requirement, network-failure scenario; design.md AD10._
-- [ ] 1a.3.5 GREEN: implement `FtmoSimulationService.getMultiStart(strategyId, query)`:
+- [x] 1a.3.5 GREEN: implement `FtmoSimulationService.getMultiStart(strategyId, query)`:
   `buildFtmoQueryParams` (every required field via `.set(k, String(v))`, fx bounds only when
   `!== null`), `GET api/strategies/{id}/ftmo-breach/multi-start`, `catchError` mapping per AD10.
   Confirm 1a.3.1–1a.3.4 pass.
   _Satisfies: design.md AD2, AD10, Interfaces/Contracts._
-- [ ] 1a.3.6 Falsification: temporarily change the 400-mapping branch to also match on status `0`
+  _Apply note: 4/4 service tests green. Route and 400 body shape (`{ message }`) confirmed against
+  `StrategyBacktestsController.GetFtmoMultiStart`/`TryValidateFtmoBreachQuery`._
+- [x] 1a.3.6 Falsification: temporarily change the 400-mapping branch to also match on status `0`
   (network errors); confirm 1a.3.4 goes RED (asserts `REQUEST_FAILED`, gets `INVALID_QUERY`); restore;
   confirm both 1a.3.3 and 1a.3.4 green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (network-failure test expected `REQUEST_FAILED`, got
+  `INVALID_QUERY`); restored; 4/4 green again._
+- [x] 1a.3.7 RED: `..._fxLow and fxHigh of zero are sent as "0", never dropped` — a query with
+  `fxLow: 0, fxHigh: 0`; asserts both params equal `"0"` (the backend refuses the band with
+  `InvalidFxBand`, per design.md AD6).
+  _Satisfies: design.md AD6; hard rule 2. Added by review correction RELIABILITY-002 (WARNING)._
+  _Apply note: passes against the existing `!== null && !== undefined` guard. Falsification: both
+  guards temporarily changed to a truthy `if (query.fxLow)`/`if (query.fxHigh)`; the test went RED
+  (`expected null to be '0'`, 1 failed / 4 passed); service file restored byte-identical (`cmp`);
+  5/5 green again._
 
 ### Phase 1a.4 — PR1a gates
 
-- [ ] 1a.4.1 `cd app.trading.algoritmico.web && npx prettier --check src/app/core/models/ftmo-simulation.model.ts src/app/core/models/ftmo-simulation.model.spec.ts src/app/core/services/ftmo-simulation.service.ts src/app/core/services/ftmo-simulation.service.spec.ts` — no diffs.
-- [ ] 1a.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 1a.4.3 `npx ng test --watch=false` (full suite, once) — confirm every pre-existing spec plus every
+- [x] 1a.4.1 `cd app.trading.algoritmico.web && npx prettier --check src/app/core/models/ftmo-simulation.model.ts src/app/core/models/ftmo-simulation.model.spec.ts src/app/core/services/ftmo-simulation.service.ts src/app/core/services/ftmo-simulation.service.spec.ts` — no diffs.
+  _Apply note: initial run flagged the two service files (mechanical formatting only, no logic
+  change); `--write` applied, re-check passed clean._
+- [x] 1a.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
+- [x] 1a.4.3 `npx ng test --watch=false` (full suite, once) — confirm every pre-existing spec plus every
   new PR1a spec passes, with **0 existing assertions edited**.
+  _Apply note: baseline (pre-change) was 33 test files / 414 tests, all passing. After PR1a: 35 test
+  files / 429 tests, all passing — the +2 files / +15 tests are exactly the two new PR1a spec files
+  (11 model + 4 service); every pre-existing test file and count is unchanged._
+  _Correction re-run (RELIABILITY-001/002): prettier clean (exit 0), tsc exit 0 with empty output,
+  full suite 35 files / 433 tests passing — +4 over 429 are exactly the 3 new model wire-shape tests
+  and the 1 new zero-fx service test; 0 existing assertions edited._
 - [ ] 1a.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
-  patching.
+  patching. (N/A — no failures or diffs occurred.)
 
 ---
 
@@ -523,6 +571,10 @@ unedited).
   challenge-race phase 1/phase 2 outcomes and dates) mirroring `ftmo-breach` and `ftmo-challenge-race`
   response shapes 1:1. No test needed for pure interface shapes.
   _Satisfies: design.md AD3, D5._
+  _Note (from PR1a correction RELIABILITY-001): `FtmoChallengePhaseDto` and `FtmoChallengeRulesDto`
+  already exist in `ftmo-simulation.model.ts` (PR1a, consumed by the multi-start row/run). PR2a MUST
+  reuse them for `FtmoChallengeRaceDto.phase1`/`phase2`/`rules` — never redeclare them. PR2a still
+  adds `FtmoChallengeRaceDto` and the other single-start shapes._
 - [ ] 2a.2.2 RED: `ftmo-simulation.service.spec.ts` (additions only) — `getSingleStart sends the same
   8+fx params as getMultiStart, against the single-start endpoints` — asserts the request URL/params.
   _Satisfies: design.md AD12._

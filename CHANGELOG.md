@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.42.0] - 2026-09-28
+
+### Added
+
+- Groundwork for the FTMO simulation screen in the web app, not yet visible: a client for the multi-start FTMO endpoint, with typed models that mirror the backend's response field for field, including result codes that arrive as 0.
+
 ## [0.41.0] - 2026-09-28
 
 ### Added
