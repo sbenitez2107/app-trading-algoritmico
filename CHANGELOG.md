@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.38.3] - 2026-09-27
+
+### Fixed
+
+- In the FTMO challenge race, a phase that breached first could report the day it touched the target, or met the four-day minimum, from after the breach, when the account no longer existed. Those two fields are now empty unless they happened at or before the breach. The phase outcome does not change.
+- A trade that could not be resized and was opened before phase 1 reached its target no longer leaks into phase 2, where it could pull the phase's start date to before the phase began.
+
 ## [0.38.0] - 2026-09-27
 
 ### Added

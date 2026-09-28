@@ -70,63 +70,63 @@ before any `.cs` file. Every unit cites its spec requirement/scenario or design 
 
 ### Phase 0.0 — Reconciliation read (proves hard rule 3 before writing any RED)
 
-- [ ] 0.0.1 Read every existing `FirstTargetTouchSourceClose`/`MinTradingDaysMetFtmoDay` assertion in
+- [x] 0.0.1 Read every existing `FirstTargetTouchSourceClose`/`MinTradingDaysMetFtmoDay` assertion in
   `FtmoChallengeRaceTests.cs` (lines ~74, 158, 259, 326, 378–379) and confirm each is on a
   `TargetReachedFirst` or `NotStarted` phase, none on a post-breach touch on a `BreachedFirst` phase.
   Read `PhaseTwoStartsAtTheNextTradeOpenedAfterThePhaseOneDecision` and confirm it uses no straddling
   row (`Open < T`, `Close > T`). Record the confirmation inline (comment or commit note); if either
   check fails, STOP and report before writing any RED test.
   _Satisfies: design.md Decision 0's own reconciliation; hard rule 3._
-- [ ] 0.0.2 Confirm the shipped `FtmoChallengeRaceTests`/`FtmoChallengeRaceFxMergeTests` suite and the
+- [x] 0.0.2 Confirm the shipped `FtmoChallengeRaceTests`/`FtmoChallengeRaceFxMergeTests` suite and the
   golden pin are GREEN on unmodified code, before any PR0 production change.
 
 ### Phase 0.1 — Bug A: no post-breach touch/day-minimum readout on `BreachedFirst`
 
-- [ ] 0.1.1 RED: `FtmoChallengeRaceTests.ABreachedPhaseWhoseBalanceLaterTouchesTheTarget_ReportsNoPostBreachTouch` —
+- [x] 0.1.1 RED: `FtmoChallengeRaceTests.ABreachedPhaseWhoseBalanceLaterTouchesTheTarget_ReportsNoPostBreachTouch` —
   a phase whose account balance crosses the target percentage and meets the day-4 minimum only on a
   close AFTER the phase's breach close; asserts outcome `BreachedFirst` (unchanged) and both
   `FirstTargetTouchSourceClose` and `MinTradingDaysMetFtmoDay` are null.
   _Satisfies: ftmo-challenge-race spec.md "A breached phase whose balance later touches the target
   reports no post-breach touch" scenario._
-- [ ] 0.1.2 RED: `..._ABreachedPhaseWhoseBalanceTouchedTheTargetBeforeTheBreach_StillReportsTheTouch` —
+- [x] 0.1.2 RED: `..._ABreachedPhaseWhoseBalanceTouchedTheTargetBeforeTheBreach_StillReportsTheTouch` —
   a phase whose balance touches the target percentage on a close strictly before the phase's breach
   close; asserts outcome `BreachedFirst` and `FirstTargetTouchSourceClose` still reports that earlier,
   pre-breach touch unchanged.
   _Satisfies: ftmo-challenge-race spec.md "A breached phase whose balance touched the target before the
   breach still reports the touch" scenario._
-- [ ] 0.1.3 GREEN: in `RunPhase`, on the `BreachedFirst` return path, null `FirstTargetTouchSourceClose`
+- [x] 0.1.3 GREEN: in `RunPhase`, on the `BreachedFirst` return path, null `FirstTargetTouchSourceClose`
   and `MinTradingDaysMetFtmoDay` unless each occurred at or before `breachPoint.Value.SourceTime`.
   `Outcome`, `OutcomeSourceClose`, `BreachLimit`, `BreachPointClass` are unaffected — do not touch them.
   Confirm 0.1.1–0.1.2 pass.
   _Satisfies: ftmo-challenge-race spec.md "Every Non-Refused Race Reports Full Per-Phase Timing And The
   Fixed Rules" requirement, its new sentence on `BreachedFirst`; design.md Decision 0, bug A._
-- [ ] 0.1.4 Falsification (mandatory, hard rule 6): confirm 0.1.1 fails against the CURRENT (pre-fix)
+- [x] 0.1.4 Falsification (mandatory, hard rule 6): confirm 0.1.1 fails against the CURRENT (pre-fix)
   `RunPhase` (i.e. run it before 0.1.3's edit and observe RED), and confirm restoring the unconditional
   readout (temporarily revert 0.1.3) makes 0.1.1 fail again.
 
 ### Phase 0.2 — Bug B: handover requires `Open ≥ T AND Close > T`
 
-- [ ] 0.2.1 RED: `..._AnUnscalableRowStraddlingTheDecisionClose_DoesNotEnterPhaseTwo` — an `Unscalable`
+- [x] 0.2.1 RED: `..._AnUnscalableRowStraddlingTheDecisionClose_DoesNotEnterPhaseTwo` — an `Unscalable`
   trade whose `Open` is before phase 1's target-deciding close T and whose `Close` is strictly after T,
   with no other trade opening in that gap; asserts that row is excluded from phase 2's subset, and
   phase 2's anchor is the first trade with `Open >= T`, not the straddling row.
   _Satisfies: ftmo-challenge-race spec.md "An Unscalable row straddling the phase-1 decision close does
   not enter phase 2" scenario._
-- [ ] 0.2.2 RED: `..._AZeroDurationRowAtExactlyT_StaysInPhaseOnesGroup` — a row whose `Open` and
+- [x] 0.2.2 RED: `..._AZeroDurationRowAtExactlyT_StaysInPhaseOnesGroup` — a row whose `Open` and
   `Close` both equal T; asserts it belongs to phase 1's close group at T, not phase 2's subset.
   _Satisfies: ftmo-challenge-race spec.md handover requirement, zero-duration-row clause._
-- [ ] 0.2.3 GREEN: in `RunChain`, change the phase-2 subset filter from `Close > T` alone to `Open >= T
+- [x] 0.2.3 GREEN: in `RunChain`, change the phase-2 subset filter from `Close > T` alone to `Open >= T
   AND Close > T`. Confirm 0.2.1–0.2.2 pass, and confirm the existing
   `PhaseTwoStartsAtTheNextTradeOpenedAfterThePhaseOneDecision` test still passes unedited.
   _Satisfies: ftmo-challenge-race spec.md "Phase Two Starts Fresh At The First Trade Opened After The
   Phase-One Target Close" requirement, straddling-row clause; design.md Decision 0, bug B._
-- [ ] 0.2.4 Falsification (mandatory, hard rule 6): confirm 0.2.1 fails against the CURRENT (pre-fix)
+- [x] 0.2.4 Falsification (mandatory, hard rule 6): confirm 0.2.1 fails against the CURRENT (pre-fix)
   `Close > T`-only filter, and confirm re-relaxing the filter (temporarily revert 0.2.3) makes 0.2.1
   fail again.
 
 ### Phase 0.3 — `FtmoOpenPositionSweep` doc-comment fix (no behaviour change)
 
-- [ ] 0.3.1 GREEN: edit the class doc-comment on `FtmoOpenPositionSweep` to stop describing `OpenAt` as
+- [x] 0.3.1 GREEN: edit the class doc-comment on `FtmoOpenPositionSweep` to stop describing `OpenAt` as
   "an O(n log n) sweep" (it is a single `foreach`, O(n), with no sort of its own and no ordering
   precondition per its own method doc). Comment-only; confirm no test file changes and no assertion
   changes anywhere.
@@ -134,14 +134,14 @@ before any `.cs` file. Every unit cites its spec requirement/scenario or design 
 
 ### Phase 0.4 — PR0 gates
 
-- [ ] 0.4.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror -p:BaseOutputPath=bin-scratch/ > build.log 2>&1` — zero warnings.
-- [ ] 0.4.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log 2>&1` — no diffs.
-- [ ] 0.4.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx -p:BaseOutputPath=bin-scratch/ > test.log 2>&1`
+- [x] 0.4.1 `timeout 300 dotnet build AppTradingAlgoritmico.slnx -warnaserror -p:BaseOutputPath=bin-scratch/ > build.log 2>&1` — zero warnings.
+- [x] 0.4.2 `timeout 120 dotnet format AppTradingAlgoritmico.slnx --verify-no-changes > format.log 2>&1` — no diffs.
+- [x] 0.4.3 `timeout 600 dotnet test AppTradingAlgoritmico.slnx -p:BaseOutputPath=bin-scratch/ > test.log 2>&1`
   (full suite, once) — confirm the **937 pre-existing tests** all still pass with **0 existing
   assertions edited**, plus every new PR0 test passes.
-- [ ] 0.4.4 Confirm the golden pin and the challenge-race PR1 snapshot pin are both present in the final
+- [x] 0.4.4 Confirm the golden pin and the challenge-race PR1 snapshot pin are both present in the final
   green run and unedited.
-- [ ] 0.4.5 Delete `bin-scratch/`.
+- [x] 0.4.5 Delete `bin-scratch/`.
 - [ ] 0.4.6 If any pre-existing test fails, or a warning/format diff appears, or any existing assertion
   needed editing, STOP and investigate before patching.
 

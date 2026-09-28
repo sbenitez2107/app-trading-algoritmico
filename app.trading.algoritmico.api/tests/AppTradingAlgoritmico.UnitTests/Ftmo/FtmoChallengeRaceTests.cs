@@ -310,6 +310,105 @@ public class FtmoChallengeRaceTests
         chain.Phase2.StartSourceOpen.Should().BeNull();
     }
 
+    // ---- ftmo-multi-start PR0, bug A: no post-breach touch/day-minimum readout on BreachedFirst ----
+
+    /// <summary>
+    /// RED (task 0.1.1): a phase whose balance crosses the target percentage and meets the day-4
+    /// minimum only on a close AFTER the phase's breach close. The outcome stays BreachedFirst
+    /// (unchanged), but both post-breach readouts must be null — a live FTMO account never reaches
+    /// them once the breach has already closed the phase.
+    /// </summary>
+    [Fact]
+    public void ABreachedPhaseWhoseBalanceLaterTouchesTheTarget_ReportsNoPostBreachTouch()
+    {
+        var trades = new[]
+        {
+            Trade(0, At(1), At(1, 9), net: -2_000m), // day 1: clean breach (20% drop)
+            Trade(1, At(2), At(2, 9), net: 100m),
+            Trade(2, At(3), At(3, 9), net: 100m),
+            Trade(3, At(5), At(5, 9), net: 100m),
+            // Day 6 (5th trading day, day-min of 4 met): balance 8,300 + 3,000 = 11,300 >= target — but this is AFTER the day-1 breach.
+            Trade(4, At(6), At(6, 9), net: 3_000m),
+        };
+
+        var phase1 = FtmoChallengeRace.RunPhase(
+            trades, Jerusalem, Berlin, Capital, DailyPct, MaxPct, FtmoChallengeRules.Phase1TargetPct);
+
+        phase1.Outcome.Should().Be(FtmoPhaseOutcome.BreachedFirst);
+        phase1.OutcomeSourceClose.Should().Be(At(1, 9));
+        phase1.FirstTargetTouchSourceClose.Should().BeNull();
+        phase1.MinTradingDaysMetFtmoDay.Should().BeNull();
+    }
+
+    /// <summary>
+    /// RED (task 0.1.2): a phase whose balance touches the target percentage on a close strictly
+    /// BEFORE the phase's breach close. That earlier, pre-breach touch must still be reported
+    /// unchanged.
+    /// </summary>
+    [Fact]
+    public void ABreachedPhaseWhoseBalanceTouchedTheTargetBeforeTheBreach_StillReportsTheTouch()
+    {
+        var trades = new[]
+        {
+            Trade(0, At(1), At(1, 9), net: 1_200m), // day 1: balance 11,200 -> target touched
+            Trade(1, At(2), At(2, 9), net: -2_500m), // day 2: balance 8,700 -> breaches both floors
+        };
+
+        var phase1 = FtmoChallengeRace.RunPhase(
+            trades, Jerusalem, Berlin, Capital, DailyPct, MaxPct, FtmoChallengeRules.Phase1TargetPct);
+
+        phase1.Outcome.Should().Be(FtmoPhaseOutcome.BreachedFirst);
+        phase1.OutcomeSourceClose.Should().Be(At(2, 9));
+        phase1.FirstTargetTouchSourceClose.Should().Be(At(1, 9));
+    }
+
+    // ---- ftmo-multi-start PR0, bug B: handover requires Open >= T AND Close > T ----
+
+    /// <summary>
+    /// RED (task 0.2.1): an Unscalable trade whose Open is before phase 1's target-deciding close T
+    /// and whose Close is strictly after T must NOT enter phase 2's subset or become its anchor.
+    /// Falsification (task 0.2.4): under the current `Close > T`-only filter, this straddling row's
+    /// Close sorts before the real next trade's close, so it wrongly becomes phase 2's anchor.
+    /// </summary>
+    [Fact]
+    public void AnUnscalableRowStraddlingTheDecisionClose_DoesNotEnterPhaseTwo()
+    {
+        var target = BuildTargetReachingSeries(decidingDay: 20); // T = At(20, 9)
+        var trades = new List<ProjectedTrade>(target)
+        {
+            // Straddles T: Open before T, Close after T, no other trade opens in the gap.
+            Trade(target.Length, At(20, 8), At(21, 9), net: null, ResizeOutcome.Unscalable),
+            Trade(target.Length + 1, At(22), At(22, 9), net: 0m),
+        };
+
+        var chain = FtmoChallengeRace.RunChain(
+            trades.ToArray(), Jerusalem, Berlin, Capital, DailyPct, MaxPct);
+
+        chain.Phase2.Outcome.Should().NotBe(FtmoPhaseOutcome.NotStarted);
+        chain.Phase2.StartSourceOpen.Should().Be(At(22));
+    }
+
+    /// <summary>
+    /// (task 0.2.2): a row whose Open and Close both equal T belongs to phase 1's close group at T,
+    /// not phase 2's subset — already true under `Close > T` (T is not strictly less than itself), so
+    /// this pins the invariant rather than falsifying the pre-fix code.
+    /// </summary>
+    [Fact]
+    public void AZeroDurationRowAtExactlyT_StaysInPhaseOnesGroup()
+    {
+        var target = BuildTargetReachingSeries(decidingDay: 20); // T = At(20, 9)
+        var trades = new List<ProjectedTrade>(target)
+        {
+            Trade(target.Length, At(20, 9), At(20, 9), net: 0m), // zero-duration row exactly at T
+            Trade(target.Length + 1, At(22), At(22, 9), net: 0m),
+        };
+
+        var chain = FtmoChallengeRace.RunChain(
+            trades.ToArray(), Jerusalem, Berlin, Capital, DailyPct, MaxPct);
+
+        chain.Phase2.StartSourceOpen.Should().Be(At(22));
+    }
+
     [Fact]
     public void PhaseTwoIsNotStartedWhenPhaseOneDoesNotReachItsTarget()
     {

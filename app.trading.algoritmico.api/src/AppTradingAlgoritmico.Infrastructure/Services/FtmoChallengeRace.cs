@@ -73,6 +73,7 @@ internal static class FtmoChallengeRace
 
         DateTime? firstTouch = null;
         DateOnly? minDaysMetDay = null;
+        DateTime? minDaysMetClose = null;
         DateTime? decidedClose = null;
         DateOnly? decidedDay = null;
         int? decidedCalendarDays = null;
@@ -98,7 +99,10 @@ internal static class FtmoChallengeRace
                 anchor, groupDay, groupClose, phaseTrades, sourceZone, berlinZone);
 
             if (minDaysMetDay is null && tradingDays >= FtmoChallengeRules.MinTradingDaysPerPhase)
+            {
                 minDaysMetDay = groupDay;
+                minDaysMetClose = groupClose;
+            }
 
             if (decidedClose is null
                 && runningBalance >= targetLevel
@@ -152,8 +156,19 @@ internal static class FtmoChallengeRace
             var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
                 anchor, breachPoint.Value.FtmoDay, breachPoint.Value.SourceTime, phaseTrades, sourceZone, berlinZone);
 
+            // Bug A fix (ftmo-multi-start PR0, spec.md "A breached phase whose balance later touches
+            // the target reports no post-breach touch"): a live FTMO account never reaches a touch or
+            // day-minimum event that happens after the account already breached, so both readouts are
+            // reported only when they occur at or before the breach close.
+            var touchAtOrBeforeBreach =
+                firstTouch is not null && firstTouch.Value <= breachPoint.Value.SourceTime ? firstTouch : null;
+            var minDaysMetDayAtOrBeforeBreach =
+                minDaysMetClose is not null && minDaysMetClose.Value <= breachPoint.Value.SourceTime
+                    ? minDaysMetDay
+                    : null;
+
             return new PhaseResult(
-                FtmoPhaseOutcome.BreachedFirst, startOpen, firstTouch, minDaysMetDay,
+                FtmoPhaseOutcome.BreachedFirst, startOpen, touchAtOrBeforeBreach, minDaysMetDayAtOrBeforeBreach,
                 breachPoint.Value.SourceTime, breachLimit,
                 breachPoint.Value.Causes.Count == 0 ? FtmoBreachPointClass.Clean : FtmoBreachPointClass.Contingent,
                 calendarDays, tradingDays);
@@ -178,8 +193,10 @@ internal static class FtmoChallengeRace
 
     /// <summary>
     /// Runs the two-phase chain: phase 1 over the whole series, phase 2 (design.md Decision 1/2) over
-    /// the post-handover subset (<c>Close &gt; T</c>, every row with <c>Open &gt;= T</c> by
-    /// construction) with capital reset to Initial Capital, only when phase 1 reaches its target.
+    /// the post-handover subset (<c>Open &gt;= T AND Close &gt; T</c>) with capital reset to Initial
+    /// Capital, only when phase 1 reaches its target. A row that opens before T and closes after T (an
+    /// <c>Unscalable</c> row spanning T) stays out of phase 2 — it belongs to phase 1's already-decided
+    /// group, not to a fresh account starting at T (ftmo-multi-start PR0, bug B).
     /// </summary>
     internal static ChainResult RunChain(
         IReadOnlyList<FtmoTradeProjector.ProjectedTrade> trades,
@@ -196,7 +213,9 @@ internal static class FtmoChallengeRace
             return new ChainResult(phase1, PhaseResult.NotStarted);
 
         var phase2Trades = trades
-            .Where(t => t.CloseSource > phase1.OutcomeSourceClose!.Value)
+            .Where(t =>
+                t.OpenSource >= phase1.OutcomeSourceClose!.Value
+                && t.CloseSource > phase1.OutcomeSourceClose!.Value)
             .OrderBy(t => t.CloseSource)
             .ThenBy(t => t.RowIndex)
             .ToList();

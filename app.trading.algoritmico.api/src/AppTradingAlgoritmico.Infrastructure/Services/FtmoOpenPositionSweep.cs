@@ -1,7 +1,7 @@
 namespace AppTradingAlgoritmico.Infrastructure.Services;
 
 /// <summary>
-/// ftmo-challenge-race (design.md Decision 4) — an O(n log n) sweep answering "is any scalable
+/// ftmo-challenge-race (design.md Decision 4) — an O(n) single pass answering "is any scalable
 /// position open at instant <c>T</c>". <c>internal static</c>, pure: no I/O.
 /// <para>
 /// <c>openAt(T) = #{Open &lt; T} − #{Close ≤ T ∧ Open &lt; T}</c>, over scalable trades only
