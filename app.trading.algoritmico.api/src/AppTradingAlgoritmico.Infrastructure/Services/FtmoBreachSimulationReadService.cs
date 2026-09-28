@@ -36,146 +36,29 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// </summary>
 public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBreachSimulationReadService
 {
-    private const string BerlinIanaId = "Europe/Berlin";
-    private const string UsdCurrency = "USD";
-
     public async Task<FtmoBreachSimulationDto> SimulateAsync(FtmoBreachSimulationRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var runs = await db.BacktestRuns.AsNoTracking()
-            .Where(r => r.StrategyId == request.StrategyId)
-            .Select(r => new { r.Id, r.Kind })
-            .ToListAsync(ct);
+        var resolution = await FtmoSimulationInputs.ResolveSharedAsync(db, request, ct);
 
-        if (runs.Count == 0)
+        if (resolution.NoRuns)
             return new FtmoBreachSimulationDto(request.StrategyId, []);
 
-        var limits = await db.BrokerRiskLimits.AsNoTracking()
-            .Where(l => l.Broker == request.Broker && l.Kind == GuardrailKind.LossLimits)
-            .FirstOrDefaultAsync(ct);
+        if (resolution.Refusal is not null)
+            return RefuseAll(request.StrategyId, resolution.Runs, resolution.Refusal.Value);
 
-        // A null percentage means the rule is NOT configured — never a 0% rule: 0% would put the max
-        // floor at initial capital and read every loss as a false Breached. A stored value outside
-        // (0, 1] is not a usable rule either (the fraction contract RiskLimitsService enforces for
-        // stages and VaR targets). Both are properties of the stored configuration, not of the
-        // request, so they refuse as LimitsNotConfigured, exactly like a missing row. The pattern
-        // binds dailyPct/maxPct: the compiler, not a fallback value, proves them set past this guard.
-        if (limits is not
-            {
-                DailyLossLimitPct: { } dailyPct and > 0m and <= 1m,
-                MaxLossLimitPct: { } maxPct and > 0m and <= 1m,
-            })
-        {
-            return RefuseAll(request.StrategyId, runs.Select(r => (r.Id, r.Kind)), FtmoSimulationRefusal.LimitsNotConfigured);
-        }
-
-        FtmoSimulationRefusal? sharedRefusal =
-            limits.FtmoProduct is null || limits.FtmoProduct != FtmoProduct.TwoStep ? FtmoSimulationRefusal.ProductNotTwoStep
-            : limits.DrawdownModel != DrawdownModel.Static ? FtmoSimulationRefusal.DrawdownModelNotStatic
-            : null;
-
-        FtmoInstrumentSpec? spec = null;
-        LotGrid? ftmoGrid = null;
-        if (sharedRefusal is null)
-        {
-            spec = await db.FtmoInstrumentSpecs.AsNoTracking()
-                .FirstOrDefaultAsync(s => s.SqxSymbol == request.SqxSymbol, ct);
-
-            if (spec is null || spec.ContractSize <= 0m)
-            {
-                sharedRefusal = FtmoSimulationRefusal.InstrumentSpecMissing;
-            }
-            else
-            {
-                try
-                {
-                    ftmoGrid = new LotGrid(spec.SizeDecimals, spec.Step, spec.MinLot, spec.MaxLots);
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.InstrumentSpecMissing;
-                }
-            }
-        }
-
-        var pointValue = 0m;
-        if (sharedRefusal is null)
-        {
-            var calibration = await db.SymbolCalibrations.AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Symbol == request.SqxSymbol, ct);
-
-            // Load-bearing null check (design.md Decision 6): Calibrated == 0 is the CLR default, so
-            // a null PointValue must be checked independently of Status. Covers NQ.
-            if (calibration is null
-                || calibration.Status != CalibrationStatus.Calibrated
-                || calibration.PointValue is null
-                || calibration.PointValue.Value <= 0m)
-            {
-                sharedRefusal = FtmoSimulationRefusal.PointValueNotCalibrated;
-            }
-            else
-            {
-                pointValue = calibration.PointValue.Value;
-            }
-        }
-
-        (decimal Low, decimal High) fxBand = (1m, 1m);
-        if (sharedRefusal is null)
-        {
-            var sameCurrency = string.Equals(spec!.ProfitCurrency, UsdCurrency, StringComparison.OrdinalIgnoreCase);
-            if (!sameCurrency)
-            {
-                if (request.FxLow is null || request.FxHigh is null)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.FxRateNotDeclared;
-                }
-                else if (request.FxLow.Value <= 0m || request.FxHigh.Value <= 0m || request.FxLow.Value > request.FxHigh.Value)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.InvalidFxBand;
-                }
-                else
-                {
-                    fxBand = (request.FxLow.Value, request.FxHigh.Value);
-                }
-            }
-        }
-
-        var sourceGrid = request.TryBuildSourceGrid();
-        if (sharedRefusal is null
-            && (sourceGrid is null || request.InitialCapital <= 0m || request.TargetRiskPerTrade <= 0m))
-        {
-            sharedRefusal = FtmoSimulationRefusal.InvalidRequest;
-        }
-
-        TimeZoneInfo? sourceZone = null;
-        TimeZoneInfo? berlinZone = null;
-        if (sharedRefusal is null)
-        {
-            // Known, deliberate test gap: the Berlin disjunct is unreachable in practice because
-            // BerlinIanaId is a hardcoded, always-shipped IANA id. It stays as a defensive guard for
-            // a host without ICU/tz data; no test contorts the environment to reach it.
-            if (!FtmoDayClock.TryResolveZone(spec!.SourceTimeZoneId, out sourceZone)
-                || !FtmoDayClock.TryResolveZone(BerlinIanaId, out berlinZone))
-            {
-                sharedRefusal = FtmoSimulationRefusal.TimeZoneDataUnavailable;
-            }
-        }
-
-        if (sharedRefusal is not null)
-            return RefuseAll(request.StrategyId, runs.Select(r => (r.Id, r.Kind)), sharedRefusal.Value);
-
-        var results = new List<FtmoRunSimulationResultDto>(runs.Count);
-        foreach (var run in runs)
+        var results = new List<FtmoRunSimulationResultDto>(resolution.Runs.Count);
+        foreach (var run in resolution.Runs)
         {
             var trades = await db.BacktestTrades.AsNoTracking()
                 .Where(t => t.BacktestRunId == run.Id)
                 .ToListAsync(ct);
 
             results.Add(SimulateRun(
-                run.Id, run.Kind, trades, sourceGrid!, ftmoGrid!, request.TargetRiskPerTrade,
-                pointValue, spec!.ContractSize, fxBand, sourceZone!, berlinZone!,
-                request.InitialCapital, dailyPct, maxPct, limits.ProfitTargetPct));
+                run.Id, run.Kind, trades, resolution.SourceGrid!, resolution.FtmoGrid!, request.TargetRiskPerTrade,
+                resolution.PointValue, resolution.Spec!.ContractSize, resolution.FxBand, resolution.SourceZone!, resolution.BerlinZone!,
+                request.InitialCapital, resolution.DailyPct, resolution.MaxPct, resolution.ProfitTargetPct));
         }
 
         return new FtmoBreachSimulationDto(request.StrategyId, results);
@@ -198,43 +81,25 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
         decimal maxPct,
         decimal? profitTargetPct)
     {
-        var segment = trades.Count > 0 ? trades[0].Segment : BacktestSegment.Unknown;
+        var projection = FtmoSimulationInputs.ProjectRun(
+            trades, sourceGrid, ftmoGrid, targetRiskPerTrade, pointValue, contractSize, fxBand);
+        if (projection.Refusal is not null)
+            return Refused(runId, kind, projection.Refusal.Value, projection.Segment);
 
-        if (trades.Select(t => t.Segment).Distinct().Count() > 1)
-            return Refused(runId, kind, FtmoSimulationRefusal.RunSegmentsDisagree, segment);
-
-        // The RiskPerTrade-is-null disjunct is unreachable through TryNormalize: it returns true only
-        // for Status == Estimated, which always carries a value. Kept as a null guard, not a tested path.
-        if (!TradeRiskNormalizer.TryNormalize(trades, sourceGrid, out var profile)
-            || profile!.Estimate.RiskPerTrade is null)
-        {
-            return Refused(runId, kind, FtmoSimulationRefusal.RiskNotEstimable, segment);
-        }
-
-        var estimated = profile.Estimate.RiskPerTrade!.Value;
-
-        // Through this service, RefuseRunInputs' estimatedRisk <= 0 and target <= 0 branches are
-        // unreachable: Â is |RealizedRisk| of a non-zero SL row (strictly positive), and a non-positive
-        // target was already refused as InvalidRequest above. Both are covered in FtmoTradeProjectorTests.
-        var runInputRefusal = FtmoTradeProjector.RefuseRunInputs(
-            estimated, targetRiskPerTrade, pointValue, contractSize, fxBand.Low);
-        if (runInputRefusal is not null)
-            return Refused(runId, kind, runInputRefusal.Value, segment);
-
-        var low = EvaluateAtFx(
-            trades, estimated, targetRiskPerTrade, pointValue, contractSize, fxBand.Low, ftmoGrid,
-            sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
-        var high = EvaluateAtFx(
-            trades, estimated, targetRiskPerTrade, pointValue, contractSize, fxBand.High, ftmoGrid,
-            sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
+        var lowEvaluation = FtmoBreachEvaluator.Evaluate(
+            projection.ProjectedLow!, sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
+        var highEvaluation = FtmoBreachEvaluator.Evaluate(
+            projection.ProjectedHigh!, sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
 
         // ftmo-first-breach-timing (design.md Data Flow): the anchor and elapsed-day close-set do not
         // depend on FX (open/close instants are shared by both projections) — either FX end's
         // projected trades yields the same anchor and close-day set. Called ONCE per run.
-        var anchor = FtmoReplayCalendar.Build(low.Projected, sourceZone, berlinZone);
+        var anchor = FtmoReplayCalendar.Build(projection.ProjectedLow!, sourceZone, berlinZone);
 
-        var (dailyFirstBreachMerged, daily) = MergeFinding(low.Evaluation.Daily, high.Evaluation.Daily, anchor, low.Projected, sourceZone, berlinZone);
-        var (maxFirstBreachMerged, max) = MergeFinding(low.Evaluation.Max, high.Evaluation.Max, anchor, low.Projected, sourceZone, berlinZone);
+        var (dailyFirstBreachMerged, daily) = MergeFinding(
+            lowEvaluation.Daily, highEvaluation.Daily, anchor, projection.ProjectedLow!, sourceZone, berlinZone);
+        var (maxFirstBreachMerged, max) = MergeFinding(
+            lowEvaluation.Max, highEvaluation.Max, anchor, projection.ProjectedLow!, sourceZone, berlinZone);
 
         var firstLimit = FtmoBreachTiming.FirstLimit(dailyFirstBreachMerged?.Point, maxFirstBreachMerged?.Point);
         FtmoFirstLimitBreachDto? firstLimitBreach = null;
@@ -242,20 +107,24 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
         {
             var winning = firstLimit == FtmoFirstBreachingLimit.Max ? maxFirstBreachMerged!.Value : dailyFirstBreachMerged!.Value;
             var (calendarDays, tradingDays) = FtmoReplayCalendar.ElapsedDays(
-                anchor, winning.Point.FtmoDay, winning.Point.SourceTime, low.Projected, sourceZone, berlinZone);
+                anchor, winning.Point.FtmoDay, winning.Point.SourceTime, projection.ProjectedLow!, sourceZone, berlinZone);
             firstLimitBreach = new FtmoFirstLimitBreachDto(
                 firstLimit.Value, winning.Point.SourceTime, winning.Point.FtmoDay, tradingDays, calendarDays);
         }
 
         // ftmo-challenge-race (design.md Data Flow): a separate, non-truncating composition over the
         // same trade series (hard rule 1 — FtmoBreachEvaluator.cs is not edited or truncated by this).
+        // ftmo-multi-start PR1 apply follow-up (option A): lowEvaluation/highEvaluation above are already
+        // FtmoBreachEvaluator.Evaluate on these exact projected series, at these exact capital/loss-limit
+        // pcts — the same phase-1 evaluation the race would otherwise recompute internally. Reused here.
         var challengeRace = FtmoChallengeRace.Evaluate(
-            profitTargetPct, low.Projected, high.Projected, sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
+            profitTargetPct, projection.ProjectedLow!, projection.ProjectedHigh!, sourceZone, berlinZone, initialCapital, dailyPct, maxPct,
+            lowEvaluation, highEvaluation);
 
         return new FtmoRunSimulationResultDto(
-            runId, kind, segment, FtmoSimulationStatus.Evaluated, Refusal: null,
+            runId, kind, projection.Segment, FtmoSimulationStatus.Evaluated, Refusal: null,
             daily, max,
-            low.Raised, low.Capped, low.Unscalable,
+            projection.RaisedToMinimumCount, projection.CappedAtMaximumCount, projection.UnscalableCount,
             fxBand.Low, fxBand.High,
             FtmoRunSimulationResultDto.DefaultNotModelled,
             FtmoRunSimulationResultDto.DefaultEmbeddedCommissionDisclosure)
@@ -265,41 +134,6 @@ public sealed class FtmoBreachSimulationReadService(AppDbContext db) : IFtmoBrea
             ReplayStartFtmoDay = anchor.FtmoDay,
             ChallengeRace = challengeRace,
         };
-    }
-
-    private readonly record struct FxEvaluation(
-        FtmoBreachEvaluator.FtmoBreachEvaluation Evaluation,
-        List<FtmoTradeProjector.ProjectedTrade> Projected,
-        int Raised,
-        int Capped,
-        int Unscalable);
-
-    private static FxEvaluation EvaluateAtFx(
-        List<BacktestTrade> trades,
-        decimal estimated,
-        decimal target,
-        decimal pointValue,
-        decimal contractSize,
-        decimal fx,
-        LotGrid ftmoGrid,
-        TimeZoneInfo sourceZone,
-        TimeZoneInfo berlinZone,
-        decimal initialCapital,
-        decimal dailyPct,
-        decimal maxPct)
-    {
-        var projected = trades
-            .Select(t => FtmoTradeProjector.Project(t, estimated, target, pointValue, contractSize, fx, ftmoGrid))
-            .ToList();
-
-        var evaluation = FtmoBreachEvaluator.Evaluate(projected, sourceZone, berlinZone, initialCapital, dailyPct, maxPct);
-
-        return new FxEvaluation(
-            evaluation,
-            projected,
-            projected.Count(p => p.Outcome == ResizeOutcome.RaisedToMinimum),
-            projected.Count(p => p.Outcome == ResizeOutcome.CappedAtMaximum),
-            projected.Count(p => p.Outcome == ResizeOutcome.Unscalable));
     }
 
     /// <summary>

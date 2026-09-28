@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.40.1] - 2026-09-28
+
+### Changed
+
+- The FTMO breach simulation computes the challenge race faster: phase 1's breach evaluation is now shared instead of recomputed. Results are unchanged.
+
 ## [0.40.0] - 2026-09-28
 
 ### Added
