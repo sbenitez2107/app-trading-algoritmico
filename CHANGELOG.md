@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.44.0] - 2026-09-28
+
+### Added
+
+- Groundwork for the FTMO simulation screen, not yet visible: the panels that will show the results. They include outcome bars for all six outcomes with count and share, zeros included and no success colouring; a table of days elapsed where a missing value reads as not reported, never 0; and a per-run panel for Deploy or Evaluation that shows each refusal, months without a start and the start-1 divergence.
+
+### Fixed
+
+- An unknown refusal code in the FTMO simulation mapping now shows its number instead of a raw `{{value}}` placeholder.
+
 ## [0.43.0] - 2026-09-28
 
 ### Added

@@ -1,0 +1,18 @@
+<div class="ftmo-outcome-bars">
+  @for (row of rows(); track row.outcome) {
+    <div class="ftmo-outcome-bars__row" [attr.data-outcome]="row.outcome">
+      <span class="ftmo-outcome-bars__label">{{ row.labelKey | translate }}</span>
+      <span class="ftmo-outcome-bars__bar-track">
+        <span class="ftmo-outcome-bars__bar-fill" [style.width.%]="sharePercent(row)"></span>
+      </span>
+      <span class="ftmo-outcome-bars__value">
+        <span class="ftmo-outcome-bars__count">
+          {{ 'FTMO_SIMULATION.OUTCOME.COUNT_LABEL' | translate: { count: row.count } }}
+        </span>
+        <span class="ftmo-outcome-bars__share">
+          {{ 'FTMO_SIMULATION.OUTCOME.SHARE_LABEL' | translate: { share: sharePercent(row) } }}
+        </span>
+      </span>
+    </div>
+  }
+</div>

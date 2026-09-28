@@ -1,0 +1,35 @@
+.ftmo-order-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.ftmo-order-stats-table__header-cell {
+  text-align: right;
+  padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+  color: var(--text-muted, #6b7280);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color, #e0e4ef);
+}
+
+.ftmo-order-stats-table__header-cell:first-child {
+  text-align: left;
+}
+
+.ftmo-order-stats-table__row td {
+  padding: var(--spacing-xs, 0.25rem) var(--spacing-sm, 0.5rem);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ftmo-order-stats-table__label-cell {
+  text-align: left;
+  color: var(--text-main, #1a1d2e);
+}
+
+// The funded-from-chain-start row is secondary to the funded-from-funded-start headline — muted
+// weight, not colour alone (accessibility, design.md AD9).
+.ftmo-order-stats-table__row--secondary td {
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+}

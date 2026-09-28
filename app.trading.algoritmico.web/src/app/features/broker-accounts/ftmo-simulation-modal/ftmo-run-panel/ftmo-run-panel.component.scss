@@ -1,0 +1,45 @@
+.ftmo-run-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 0.5rem);
+  padding: var(--spacing-md, 1rem);
+  border: 1px solid var(--border-color, #e0e4ef);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--bg-surface, #ffffff);
+}
+
+.ftmo-run-panel__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-main, #1a1d2e);
+}
+
+.ftmo-run-panel__disclosure {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.ftmo-run-panel__not-modelled {
+  margin: 0;
+  padding-left: var(--spacing-md, 1rem);
+  font-size: 0.75rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.ftmo-run-panel__months-without-start,
+.ftmo-run-panel__start1-differs {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-warning, #f59e0b);
+}
+
+// AD9: no green — refusals/no-starts use warning/neutral colours only, never the "gain" green.
+.ftmo-run-panel__refusal,
+.ftmo-run-panel__race-refusal,
+.ftmo-run-panel__no-starts {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-loss, #ef4444);
+}

@@ -423,6 +423,10 @@
     "START_GRAIN": {
       "MONTHLY": "Monthly"
     },
+    "OUTCOME": {
+      "COUNT_LABEL": "Count: {{count}}",
+      "SHARE_LABEL": "Share: {{share}}%"
+    },
     "ORDER_STATS": {
       "N": "N",
       "MIN": "Min",

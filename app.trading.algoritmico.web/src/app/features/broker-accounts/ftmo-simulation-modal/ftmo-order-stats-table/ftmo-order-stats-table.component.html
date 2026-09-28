@@ -1,0 +1,71 @@
+<table class="ftmo-order-stats-table">
+  <thead>
+    <tr>
+      <th class="ftmo-order-stats-table__header-cell"></th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.N' | translate }}
+      </th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.MIN' | translate }}
+      </th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.Q1' | translate }}
+      </th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.MEDIAN' | translate }}
+      </th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.Q3' | translate }}
+      </th>
+      <th class="ftmo-order-stats-table__header-cell">
+        {{ 'FTMO_SIMULATION.ORDER_STATS.MAX' | translate }}
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (row of rows(); track row.labelKey + (row.secondary ? '-secondary' : '')) {
+      <tr
+        class="ftmo-order-stats-table__row"
+        [class.ftmo-order-stats-table__row--secondary]="!!row.secondary"
+      >
+        <td class="ftmo-order-stats-table__label-cell">{{ row.labelKey | translate }}</td>
+        <td>{{ row.n }}</td>
+        <td>
+          @if (cellKey(row.min); as key) {
+            {{ key | translate }}
+          } @else {
+            {{ row.min }}
+          }
+        </td>
+        <td>
+          @if (cellKey(row.q1); as key) {
+            {{ key | translate }}
+          } @else {
+            {{ row.q1 }}
+          }
+        </td>
+        <td>
+          @if (cellKey(row.median); as key) {
+            {{ key | translate }}
+          } @else {
+            {{ row.median }}
+          }
+        </td>
+        <td>
+          @if (cellKey(row.q3); as key) {
+            {{ key | translate }}
+          } @else {
+            {{ row.q3 }}
+          }
+        </td>
+        <td>
+          @if (cellKey(row.max); as key) {
+            {{ key | translate }}
+          } @else {
+            {{ row.max }}
+          }
+        </td>
+      </tr>
+    }
+  </tbody>
+</table>

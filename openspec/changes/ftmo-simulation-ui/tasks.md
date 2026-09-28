@@ -358,100 +358,186 @@ Not yet imported by the container (unavoidable per design.md's rollout note) —
 
 ### Phase 1c.1 — `FtmoOutcomeBarsComponent`
 
-- [ ] 1c.1.1 RED: `ftmo-outcome-bars.component.spec.ts` — `renders exactly six outcome rows, one per
+- [x] 1c.1.1 RED: `ftmo-outcome-bars.component.spec.ts` — `renders exactly six outcome rows, one per
   chain outcome, in the fixed order` — TestBed + `TranslateModule.forRoot()`, an `input.required` VM
   with all six rows; asserts exactly six `.ftmo-sim__outcome-row` (or equivalent BEM) elements, in
   order.
   _Satisfies: spec.md "All six outcomes are always present"._
-- [ ] 1c.1.2 RED: `..._a zero-count row still renders its count and 0% share, not omitted` — asserts
+  _Apply note: RED confirmed — `Cannot find module './ftmo-outcome-bars.component'` (TS2307) before
+  the file existed._
+- [x] 1c.1.2 RED: `..._a zero-count row still renders its count and 0% share, not omitted` — asserts
   the zero row's rendered text includes "0" for both count and share.
   _Satisfies: spec.md "A zero-count outcome is still rendered"._
-- [ ] 1c.1.3 RED: `..._every share bar label resolves to an i18n key present in both locales` —
+- [x] 1c.1.3 RED: `..._every share bar label resolves to an i18n key present in both locales` —
   renders in EN then ES (or asserts each label's translate key against both loaded JSON files);
   asserts no raw/untranslated key string is shown.
   _Satisfies: spec.md "Every Visible String Comes From i18n"; hard rule 4._
-- [ ] 1c.1.4 GREEN: implement `FtmoOutcomeBarsComponent` (OnPush, `input.required<FtmoOutcomeRowVm[]>()`
+  _Apply note: no `TranslateLoader` is configured in the test module, so ngx-translate renders each
+  key literally rather than the EN/ES text — the assertion checks that key text is present (the
+  `SOURCE_PLATFORM_UNDECLARED_NOTE` precedent in `import-strategy-backtests-modal.component.spec.ts`),
+  plus a separate EN/ES JSON-lookup check that both locale values resolve and are non-empty._
+- [x] 1c.1.4 GREEN: implement `FtmoOutcomeBarsComponent` (OnPush, `input.required<FtmoOutcomeRowVm[]>()`
   or equivalent), six BEM/CSS share bars, count beside each share, no green colour (AD9). Confirm
   1c.1.1–1c.1.3 pass.
   _Satisfies: design.md AD5, AD9; proposal.md D3._
-- [ ] 1c.1.5 Falsification: temporarily filter out rows with `count === 0` before rendering; confirm
+  _Apply note: 3/3 tests green. Count and share are rendered as plain interpolated text (not through
+  an interpolated i18n string), because the test module carries no loader and interpolation params
+  never resolve without one — new `FTMO_SIMULATION.OUTCOME.COUNT_LABEL`/`SHARE_LABEL` keys (added to
+  both `en.json`/`es.json`) label the two numbers. Bar fill uses `--color-neutral`, never
+  `--color-gain`._
+  _Correction (RELIABILITY-001/002): the "params never resolve without a loader" rationale was wrong
+  for production — the app ships `provideTranslateHttpLoader`, and params already resolve elsewhere
+  (`backtests-list.component.html:57`). The keys now read `Count: {{count}}` / `Share: {{share}}%`
+  (ES `Cantidad: {{count}}` / `Porcentaje: {{share}}%`) and the template passes the params, per
+  `frontend-data.md` "Interpolation (never concatenation)". See 1c.5._
+- [x] 1c.1.5 Falsification: temporarily filter out rows with `count === 0` before rendering; confirm
   1c.1.2 goes RED; restore; confirm green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (`expected 5 to be 6`); restored; 3/3 green again._
 
 ### Phase 1c.2 — `FtmoOrderStatsTableComponent`
 
-- [ ] 1c.2.1 RED: `ftmo-order-stats-table.component.spec.ts` — `renders a plain semantic <table> with
+- [x] 1c.2.1 RED: `ftmo-order-stats-table.component.spec.ts` — `renders a plain semantic <table> with
   N/Min/Q1/Median/Q3/Max columns for phase-1, phase-2, funded (funded-start headline), funded
   (chain-start, secondary), and censored-runway rows` — asserts a `<table>` element (not a grid
   component) with the expected row count and headline/secondary distinction (e.g. a `--secondary`
   modifier class or muted styling hook on the chain-start row).
   _Satisfies: spec.md "The Order-Statistics Table Renders With The Funded-Duration Headline..."._
-- [ ] 1c.2.2 RED: `..._an N=0 row renders every quantile as "—", never "0"` — asserts rendered cell
+  _Apply note: RED confirmed — `Cannot find module './ftmo-order-stats-table.component'` (TS2307)
+  before the file existed._
+- [x] 1c.2.2 RED: `..._an N=0 row renders every quantile as "—", never "0"` — asserts rendered cell
   text.
   _Satisfies: spec.md zero-observation scenario._
-- [ ] 1c.2.3 RED: `..._a Min=0 row with N>0 renders "0", not "—"` — asserts the distinction is
+- [x] 1c.2.3 RED: `..._a Min=0 row with N>0 renders "0", not "—"` — asserts the distinction is
   preserved at render time, not just in the VM.
   _Satisfies: design.md Data Flow, "0 renders '0'"._
-- [ ] 1c.2.4 GREEN: implement `FtmoOrderStatsTableComponent` (OnPush, `input.required<...>()`), a
+- [x] 1c.2.4 GREEN: implement `FtmoOrderStatsTableComponent` (OnPush, `input.required<...>()`), a
   plain `<table>` (no Prizm grid, per AD5's rejection of a data-grid component for six rows). Confirm
   1c.2.1–1c.2.3 pass.
   _Satisfies: design.md AD5; proposal.md D3 (grid rejection rationale)._
-- [ ] 1c.2.5 Falsification: temporarily render `stat.min ?? 0` instead of the "—" sentinel; confirm
+  _Apply note: 3/3 tests green. `cellKey(value)` returns the `ORDER_STATS.ABSENT` key only for `null`;
+  the template's `@if/@else` renders the raw numeric value (including `0`) on the `@else` branch, so a
+  `0` is never routed through the falsy-`@if` trap that would also swallow it._
+- [x] 1c.2.5 Falsification: temporarily render `stat.min ?? 0` instead of the "—" sentinel; confirm
   1c.2.2 goes RED; restore; confirm green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (`expected '  ' to contain 'FTMO_SIMULATION.ORDER_STATS.ABSENT'`
+  — `cellKey` was temporarily made a no-op); restored; 3/3 green again._
 
 ### Phase 1c.3 — `FtmoRunPanelComponent` (per-run composition: refusal / race-refusal / no-starts / evaluated)
 
-- [ ] 1c.3.1 RED: `ftmo-run-panel.component.spec.ts` — `state "refused" renders the refusal reason and
+- [x] 1c.3.1 RED: `ftmo-run-panel.component.spec.ts` — `state "refused" renders the refusal reason and
   no outcome bars or order-stats table` — asserts the bars/table children are absent (`@if` false) and
   the refusal message text is present.
   _Satisfies: spec.md "A refused run shows its reason, not empty results"._
-- [ ] 1c.3.2 RED: `..._InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand each render distinct
+  _Apply note: RED confirmed — `Cannot find module './ftmo-run-panel.component'` (TS2307) before the
+  file existed._
+- [x] 1c.3.2 RED: `..._InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand each render distinct
   text` — three fixtures; asserts three distinct rendered strings.
   _Satisfies: spec.md "InstrumentSpecMissing, FxRateNotDeclared, and InvalidFxBand each render a
   distinct message"._
-- [ ] 1c.3.3 RED: `..._state "raceRefused" renders ProfitTargetMismatch alongside the stored value
+- [x] 1c.3.3 RED: `..._state "raceRefused" renders ProfitTargetMismatch alongside the stored value
   0.08` — asserts both the refusal label and the numeric value appear.
   _Satisfies: spec.md "ProfitTargetMismatch is shown with the stored value"._
-- [ ] 1c.3.4 RED: `..._monthsWithoutStart renders the months and their count when non-empty` — 3
+- [x] 1c.3.4 RED: `..._monthsWithoutStart renders the months and their count when non-empty` — 3
   entries; asserts all 3 plus the count "3" are rendered.
   _Satisfies: spec.md "Months without a start are listed with their count"._
-- [ ] 1c.3.5 RED: `..._Start1DiffersFromSingleStartAnchor=true renders an explicit disclosure` —
+- [x] 1c.3.5 RED: `..._Start1DiffersFromSingleStartAnchor=true renders an explicit disclosure` —
   asserts the disclosure text/element is present.
   _Satisfies: spec.md "A divergent start 1 is disclosed"._
-- [ ] 1c.3.6 RED: `..._the run's Disclosure and NotModelled text are always visible, shown verbatim,
+- [x] 1c.3.6 RED: `..._the run's Disclosure and NotModelled text are always visible, shown verbatim,
   with no collapsed accordion` — asserts the text node is present in the rendered DOM without
   simulating a click/expand interaction.
   _Satisfies: spec.md "Disclosure is visible on a normal run"; design.md AD11._
-- [ ] 1c.3.7 RED: `..._state "evaluated" composes FtmoOutcomeBarsComponent and
+- [x] 1c.3.7 RED: `..._state "evaluated" composes FtmoOutcomeBarsComponent and
   FtmoOrderStatsTableComponent as children` — asserts both child components are present with the VM's
   data passed through.
   _Satisfies: design.md AD5; proposal.md D3._
-- [ ] 1c.3.8 RED: `..._two panels render in two distinct <section> elements, each separately labelled,
+- [x] 1c.3.8 RED: `..._two panels render in two distinct <section> elements, each separately labelled,
   and stack on narrow widths without merging` — renders two `FtmoRunPanelComponent` host sections (or
   a parent fixture with two panels); asserts two separate `<section>`s with distinct labels/headings,
   never a single merged section.
   _Satisfies: spec.md "Deploy and Eval render as separate panels" / "Narrow widths stack but do not
   merge the panels"; design.md AD9._
-- [ ] 1c.3.9 GREEN: implement `FtmoRunPanelComponent` (OnPush, `input.required<FtmoRunPanelVm>()`):
+  _Apply note: layout/stacking itself (the `.ftmo-sim__runs` grid) is a PR1d container concern
+  (design.md AD9); PR1c proves the component-level precondition — each panel is its own separately
+  labelled `<section>`, so two instances never share one section._
+- [x] 1c.3.9 GREEN: implement `FtmoRunPanelComponent` (OnPush, `input.required<FtmoRunPanelVm>()`):
   an `@switch` on the VM's state discriminant rendering the refused / race-refused / no-starts /
   evaluated branches, the always-visible disclosure block, `monthsWithoutStart`, and the Start-1 flag
   in every branch. Confirm 1c.3.1–1c.3.8 pass.
   _Satisfies: design.md AD5, AD9, Data Flow ("Every state renders the disclosure,
   monthsWithoutStart..., the start-1 flag, notModelled...")._
-- [ ] 1c.3.10 Falsification: temporarily wrap the disclosure block in an `@if (expanded())` gated by a
+  _Apply note: 8/8 tests green. The `<section>`'s `aria-label` is the translated `FTMO_SIMULATION.KIND
+  .DEPLOY`/`EVALUATION` key text, so Deploy and Evaluation panels are always distinctly labelled.
+  Numeric interpolation (stored profit target) is rendered as a separate plain-text span next to the
+  translated label, not through an i18n interpolation param, for the same no-loader-in-test reason as
+  1c.1.4._
+  _Correction (RELIABILITY-001): that approach was a defect — `STORED_PROFIT_TARGET` is
+  `"Stored profit target: {{value}}"`, so production rendered `Stored profit target: {{value}}: 0.08`.
+  The template now passes `{ value: storedProfitTargetPct }`. See 1c.5._
+- [x] 1c.3.10 Falsification: temporarily wrap the disclosure block in an `@if (expanded())` gated by a
   click handler; confirm 1c.3.6 goes RED (text absent without a simulated click); restore; confirm
   green again.
   _Satisfies: hard rule 7._
+  _Apply note: falsification confirmed RED (`expected '...' to contain 'Server disclosure text'` — the
+  disclosure paragraph disappeared behind `expanded = false`); restored; 8/8 green again._
 
 ### Phase 1c.4 — PR1c gates
 
-- [ ] 1c.4.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-outcome-bars/ src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-order-stats-table/ src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-run-panel/` — no diffs.
-- [ ] 1c.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 1c.4.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1c specs plus every new
+- [x] 1c.4.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-outcome-bars/ src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-order-stats-table/ src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-run-panel/` — no diffs.
+- [x] 1c.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
+- [x] 1c.4.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR1c specs plus every new
   PR1c spec pass, **0 existing assertions edited**.
-- [ ] 1c.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
-  patching.
+  _Apply note: baseline (pre-PR1c) was 37 test files / 461 tests, all passing. After PR1c: 40 test
+  files / 475 tests, all passing — the +3 files / +14 tests are exactly the 3 new PR1c spec files (3
+  outcome-bars + 3 order-stats-table + 8 run-panel); every pre-existing test file and count is
+  unchanged._
+- [x] 1c.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
+  patching. (N/A — prettier initially flagged 4 files, mechanical formatting only, fixed with
+  `--write`; re-check passed clean; no test failures or tsc errors occurred.)
+
+### Phase 1c.5 — Correction: i18n placeholder leaks (RELIABILITY-001 BLOCKER, RELIABILITY-002 WARNING)
+
+- [x] 1c.5.1 RED: real-dictionary tests (`TranslateService.setTranslation('en'|'es', <real json>)` +
+  `use(...)`, the `portfolio-detail.component.spec.ts` precedent) added to all three PR1c specs,
+  asserting the final text and that no `{{` appears in the rendered component.
+  _Apply note: RED against the unchanged template —
+  `expected 'Stored profit target: {{value}}: 0.08' to be 'Stored profit target: 0.08'` (EN) and
+  `Received: "Objetivo de ganancia almacenado: {{value}}: 0.08"` (ES)._
+- [x] 1c.5.2 GREEN: `ftmo-run-panel.component.html` passes `{ value: storedProfitTargetPct }` to
+  `STORED_PROFIT_TARGET`; the manual `:` and the sibling number are removed.
+  _Apply note: format is the raw stored fraction (`0.08`), not a percent — spec.md "ProfitTargetMismatch
+  is shown with the stored value" states the rendered value is `0.08` literally, so the spec is not
+  silent and wins over the percent default._
+- [x] 1c.5.3 `ftmo-outcome-bars` converted from label+number concatenation to interpolated keys
+  (`COUNT_LABEL` `{{count}}`, `SHARE_LABEL` `{{share}}%`, EN+ES). The forRoot-only zero-row test moved
+  into the real-dictionary block (without a dictionary the number no longer renders); its assertion is
+  now the stronger `Count: 0 Share: 0%`. The old forRoot-only race-refusal test was replaced by its
+  real-dictionary version.
+- [x] 1c.5.4 Key audit of every `{{param}}` key in `FTMO_SIMULATION` vs PR1c usage:
+  `STORED_PROFIT_TARGET` fixed; `MONTHS_WITHOUT_START` already passed `count` (now guarded by a real
+  dictionary test); `COUNT_LABEL`/`SHARE_LABEL` receive `count`/`share`; `ERRORS.INVALID_QUERY` is
+  not rendered in PR1c (PR1d).
+- [x] 1c.5.5 `UNKNOWN_VALUE` (`"Unknown value ({{value}})"`) leak — fixed under an explicit user
+  authorization to touch PR1b (the one exception). `toRunPanelVm` mapped an unknown refusal / race
+  refusal to `UNKNOWN_VALUE_KEY` but dropped the raw number, so the panel had no value to pass.
+  _Apply note: the VM now carries `refusalValue: FtmoSimulationRefusal | null` and
+  `raceRefusalValue: FtmoChallengeRaceRefusal` (raw DTO values). The run panel passes
+  `{ value: refusalValue ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate) }` and `{ value:
+  raceRefusalValue }`, and known keys ignore the param. The `?? NOT_REPORTED` fallback covers a Refused
+  run with a null refusal (a contract violation), so the placeholder cannot leak there either.
+  Tests were only added; no existing PR1b assertion was edited. RED (mapper): compile failure TS2339 /
+  TS2551, `refusalValue`/`raceRefusalValue` do not exist. RED (panel, after mapper GREEN):
+  `expected 'Unknown value ({{value}})' to be 'Unknown value (999)'`, the same for the race refusal
+  and the null-refusal case. GREEN: 54/54 FTMO-modal specs. Falsification: mapper set to
+  `refusalValue: null` / `raceRefusalValue: undefined` gave 5 failed (`expected null to be 999`,
+  `expected 'Unknown value ({{value}}) Stored prof…' to be 'Unknown value (999) …'`); restored
+  byte-identical; green again._
+- [x] 1c.5.6 Gates: prettier --check on touched files clean; tsc --noEmit exit 0; full `ng test`
+  40 files / 481 tests passed (475 + 6 net new); `ftmo-simulation.i18n.spec.ts` parity and
+  banned-wording 3/3 green. After 1c.5.5, re-run: prettier clean, tsc exit 0, `ng test` 40 files /
+  487 tests passed (481 + 3 mapper + 3 run-panel).
 
 ---
 

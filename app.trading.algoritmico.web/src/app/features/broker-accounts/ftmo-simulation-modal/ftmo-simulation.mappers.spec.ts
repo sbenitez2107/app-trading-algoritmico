@@ -350,5 +350,35 @@ describe('toRunPanelVm / toPanels', () => {
   });
 });
 
+describe('toRunPanelVm — the raw refusal value reaches the VM (UNKNOWN_VALUE needs its {{value}})', () => {
+  it('an unknown Refusal value maps to UNKNOWN_VALUE and carries the raw number as refusalValue', () => {
+    const run = baseRun({
+      status: FtmoSimulationStatus.Refused,
+      refusal: 999 as FtmoSimulationRefusal,
+    });
+    const vm = toRunPanelVm(run);
+    expect(vm.state).toBe('refused');
+    expect(vm.state === 'refused' && vm.refusalKey).toBe('FTMO_SIMULATION.UNKNOWN_VALUE');
+    expect(vm.state === 'refused' && vm.refusalValue).toBe(999);
+  });
+
+  it('an unknown RaceRefusal value maps to UNKNOWN_VALUE and carries the raw number as raceRefusalValue', () => {
+    const run = baseRun({ raceRefusal: 999 as FtmoChallengeRaceRefusal, summary: null });
+    const vm = toRunPanelVm(run);
+    expect(vm.state).toBe('raceRefused');
+    expect(vm.state === 'raceRefused' && vm.raceRefusalKey).toBe('FTMO_SIMULATION.UNKNOWN_VALUE');
+    expect(vm.state === 'raceRefused' && vm.raceRefusalValue).toBe(999);
+  });
+
+  it('a known zero-valued Refusal still carries its raw value 0, never dropped as falsy', () => {
+    const run = baseRun({
+      status: FtmoSimulationStatus.Refused,
+      refusal: FtmoSimulationRefusal.InvalidRequest,
+    });
+    const vm = toRunPanelVm(run);
+    expect(vm.state === 'refused' ? vm.refusalValue : 'not-refused').toBe(0);
+  });
+});
+
 // re-export used only to keep CHAIN_OUTCOME_ORDER's import path exercised (see fixed-order builder)
 void CHAIN_OUTCOME_ORDER;

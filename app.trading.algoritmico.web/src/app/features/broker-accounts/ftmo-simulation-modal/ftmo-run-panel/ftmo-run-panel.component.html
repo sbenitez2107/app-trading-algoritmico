@@ -1,0 +1,66 @@
+<section class="ftmo-run-panel" [attr.aria-label]="kindLabelKey() | translate">
+  <header class="ftmo-run-panel__header">
+    <h3 class="ftmo-run-panel__title">{{ kindLabelKey() | translate }}</h3>
+  </header>
+
+  <p class="ftmo-run-panel__disclosure">{{ vm().disclosure }}</p>
+
+  @if (vm().notModelled.length > 0) {
+    <ul class="ftmo-run-panel__not-modelled">
+      @for (item of vm().notModelled; track item) {
+        <li>{{ item }}</li>
+      }
+    </ul>
+  }
+
+  @if (vm().monthsWithoutStartCount > 0) {
+    <p class="ftmo-run-panel__months-without-start">
+      {{
+        'FTMO_SIMULATION.MONTHS_WITHOUT_START' | translate: { count: vm().monthsWithoutStartCount }
+      }}
+      <span class="ftmo-run-panel__months-list">{{ vm().monthsWithoutStart.join(', ') }}</span>
+    </p>
+  }
+
+  @if (vm().start1Differs) {
+    <p class="ftmo-run-panel__start1-differs">
+      {{ 'FTMO_SIMULATION.START1_DIFFERS_DISCLOSURE' | translate }}
+    </p>
+  }
+
+  @switch (vm().state) {
+    @case ('refused') {
+      <p class="ftmo-run-panel__refusal">
+        <!-- The raw value fills the UNKNOWN_VALUE `value` param; known keys ignore it. A null value (a
+        contract violation) falls back to "Not reported" so the placeholder can never leak. -->
+        {{
+          $any(vm()).refusalKey
+            | translate
+              : { value: $any(vm()).refusalValue ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate) }
+        }}
+      </p>
+    }
+    @case ('raceRefused') {
+      <p class="ftmo-run-panel__race-refusal">
+        {{ $any(vm()).raceRefusalKey | translate: { value: $any(vm()).raceRefusalValue } }}
+        @if ($any(vm()).storedProfitTargetPct !== null) {
+          <span class="ftmo-run-panel__stored-value">
+            {{
+              'FTMO_SIMULATION.STORED_PROFIT_TARGET'
+                | translate: { value: $any(vm()).storedProfitTargetPct }
+            }}
+          </span>
+        }
+      </p>
+    }
+    @case ('noStarts') {
+      <p class="ftmo-run-panel__no-starts">
+        {{ 'FTMO_SIMULATION.NO_RUN_HELD' | translate }}
+      </p>
+    }
+    @case ('evaluated') {
+      <app-ftmo-outcome-bars [rows]="$any(vm()).outcomeRows" />
+      <app-ftmo-order-stats-table [rows]="$any(vm()).orderStatRows" />
+    }
+  }
+</section>

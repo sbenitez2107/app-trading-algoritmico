@@ -160,10 +160,17 @@ interface FtmoRunPanelBaseVm {
 }
 
 export type FtmoRunPanelVm =
-  | (FtmoRunPanelBaseVm & { state: 'refused'; refusalKey: string })
+  // `refusalValue` / `raceRefusalValue` are the raw enum numbers: when the key is UNKNOWN_VALUE the
+  // template passes them as its `{{value}}` param, so the placeholder never renders literally (AD4).
+  | (FtmoRunPanelBaseVm & {
+      state: 'refused';
+      refusalKey: string;
+      refusalValue: FtmoSimulationRefusal | null;
+    })
   | (FtmoRunPanelBaseVm & {
       state: 'raceRefused';
       raceRefusalKey: string;
+      raceRefusalValue: FtmoChallengeRaceRefusal;
       storedProfitTargetPct: number | null;
     })
   | (FtmoRunPanelBaseVm & { state: 'noStarts' })
@@ -217,7 +224,12 @@ export function toRunPanelVm(run: FtmoMultiStartRunDto): FtmoRunPanelVm {
 
   if (run.status === FtmoSimulationStatus.Refused) {
     const label = labelFor(REFUSAL_LABELS, run.refusal);
-    return { ...base, state: 'refused', refusalKey: label?.key ?? UNKNOWN_VALUE_KEY };
+    return {
+      ...base,
+      state: 'refused',
+      refusalKey: label?.key ?? UNKNOWN_VALUE_KEY,
+      refusalValue: run.refusal,
+    };
   }
 
   if (run.raceRefusal !== null && run.raceRefusal !== undefined) {
@@ -226,6 +238,7 @@ export function toRunPanelVm(run: FtmoMultiStartRunDto): FtmoRunPanelVm {
       ...base,
       state: 'raceRefused',
       raceRefusalKey: label?.key ?? UNKNOWN_VALUE_KEY,
+      raceRefusalValue: run.raceRefusal,
       storedProfitTargetPct: run.storedProfitTargetPct,
     };
   }
