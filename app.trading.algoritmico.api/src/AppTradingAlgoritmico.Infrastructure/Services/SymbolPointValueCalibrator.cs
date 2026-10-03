@@ -22,6 +22,9 @@ public static class SymbolPointValueCalibrator
     /// </summary>
     public const int MinimumSlSamples = 3;
 
+    /// <summary>SL samples closer than this many ticks to the open price are excluded.</summary>
+    public const int MinimumSlDistanceTicks = 200;
+
     private const decimal MaxSpreadFraction = 0.005m; // 0.5%
 
     /// <summary>
@@ -51,11 +54,11 @@ public static class SymbolPointValueCalibrator
     public static SymbolCalibrationDto Calibrate(string symbol, IEnumerable<BacktestTrade> trades, DateTime calibratedAt)
     {
         var samples = new List<decimal>();
+        var slTrades = trades.Where(t => t.CloseType == "SL").ToList();
+        var minDistance = InferMinimumDistance(slTrades);
 
-        foreach (var trade in trades)
+        foreach (var trade in slTrades)
         {
-            if (trade.CloseType != "SL")
-                continue;
 
             if (trade.ClosePrice == trade.OpenPrice || trade.Size == 0m)
                 continue; // degenerate denominator — skipped, never divided
@@ -64,7 +67,11 @@ public static class SymbolPointValueCalibrator
             if (mae is null or 0m)
                 continue;
 
-            var denominator = Math.Abs(trade.ClosePrice - trade.OpenPrice) * trade.Size;
+            var distance = Math.Abs(trade.ClosePrice - trade.OpenPrice);
+            if (minDistance is not null && distance < minDistance)
+                continue; // grid-rounding error dominates short SLs
+
+            var denominator = distance * trade.Size;
             samples.Add(Math.Abs(mae.Value) / denominator);
         }
 
@@ -107,6 +114,32 @@ public static class SymbolPointValueCalibrator
             MaxObserved: max,
             Status: CalibrationStatus.Calibrated,
             CalibratedAt: calibratedAt);
+    }
+
+    /// <summary>
+    /// <c>MinimumSlDistanceTicks × 10^-d</c>, or null when no fractional price was observed.
+    /// </summary>
+    private static decimal? InferMinimumDistance(List<BacktestTrade> slTrades)
+    {
+        var d = 0;
+        foreach (var trade in slTrades)
+            d = Math.Max(d, Math.Max(SignificantDecimals(trade.OpenPrice), SignificantDecimals(trade.ClosePrice)));
+
+        if (d == 0)
+            return null;
+
+        var tick = 1m;
+        for (var i = 0; i < d; i++)
+            tick /= 10m;
+
+        return MinimumSlDistanceTicks * tick;
+    }
+
+    /// <summary>Decimal places ignoring trailing zeros, so 21500.10000m and 21500.1m both yield 1.</summary>
+    private static int SignificantDecimals(decimal value)
+    {
+        var normalized = value / 1.0000000000000000000000000000m;
+        return (decimal.GetBits(normalized)[3] >> 16) & 0xFF;
     }
 
     private static decimal Median(List<decimal> values)
