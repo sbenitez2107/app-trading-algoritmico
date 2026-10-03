@@ -222,6 +222,29 @@ to reason about pass odds, not a single-start number); **cost-decomposition UI a
 divergence decomposition already has a shipped backend and no UI yet, but it is not the more urgent
 screen).
 
+**Status (2026-10-03)**
+
+- **Shipped**: the FTMO simulation UI per strategy (`ftmo-simulation-ui`, archived 2026-10-03; PR1 plus the post-PR1 fixes): a
+  modal opened from each strategy row, showing the multi-start distribution with Deploy and Eval side by
+  side, in EN and ES.
+- **Deferred**: the single-start detail section (former PR2, slices 2a/2b). Not shipping in
+  `ftmo-simulation-ui`; it would need its own change if wanted later.
+- **Why**: the user's real goal is a separate portfolio-simulation screen: groups of 2..n strategies,
+  for FTMO, Darwinex Zero and Axi Select, on backtest and later live data.
+- **Agreed next order**:
+  1. **FTMO group simulation, on its own screen — the immediate next change.**
+  2. Automatic combinations.
+  3. Live data.
+  4. Darwinex Zero and Axi.
+
+**Pending items (not scheduled)**
+
+- **App-wide i18n change**: 24 templates still carry hardcoded strings and need their own i18n change.
+- **Latent theme-variable bug**: the existing strategy-analytics modals read CSS variables that
+  `styles/_variables.scss` never declares (`--color-surface` and similar), so they always paint their
+  hardcoded fallbacks and ignore the light theme. The FTMO modal was fixed in its own post-PR1 fix (P3);
+  the strategy-analytics modals were not touched.
+
 ## Why the parked change is not step one
 
 `funding-objective-functions` was drafted as the first step. Three verified reasons it is not:

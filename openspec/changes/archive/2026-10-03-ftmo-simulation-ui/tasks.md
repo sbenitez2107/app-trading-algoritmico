@@ -1,10 +1,11 @@
 # Tasks: FTMO simulation UI
 
 Strict TDD throughout: every RED precedes its GREEN, and every RED must be demonstrably able to fail
-(falsification is mandatory, not optional — see the falsification task in every slice). Six chained
+(falsification is mandatory, not optional — see the falsification task in every slice). Four chained
 slices per design.md ("File Changes" / "Migration / Rollout"): **PR1a** (client + models) → **PR1b**
-(mappers + i18n) → **PR1c** (presentational panels) → **PR1d** (container modal + wiring) → **PR2a**
-(single-start client + mappers) → **PR2b** (single-start detail component). Each slice starts only
+(mappers + i18n) → **PR1c** (presentational panels) → **PR1d** (container modal + wiring). **PR2a/PR2b
+(the single-start detail) are DEFERRED (2026-10-03) and outside this change** — see the "DEFERRED"
+section below. Each slice starts only
 after the previous slice's gates are green, and each slice is independently buildable and testable —
 1a–1c add code with no importer yet (flagged, unavoidable per design.md's rollout note), all other
 slices are fully wired. Read `.claude/conventions/frontend-core.md`, `frontend-data.md`, and
@@ -33,8 +34,7 @@ scenario or design decision.
    grid's own values. A test pins these exact defaults on the constant and on the form's initial state.
 6. **Dates.** Any `DateOnly`/`yyyy-MM-dd` wire string is formatted by slicing the string, and is never
    passed to `new Date(...)` — a UTC-midnight parse shows the previous day at UTC-3. A test pins this
-   for every date-bearing formatter (`MonthsWithoutStart` entries, order-stat labels if date-bearing,
-   PR2 challenge-race phase dates).
+   for every date-bearing formatter (`MonthsWithoutStart` entries, order-stat labels if date-bearing).
 7. **A test that cannot fail is a defect.** Every slice's falsification task is mandatory: break the
    unit under test, observe the target test go red, then restore it and confirm green again.
 8. **Process safety.** Never kill any process — the user's API and/or `ng serve` dev server may be
@@ -52,10 +52,9 @@ scenario or design decision.
 | PR1b estimated lines | ~500 (mappers, i18n namespace, `.spec.ts`) |
 | PR1c estimated lines | ~600 (3 presentational components + specs) |
 | PR1d estimated lines | ~600 (container modal + account-detail wiring + specs) |
-| PR2a estimated lines | ~400 (single-start client, mappers, i18n additions + specs) |
-| PR2b estimated lines | ~450 (single-start detail component + container wiring + specs) |
-| 400-line budget risk | High (1b, 1c, 1d, 2b) — flagged per `ask-on-risk`, not blocking; the user already accepted the slice plan in design.md's Sizing table |
-| Chained slices | Yes — 1a → 1b → 1c → 1d → 2a → 2b, per design.md "Migration / Rollout" |
+| PR2a / PR2b estimated lines | DEFERRED (2026-10-03), not part of this change (were ~400 / ~450) |
+| 400-line budget risk | High (1b, 1c, 1d) — flagged per `ask-on-risk`, not blocking; the user already accepted the slice plan in design.md's Sizing table |
+| Chained slices | Yes — 1a → 1b → 1c → 1d, per design.md "Migration / Rollout" (2a, 2b deferred) |
 | Delivery strategy | `ask-on-risk` (default) |
 
 Gate commands (verbatim, from `.claude/skills/commit/SKILL.md`, run from
@@ -686,162 +685,31 @@ gets its first importer here.
 
 ---
 
-## PR2a — Single-start client, models, and mappers (`FtmoBreachVerdict`, `BreachContingencyCause`, `getSingleStart`)
+## DEFERRED (2026-10-03) — PR2a and PR2b, the single-start detail section
 
-Do not start PR2a until PR1d's Phase 1d.5 gates are all green. Modifies `ftmo-simulation.model.ts`,
-`ftmo-simulation.service.ts`, `ftmo-simulation.mappers.ts`, and the i18n namespace — **the PR1
-spec files stay untouched** (design.md File Changes: "the PR1 spec file stays untouched" for the
-container; the model/service/mapper spec files gain new tests but keep every existing assertion
-unedited).
+**Outside this change.** The user's real goal is a separate portfolio-simulation screen (groups of 2..n
+strategies; FTMO, Darwinex Zero and Axi Select; backtest and later live data), so the per-strategy
+single-start detail loses priority. Agreed next order: (1) FTMO group simulation on its own screen,
+(2) automatic combinations, (3) live data, (4) Darwinex Zero and Axi. See `proposal.md` "Deferred".
 
-### Phase 2a.1 — New enums
+These are plain list items, not checkboxes, on purpose: verify and archive must not count them as
+missing work. They were never started (no code exists for them). If the single-start detail is wanted
+later, it needs its own change with its own spec and tasks; the original RED/GREEN/falsification task
+list is not preserved here (the design record is `design.md` AD12 and the Enum mirrors table).
 
-- [ ] 2a.1.1 RED: `ftmo-simulation.model.spec.ts` (additions only, no existing assertion edited) —
-  `FtmoBreachVerdict and BreachContingencyCause pin their exact numeric values` — asserts
-  `BreachContingent === 0`, `Breached === 1`, `NoBreachObserved === 2`, and
-  `ConcurrentOpenPosition === 0` through `FxRoundingSensitive === 5`.
-  _Satisfies: design.md "Enum mirrors" table, PR2 row; hard rule 2._
-- [ ] 2a.1.2 GREEN: add `FtmoBreachVerdict` and `BreachContingencyCause` enums to
-  `ftmo-simulation.model.ts`. Confirm 2a.1.1 passes.
-  _Satisfies: design.md AD2._
-- [ ] 2a.1.3 Falsification: temporarily set `BreachContingent = 1` (off-by-one); confirm 2a.1.1 goes
-  RED; restore; confirm green again.
-  _Satisfies: hard rule 7._
-
-### Phase 2a.2 — Single-start DTOs and `getSingleStart`
-
-- [ ] 2a.2.1 GREEN: add the single-start wire DTO interfaces (verdict, findings, first-breach timing,
-  challenge-race phase 1/phase 2 outcomes and dates) mirroring `ftmo-breach` and `ftmo-challenge-race`
-  response shapes 1:1. No test needed for pure interface shapes.
-  _Satisfies: design.md AD3, D5._
-  _Note (from PR1a correction RELIABILITY-001): `FtmoChallengePhaseDto` and `FtmoChallengeRulesDto`
-  already exist in `ftmo-simulation.model.ts` (PR1a, consumed by the multi-start row/run). PR2a MUST
-  reuse them for `FtmoChallengeRaceDto.phase1`/`phase2`/`rules` — never redeclare them. PR2a still
-  adds `FtmoChallengeRaceDto` and the other single-start shapes._
-- [ ] 2a.2.2 RED: `ftmo-simulation.service.spec.ts` (additions only) — `getSingleStart sends the same
-  8+fx params as getMultiStart, against the single-start endpoints` — asserts the request URL/params.
-  _Satisfies: design.md AD12._
-- [ ] 2a.2.3 RED: `..._getSingleStart maps 400 and network errors the same way as getMultiStart` —
-  reuses the same error-mapping assertions as 1a.3.3/1a.3.4 against the new method.
-  _Satisfies: design.md AD10 (shared error mapping)._
-- [ ] 2a.2.4 GREEN: implement `FtmoSimulationService.getSingleStart(strategyId, query)`, reusing
-  `buildFtmoQueryParams` and the shared error mapper. Confirm 2a.2.2–2a.2.3 pass.
-  _Satisfies: design.md AD12._
-- [ ] 2a.2.5 Falsification: temporarily point `getSingleStart` at the multi-start URL; confirm 2a.2.2
-  goes RED; restore; confirm green again.
-  _Satisfies: hard rule 7._
-
-### Phase 2a.3 — Single-start mappers and i18n
-
-- [ ] 2a.3.1 RED: `ftmo-simulation.mappers.spec.ts` (additions only) — `toSingleStartVm maps the
-  verdict, findings, first-breach timing, and both challenge-race phases into a view model` — a
-  fixture DTO; asserts every field is present and correctly shaped in the VM.
-  _Satisfies: spec.md "The single-start section shows verdict, findings, first-breach timing, and race
-  phases"._
-- [ ] 2a.3.2 RED: `..._BreachContingent (value 0) renders its correct verdict label, not treated as
-  absent` — asserts the label accessor for `FtmoBreachVerdict` at value `0`.
-  _Satisfies: hard rule 2._
-- [ ] 2a.3.3 RED: `..._ConcurrentOpenPosition (value 0) renders its correct contingency-cause label`
-  — asserts the label accessor for `BreachContingencyCause` at value `0`.
-  _Satisfies: hard rule 2._
-- [ ] 2a.3.4 RED: `..._a challenge-race phase date (DateOnly yyyy-MM-dd) is formatted by string slice,
-  never new Date` — same UTC-3 hazard pin as 1b.3.10, applied to the single-start phase dates.
-  _Satisfies: hard rule 6._
-- [ ] 2a.3.5 GREEN: implement `toSingleStartVm`. Confirm 2a.3.1–2a.3.4 pass.
-  _Satisfies: design.md D5, AD3._
-- [ ] 2a.3.6 RED (i18n): `ftmo-simulation.i18n.spec.ts` (additions only) — extend the EN/ES parity and
-  banned-wording sweeps to cover the new single-start `FTMO_SIMULATION.*` keys (verdict labels,
-  contingency-cause labels, race-phase labels).
-  _Satisfies: hard rule 3, hard rule 4._
-- [ ] 2a.3.7 GREEN: add the single-start keys to `en.json`/`es.json`. Confirm 2a.3.6 passes (and
-  1b.1.1–1b.1.2 stay green, unedited).
-  _Satisfies: design.md AD11._
-- [ ] 2a.3.8 Falsification: temporarily insert "seguro" into one new ES key; confirm 2a.3.6 goes RED;
-  revert; confirm green again.
-  _Satisfies: hard rule 7._
-
-### Phase 2a.4 — PR2a gates
-
-- [ ] 2a.4.1 `npx prettier --check src/app/core/models/ftmo-simulation.model.ts src/app/core/models/ftmo-simulation.model.spec.ts src/app/core/services/ftmo-simulation.service.ts src/app/core/services/ftmo-simulation.service.spec.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.mappers.spec.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation.i18n.spec.ts public/assets/i18n/en.json public/assets/i18n/es.json` — no diffs.
-- [ ] 2a.4.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 2a.4.3 `npx ng test --watch=false` (full suite, once) — confirm all pre-PR2a specs (including
-  every PR1a–1d spec) plus every new PR2a spec pass, with **0 existing assertions edited**, per
-  design.md's `ftmo-simulation-modal.single-start.spec.ts` note ("the PR1 spec file stays untouched").
-- [ ] 2a.4.4 If any pre-existing spec fails or a prettier/tsc diff appears, STOP and investigate before
-  patching.
+- DEFERRED PR2a (was ~400 lines): `FtmoBreachVerdict` and `BreachContingencyCause` enums with pinned
+  values (including the zero members `BreachContingent` and `ConcurrentOpenPosition`); the single-start
+  DTOs, reusing the existing `FtmoChallengePhaseDto` and `FtmoChallengeRulesDto`;
+  `FtmoSimulationService.getSingleStart`; `toSingleStartVm` with zero-safe labels and sliced
+  `yyyy-MM-dd` phase dates; the single-start i18n keys with the banned-word and parity sweeps.
+- DEFERRED PR2b (was ~450 lines): `FtmoSingleStartDetailComponent`; the "Show single-start detail"
+  action in the container, enabled only after a multi-start success, with its own in-flight flag and
+  `lastQuery()` consistency, delivered additively through a new
+  `ftmo-simulation-modal.single-start.spec.ts` so the PR1 container spec stays untouched.
 
 ---
 
-## PR2b — Single-start detail component and container wiring (`FM/ftmo-single-start-detail/*`, container `.ts`/`.html`, `ftmo-simulation-modal.single-start.spec.ts`)
-
-Do not start PR2b until PR2a's Phase 2a.4 gates are all green.
-
-### Phase 2b.1 — `FtmoSingleStartDetailComponent`
-
-- [ ] 2b.1.1 RED: `ftmo-single-start-detail.component.spec.ts` — `renders the verdict, findings,
-  first-breach timing, and phase 1/phase 2 outcomes and dates` — a fixture VM; asserts each element is
-  present and correctly labelled.
-  _Satisfies: spec.md "The single-start section shows verdict, findings, first-breach timing, and race
-  phases"._
-- [ ] 2b.1.2 RED: `..._a BreachContingent verdict (value 0) renders its label, not blank` — asserts
-  the rendered verdict text for value `0`.
-  _Satisfies: hard rule 2._
-- [ ] 2b.1.3 RED: `..._every visible string resolves to an i18n key present in both en.json and
-  es.json` — renders in both locales; asserts no raw key or hardcoded string.
-  _Satisfies: spec.md "Every rendered string resolves to an i18n key in both languages"._
-- [ ] 2b.1.4 GREEN: implement `FtmoSingleStartDetailComponent` (OnPush, `input.required<...>()`).
-  Confirm 2b.1.1–2b.1.3 pass.
-  _Satisfies: design.md AD5, D5._
-- [ ] 2b.1.5 Falsification: temporarily hardcode the verdict label as a literal string instead of an
-  i18n lookup; confirm 2b.1.3 goes RED; restore; confirm green again.
-  _Satisfies: hard rule 7._
-
-### Phase 2b.2 — Container wiring, additive-only (the PR1 spec file stays untouched)
-
-- [ ] 2b.2.1 RED: `ftmo-simulation-modal.single-start.spec.ts` (new file, per design.md — the PR1
-  container spec file is never edited) — `a "Show single-start detail" action is enabled only after a
-  multi-start success` — asserts the action is disabled before any run and before an errored run, and
-  enabled after a successful multi-start result.
-  _Satisfies: design.md AD12._
-- [ ] 2b.2.2 RED: `..._activating the action calls getSingleStart with lastQuery(), and has its own
-  in-flight flag independent of the multi-start Run flag` — asserts the request uses the snapshotted
-  query and that the main Run button's disabled state is unaffected by the single-start request being
-  in flight.
-  _Satisfies: design.md AD12 (own in-flight flag, `lastQuery` consistency)._
-- [ ] 2b.2.3 RED: `..._adding the single-start section does not alter any PR1-rendered element or
-  behaviour` — re-runs the PR1d panel/disclosure/outcome-bar assertions (imported/duplicated, not
-  edited in the PR1 spec file) against a fixture that also has the single-start section rendered;
-  asserts identical PR1 output.
-  _Satisfies: spec.md "Adding the single-start section leaves the multi-start view unchanged"._
-- [ ] 2b.2.4 GREEN: add the "Show single-start detail" action and section to the container's
-  `.ts`/`.html`, calling `getSingleStart(strategyId, lastQuery())` per AD12, composing
-  `FtmoSingleStartDetailComponent` below the existing runs section. Confirm 2b.2.1–2b.2.3 pass, and
-  confirm every PR1d test in `ftmo-simulation-modal.component.spec.ts` (untouched) still passes
-  unedited.
-  _Satisfies: design.md AD12; spec.md "The PR2 Single-Start Detail Section Is Additive..."._
-- [ ] 2b.2.5 Falsification: temporarily enable the single-start action before any multi-start success;
-  confirm 2b.2.1 goes RED; restore; confirm green again.
-  _Satisfies: hard rule 7._
-
-### Phase 2b.3 — PR2b gates (also PR2's and the whole change's completion gate)
-
-- [ ] 2b.3.1 `npx prettier --check src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-single-start-detail/ src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.ts src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.component.html src/app/features/broker-accounts/ftmo-simulation-modal/ftmo-simulation-modal.single-start.spec.ts` — no diffs.
-- [ ] 2b.3.2 `npx tsc --build --emitDeclarationOnly false --noEmit` — zero type errors.
-- [ ] 2b.3.3 `npx ng test --watch=false` (full suite, once) — confirm every spec across PR1a–PR2b
-  passes, with **0 existing assertions edited anywhere in the change**, and specifically confirm
-  `ftmo-simulation-modal.component.spec.ts` (the PR1 container spec) is byte-identical to its PR1d
-  state.
-- [ ] 2b.3.4 Confirm proposal.md's Success Criteria checklist end to end: Deploy/Eval separate with
-  all six outcomes (incl. zero counts); every refusal path incl. value-0 ones, with
-  InstrumentSpecMissing/FxRateNotDeclared/InvalidFxBand each distinct; disclosure,
-  MonthsWithoutStart, and Start-1 flag always shown; banned-word test green on EN/ES; PR2 leaves the
-  PR1 view/tests unchanged.
-- [ ] 2b.3.5 If any pre-existing spec fails, a prettier/tsc diff appears, or the PR1 container spec
-  file shows any diff, STOP and investigate before patching.
-
----
-
-## Spec-to-task mapping (17 requirements → tasks, none unmapped)
+## Spec-to-task mapping (16 requirements → tasks, none unmapped; the single-start requirement was removed with the PR2 deferral)
 
 | Spec requirement | Slice | Tasks |
 |---|---|---|
@@ -858,10 +726,9 @@ Do not start PR2b until PR2a's Phase 2a.4 gates are all green.
 | The Start1DiffersFromSingleStartAnchor Flag Is Disclosed | 1b, 1c | 1b.3.11, 1c.3.5 |
 | The Disclosure Text Is Always Visible, And Is Shown Verbatim As Data | 1b, 1c, 1d | 1b.3.12, 1c.3.6, 1d.3.3 |
 | An HTTP Error Or 400 Response Is Shown, Never Silently Swallowed | 1a, 1d | 1a.3.3–1a.3.4, 1d.2.3–1d.2.4 |
-| The PR2 Single-Start Detail Section Is Additive, Never Changing The PR1 View | 2b | 2b.2.1–2b.2.5 |
-| Banned Wording Is Excluded From The FTMO i18n Keys | 1b, 2a | 1b.1.2–1b.1.3, 2a.3.6 |
-| Every FTMO Enum Is Mapped By Exact Value, Never By Truthiness | 1a, 1b, 2a | 1a.1.1, 1b.2.1–1b.2.5, 2a.1.1, 2a.3.2–2a.3.3 |
-| Every Visible String Comes From i18n, In EN And ES, Except The Server's Disclosure Text | 1b, 1c, 2a, 2b | 1b.1.1, 1c.1.3, 2a.3.6, 2b.1.3 |
+| Banned Wording Is Excluded From The FTMO i18n Keys | 1b | 1b.1.2–1b.1.3 |
+| Every FTMO Enum Is Mapped By Exact Value, Never By Truthiness | 1a, 1b | 1a.1.1, 1b.2.1–1b.2.5 |
+| Every Visible String Comes From i18n, In EN And ES | 1b, 1c | 1b.1.1, 1c.1.3 |
 
 ---
 

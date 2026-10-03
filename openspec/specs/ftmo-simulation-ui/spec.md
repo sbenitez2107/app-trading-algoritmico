@@ -6,11 +6,19 @@ The shipped `ftmo-breach-simulation`, `ftmo-challenge-race`, and `ftmo-multi-sta
 answer "where does this strategy break a limit, and when", but are reachable only by hand-built HTTP
 calls with 8+ required parameters. This capability adds `FtmoSimulationModalComponent`, opened from a
 strategy row, that collects those inputs, calls the multi-start endpoint on explicit Run, and renders
-the distribution as **elimination, not certification**. A second section (PR2) adds the single-start
-detail (`ftmo-breach` + `ftmo-challenge-race`) additively, without changing the PR1 view.
+the distribution as **elimination, not certification**.
 
 **Non-goals**: the start-date timeline strip (one colour per month) and the cost-decomposition UI are
 explicitly out of scope for this capability.
+
+## Deferred
+
+- **Single-start detail section (former PR2, slices 2a/2b) — DEFERRED 2026-10-03.** A section in the
+  modal showing the verdict and findings from `ftmo-breach`, the first-breach timing, and the
+  challenge-race phases. Its requirement and scenarios were removed from this delta; they are not part of
+  this change and nothing here is verified against them. Reason: the user's priority is a separate
+  portfolio-simulation screen (groups of 2..n strategies, FTMO first, then Darwinex Zero and Axi Select).
+  If the section is wanted later, it needs its own change and spec. See `proposal.md` "Deferred".
 
 ## Requirements
 
@@ -290,24 +298,6 @@ were the new run's outcome.
 - GIVEN a Run request that fails with a network error
 - WHEN the failure is received
 - THEN the modal shows an explicit error state and re-enables Run
-
-### Requirement: The PR2 Single-Start Detail Section Is Additive, Never Changing The PR1 View
-
-A single-start detail section (verdict and findings from `ftmo-breach`, first-breach timing, and the
-challenge-race phases) MUST be addable to the modal without altering any PR1-rendered element, markup,
-or behaviour for the multi-start view.
-
-#### Scenario: Adding the single-start section leaves the multi-start view unchanged
-- GIVEN a modal already rendering the PR1 multi-start view
-- WHEN the PR2 single-start detail section is added
-- THEN every PR1-rendered element and behaviour is unchanged, and the single-start section appears
-  as an addition
-
-#### Scenario: The single-start section shows verdict, findings, first-breach timing, and race phases
-- GIVEN a single-start (`ftmo-breach` + `ftmo-challenge-race`) result for the strategy
-- WHEN the single-start detail section is rendered
-- THEN it shows the verdict and findings, the first-breach timing, and the challenge-race phase 1/phase
-  2 outcomes and dates
 
 ### Requirement: Banned Wording Is Excluded From The FTMO i18n Keys
 

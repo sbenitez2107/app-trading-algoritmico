@@ -1,4 +1,4 @@
-# Proposal: FTMO simulation UI — the start-date distribution, then single-start detail
+# Proposal: FTMO simulation UI — the start-date distribution (per strategy)
 
 > Roadmap "Next: the UI track" (`SIMULATOR_ROADMAP.md:217-223`). Consumes the shipped
 > `GET api/strategies/{strategyId}/ftmo-breach` and `.../ftmo-breach/multi-start`. Exploration: Engram
@@ -15,7 +15,17 @@ with 8 required parameters. The user needs to see the distribution per strategy,
 
 ### In Scope
 - **PR1 (web)**: `FtmoSimulationModalComponent` with the multi-start view (D2–D4).
-- **PR2 (web)**: a single-start detail section in the same modal (D5).
+
+### Deferred (2026-10-03)
+- **PR2 (web, slices 2a/2b)**: the single-start detail section in the same modal (D5). **Deferred, not
+  shipping in this change.**
+  - **Reason**: the user's real goal is a separate portfolio-simulation screen — groups of 2..n
+    strategies, for FTMO, Darwinex Zero and Axi Select, on backtest and later live data. The per-strategy
+    single-start detail loses priority against it.
+  - **Agreed next order**: (1) FTMO group simulation, on its own screen; (2) automatic combinations;
+    (3) live data; (4) Darwinex Zero and Axi.
+  - D5 below is kept as the record of what was designed; it is not part of this change's scope, tasks or
+    success criteria. If the section is wanted later, it needs its own change.
 
 ### Out of Scope
 - The start-date timeline strip, one colour per month. It is deferred until the user has seen real data.
@@ -27,7 +37,7 @@ with 8 required parameters. The user needs to see the distribution per strategy,
 ## Capabilities
 
 ### New Capabilities
-- `ftmo-simulation-ui`: the modal, its inputs, the multi-start view, the single-start detail, the refusal and disclosure display, and the i18n wording rules.
+- `ftmo-simulation-ui`: the modal, its inputs, the multi-start view, the refusal and disclosure display, and the i18n wording rules. (The single-start detail is deferred, see "Deferred".)
 
 ### Modified Capabilities
 - None.
@@ -54,7 +64,7 @@ would be wrong. There is therefore no reason left for a spec-listing endpoint in
 | D2 | **(Revised)** The four source-grid fields (`sizeDecimals`, `step`, `minLot`, `maxLots`) are prefilled from the frontend constant that mirrors `LotGrid.ImoxRetester` (`Domain/Backtests/LotGrid.cs:71`: sizeDecimals 2, step 0.01, minLot 0.01, maxLots 10), labelled in the UI as the **backtest (IMOX retester) lot grid** — never as the FTMO grid. The fields stay editable. A missing `FtmoInstrumentSpec` row, or a non-account profit currency, is not detected client-side; it surfaces as the backend's own refusal (`InstrumentSpecMissing`, `FxRateNotDeclared`, or `InvalidFxBand`), each shown with its own distinct i18n message when the run result renders. |
 | D3 | **PR1** is a container modal, opened from the strategy-row actions in `account-detail.component.ts`, the same way as the Analytics and Monthly modals. It holds signals and calls multi-start. It shows **Deploy and Eval separately and never merged**. Each run shows: six BEM/CSS share bars (zeros included, with the count beside each share), and a plain semantic `<table>` of order statistics (N/Min/Q1/Median/Q3/Max). The Prizm grid is built for server-side data grids and is out of proportion for six rows. |
 | D4 | **Refusals and disclosure**: a whole-run `Refused` shows its reason, with `InstrumentSpecMissing`, `FxRateNotDeclared`, and `InvalidFxBand` each rendering their own distinct i18n message. `ProfitTargetMismatch` shows its own message with the stored value. `MonthsWithoutStart` is listed with its count and is never dropped. `Start1DiffersFromSingleStartAnchor` is disclosed. The `Disclosure` text is always visible, as data rather than a translated string (see the design's disclosure resolution). |
-| D5 | **PR2** calls `ftmo-breach` and shows the verdict and findings, the first-breach timing, and the challenge race (the phase 1 and phase 2 outcomes and dates). It only adds to the modal: the PR1 view is unchanged. |
+| D5 | **DEFERRED (2026-10-03), not part of this change.** **PR2** would call `ftmo-breach` and show the verdict and findings, the first-breach timing, and the challenge race (the phase 1 and phase 2 outcomes and dates). It only adds to the modal: the PR1 view is unchanged. |
 | D6 | **Wording**: every string is an i18n key in both EN and ES. There is no pass-style or survival wording: "passed", "safe", "survived", "would have passed", "aprobado", "aprobó", "seguro", "sobrevivió" and "habría aprobado" are all excluded. A target reached is labelled optimistic, and a breach before the target is labelled a strong result. The UI says that overlapping starts are not independent samples, and never uses odds or probability wording. |
 | D7 | **Enum zero-default hazard (verified)**. Every FTMO enum has a zero member: `FtmoSimulationStatus.Refused`, `FtmoSimulationRefusal.InvalidRequest`, `FtmoChallengeRaceRefusal.ProfitTargetMismatch`, `FtmoChainOutcome.Phase1UndecidedAtEndOfData`, and the `NotStarted` members. No `JsonStringEnumConverter` is registered, so these enums arrive as integers. The label mappers therefore switch on exact values, and presence checks use `!== null`, following the `breachBasisLabel` precedent in `portfolio-detail.component.ts:701-709`. |
 
@@ -110,9 +120,9 @@ Revert the PR or PRs. Every change is additive, with no migration and no persist
 | PR | Content | Estimate |
 |---|---|---|
 | PR1 | The client, models, mappers, i18n, and the modal, in four slices | ~1,900 lines total: 1a (client and models), 1b (mappers and i18n), 1c (panels), 1d (container and wiring) |
-| PR2 | The single-start detail, in two slices 2a and 2b | see design.md sizing |
+| PR2 | DEFERRED (2026-10-03): the single-start detail, slices 2a and 2b | not part of this change (previously 2a ~400, 2b ~450) |
 
-`400-line budget risk: High`. These are chained PRs; see design.md's per-slice estimates.
+`400-line budget risk: High` for PR1. These are chained PRs; see design.md's per-slice estimates.
 
 ## Success Criteria
 
@@ -120,4 +130,5 @@ Revert the PR or PRs. Every change is additive, with no migration and no persist
 - [ ] Every refusal path renders its reason, including those whose enum value is `0`, and `InstrumentSpecMissing`/`FxRateNotDeclared`/`InvalidFxBand` each render a distinct message.
 - [ ] Every run shows the disclosure, `MonthsWithoutStart`, and the Start-1 flag.
 - [ ] The banned-word test passes on the EN and ES FTMO keys.
-- [ ] PR2 leaves the PR1 view unchanged: the PR1 tests are unedited and green.
+- [ ] The PR1 view ships as designed with no single-start section (PR2 is deferred, so there is no
+  "PR2 leaves PR1 unchanged" criterion in this change).
