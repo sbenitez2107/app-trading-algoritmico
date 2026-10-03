@@ -149,8 +149,6 @@ export interface FtmoOrderStatRowVm {
 
 interface FtmoRunPanelBaseVm {
   kind: BacktestRunKind;
-  disclosure: string;
-  notModelled: string[];
   monthsWithoutStart: string[];
   monthsWithoutStartCount: number;
   start1Differs: boolean;
@@ -201,10 +199,6 @@ function statRow(
 function baseFields(run: FtmoMultiStartRunDto): FtmoRunPanelBaseVm {
   return {
     kind: run.kind,
-    // The server's Disclosure/NotModelled text is authoritative data, shown verbatim as-is — it is
-    // never looked up as, or expected to resolve to, an i18n key (design.md AD11).
-    disclosure: run.disclosure,
-    notModelled: run.notModelled,
     monthsWithoutStart: run.monthsWithoutStart,
     monthsWithoutStartCount: run.monthsWithoutStart.length,
     start1Differs: run.start1DiffersFromSingleStartAnchor,
@@ -286,4 +280,38 @@ export function toPanels(dto: FtmoMultiStartDto | null): FtmoRunPanelVm[] {
     return [];
   }
   return dto.runs.map(toRunPanelVm);
+}
+
+/** The exact server `NotModelled` values, mapped to i18n label keys (user decision 2026-10-03, AD11). */
+const NOT_MODELLED_LABEL_KEYS: Readonly<Record<string, string>> = {
+  Swap: 'FTMO_SIMULATION.NOT_MODELLED.SWAP',
+  FtmoCommission: 'FTMO_SIMULATION.NOT_MODELLED.FTMO_COMMISSION',
+  IntradayEquity: 'FTMO_SIMULATION.NOT_MODELLED.INTRADAY_EQUITY',
+};
+
+const NOT_MODELLED_UNKNOWN_KEY = 'FTMO_SIMULATION.NOT_MODELLED.UNKNOWN';
+
+export interface FtmoNotModelledItem {
+  key: string;
+  /** The raw server value: the `{{value}}` param of the UNKNOWN fallback, ignored by known labels. */
+  value: string;
+}
+
+/**
+ * One deduplicated list for the whole result (the runs repeat the same constant). Matching is by
+ * exact string; an unrecognised value falls back to UNKNOWN and keeps the raw value as the param.
+ */
+export function toNotModelledItems(dto: FtmoMultiStartDto | null): FtmoNotModelledItem[] {
+  const seen = new Set<string>();
+  const items: FtmoNotModelledItem[] = [];
+  for (const run of dto?.runs ?? []) {
+    for (const value of run.notModelled) {
+      if (seen.has(value)) {
+        continue;
+      }
+      seen.add(value);
+      items.push({ key: NOT_MODELLED_LABEL_KEYS[value] ?? NOT_MODELLED_UNKNOWN_KEY, value });
+    }
+  }
+  return items;
 }

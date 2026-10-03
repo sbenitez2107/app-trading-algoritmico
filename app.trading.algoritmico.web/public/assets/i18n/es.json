@@ -49,7 +49,8 @@
       "NEW_REPORT": "Nuevo Reporte",
       "TOGGLE_THEME_LIGHT": "Cambiar a modo claro",
       "TOGGLE_THEME_DARK": "Cambiar a modo oscuro",
-      "TOGGLE_LANG": "Cambiar idioma"
+      "SWITCH_TO_EN": "Cambiar a inglés",
+      "SWITCH_TO_ES": "Cambiar a español"
     }
   },
   "COMMON": {
@@ -341,9 +342,19 @@
     "RUN": "Ejecutar",
     "RUNNING": "Ejecutando…",
     "NO_RUN_HELD": "No hay ejecución registrada para esta ranura",
+    "NO_BACKTESTS_IMPORTED": "Esta estrategia no tiene backtests importados. Importe sus backtests de Deploy y Evaluation con la acción Importar backtests en la fila de la estrategia.",
     "NOT_REPORTED": "No reportado",
     "UNKNOWN_VALUE": "Valor desconocido ({{value}})",
     "DISCLOSURE_ALWAYS_VISIBLE": "Esta simulación modela la eliminación frente a los límites de FTMO a partir de datos históricos de backtest. No es una certificación, y un resultado favorable no garantiza un resultado real fondeado.",
+    "DISCLOSURE_RESULT": "Los inicios mensuales consecutivos comparten la mayor parte de sus operaciones, por lo que no son pruebas independientes. Estas cifras describen este backtest; no son probabilidades ni un pronóstico. El swap no modelado y la simulación con operaciones cerradas hacen que los objetivos resulten más fáciles de alcanzar y subestiman las rupturas de límites. La fase fondeada no modela retiro de recompensas ni Scaling Plan, lo que mantiene la ganancia como colchón; esa omisión también es optimista.",
+    "BEFORE_RUN_HINT": "Ingrese el riesgo por operación y presione Ejecutar para ver los resultados.",
+    "NOT_MODELLED_HEADING": "No modelado",
+    "NOT_MODELLED": {
+      "SWAP": "Swap",
+      "FTMO_COMMISSION": "Comisión de FTMO",
+      "INTRADAY_EQUITY": "Equity intradía",
+      "UNKNOWN": "Desconocido ({{value}})"
+    },
     "MONTHS_WITHOUT_START": "Meses sin inicio ({{count}})",
     "START1_DIFFERS_DISCLOSURE": "El inicio 1 difiere del ancla de inicio único.",
     "STORED_PROFIT_TARGET": "Objetivo de ganancia almacenado: {{value}}",
@@ -374,8 +385,8 @@
     },
     "REFUSAL": {
       "INVALID_REQUEST": "La solicitud no es válida: uno o más campos requeridos no pudieron validarse.",
-      "PRODUCT_NOT_TWO_STEP": "Esta cuenta no está configurada como un producto de desafío en dos etapas.",
-      "LIMITS_NOT_CONFIGURED": "No hay límites de FTMO configurados para esta cuenta.",
+      "PRODUCT_NOT_TWO_STEP": "El broker '{{broker}}' no está configurado como un producto de desafío en dos etapas.",
+      "LIMITS_NOT_CONFIGURED": "El broker '{{broker}}' no tiene límites de FTMO configurados.",
       "DRAWDOWN_MODEL_NOT_STATIC": "El modelo de drawdown no es el modelo estático que asume esta simulación.",
       "INSTRUMENT_SPEC_MISSING": "No hay una especificación de instrumento FTMO declarada para este símbolo.",
       "POINT_VALUE_NOT_CALIBRATED": "El valor del punto para este símbolo no ha sido calibrado.",

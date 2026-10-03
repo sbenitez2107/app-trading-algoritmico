@@ -23,6 +23,12 @@ import { BacktestRunKind } from '../../../../core/services/backtest.service';
 })
 export class FtmoRunPanelComponent {
   readonly vm = input.required<FtmoRunPanelVm>();
+  /**
+   * The broker of the submitted query. Broker-scoped refusals (`LimitsNotConfigured`,
+   * `ProductNotTwoStep`) name it, because the cause is the broker's risk-limit configuration, not the
+   * account the modal was opened from.
+   */
+  readonly broker = input<string | null>(null);
 
   readonly BacktestRunKind = BacktestRunKind;
 

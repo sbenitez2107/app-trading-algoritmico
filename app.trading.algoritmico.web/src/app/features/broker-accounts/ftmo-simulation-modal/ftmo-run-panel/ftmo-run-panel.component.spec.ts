@@ -22,6 +22,7 @@ function visibleText(el: HTMLElement): string {
 function baseVm(overrides: Partial<FtmoRunPanelVm> = {}): FtmoRunPanelVm {
   return {
     kind: BacktestRunKind.Deploy,
+    // Legacy fields no longer on the VM: kept here to prove the panel never renders them.
     disclosure: 'Server disclosure text',
     notModelled: ['Slippage', 'Spread widening'],
     monthsWithoutStart: [],
@@ -32,7 +33,7 @@ function baseVm(overrides: Partial<FtmoRunPanelVm> = {}): FtmoRunPanelVm {
     unscalableCount: 0,
     state: 'noStarts',
     ...overrides,
-  } as FtmoRunPanelVm;
+  } as unknown as FtmoRunPanelVm;
 }
 
 /** Only the fields `toRunPanelVm` reads for the refused / race-refused branches. */
@@ -114,12 +115,12 @@ describe('FtmoRunPanelComponent', () => {
     expect(text).toContain('FTMO_SIMULATION.START1_DIFFERS_DISCLOSURE');
   });
 
-  it('theRunsDisclosureAndNotModelledText_AreAlwaysVisible_ShownVerbatim_WithNoCollapsedAccordion', () => {
+  it('thePanelNoLongerRendersTheServerDisclosureOrNotModelledText_TheModalShowsThemOnce', () => {
     const fixture = create(baseVm());
     const text = (fixture.nativeElement as HTMLElement).textContent as string;
-    expect(text).toContain('Server disclosure text');
-    expect(text).toContain('Slippage');
-    expect(text).toContain('Spread widening');
+    expect(text).not.toContain('Server disclosure text');
+    expect(text).not.toContain('Slippage');
+    expect(text).not.toContain('Spread widening');
   });
 
   it('stateEvaluated_ComposesOutcomeBarsAndOrderStatsTable_AsChildrenWithTheVmDataPassedThrough', () => {

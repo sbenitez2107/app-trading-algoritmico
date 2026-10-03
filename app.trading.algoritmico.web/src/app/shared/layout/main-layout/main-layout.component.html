@@ -444,10 +444,10 @@
         <button
           class="l-header__icon-btn l-header__lang-btn"
           (click)="toggleLanguage()"
-          [attr.aria-label]="'LAYOUT.HEADER.TOGGLE_LANG' | translate"
-          [attr.title]="'LAYOUT.HEADER.TOGGLE_LANG' | translate"
+          [attr.aria-label]="switchTitleKey() | translate"
+          [attr.title]="switchTitleKey() | translate"
         >
-          {{ currentLang() === 'es' ? 'EN' : 'ES' }}
+          {{ currentLabel() }}
         </button>
 
         <!-- Theme Toggle -->

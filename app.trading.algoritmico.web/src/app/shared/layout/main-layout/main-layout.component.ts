@@ -31,7 +31,8 @@ export class MainLayoutComponent {
   administrationExpanded = signal(false);
   readonly currentUser = this.authService.currentUser;
   readonly isDark = this.themeService.isDark;
-  readonly currentLang = this.languageService.language;
+  readonly currentLabel = this.languageService.currentLabel;
+  readonly switchTitleKey = this.languageService.switchTitleKey;
 
   readonly userInitials = computed(() => {
     const user = this.currentUser();

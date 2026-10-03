@@ -29,8 +29,9 @@ pattern as the existing Analytics and Monthly Returns modals.
 The four source-grid fields (`sizeDecimals`, `step`, `minLot`, `maxLots`) MUST be prefilled, when the
 modal opens, from a hardcoded frontend constant that mirrors `LotGrid.ImoxRetester` (sizeDecimals `2`,
 step `0.01`, minLot `0.01`, maxLots `10`), and MUST be labelled in the UI as the backtest (IMOX retester)
-lot grid — never as the FTMO grid. These fields MUST stay editable. `broker` MUST be prefilled from the
-account context. `initialCapital` MUST be prefilled to `10000` and stay editable. `targetRiskPerTrade`
+lot grid — never as the FTMO grid. These fields MUST stay editable. `broker` MUST be prefilled with the
+constant `FTMO` (user decision 2026-10-01: the strategies that have backtests can live in a non-FTMO
+account, whose broker has no FTMO limits row) and stay editable. `initialCapital` MUST be prefilled to `10000` and stay editable. `targetRiskPerTrade`
 MUST have no prefill; the user types it. `fxLow`/`fxHigh` MUST be optional. There is no client-side
 lookup of the FTMO instrument spec: a missing spec, an undeclared FX rate, or an invalid FX band MUST
 NOT be detected or pre-empted client-side, and Run MUST stay enabled regardless — each condition
@@ -41,8 +42,13 @@ surfaces only as the backend's own refusal (`InstrumentSpecMissing`, `FxRateNotD
 - GIVEN the modal opens for any strategy
 - WHEN the source-grid fields are rendered
 - THEN `sizeDecimals` shows `2`, `step` shows `0.01`, `minLot` shows `0.01`, `maxLots` shows `10`, each
-  labelled as the backtest (IMOX retester) lot grid, `broker` shows `FTMO`, and `initialCapital` shows
+  labelled as the backtest (IMOX retester) lot grid, `broker` shows `FTMO` whatever broker the opening account has, and `initialCapital` shows
   `10000`
+
+#### Scenario: Broker is prefilled with FTMO, not with the account's broker
+- GIVEN a strategy opened from an account whose broker is `Darwinex`
+- WHEN the modal opens
+- THEN `broker` shows `FTMO`, the field stays editable, and the request carries whatever value the user left in it
 
 #### Scenario: The source-grid fields stay editable
 - GIVEN the modal has opened with the prefilled source-grid values
@@ -107,6 +113,26 @@ run MUST be combined, averaged, or displayed as if it belonged to the other run.
 - WHEN the result is rendered
 - THEN two separately labelled panels are shown, one per run, with no combined or shared figures
 
+#### Scenario: A response with zero runs shows one explicit message
+- GIVEN a completed multi-start response with zero runs (the strategy has no imported backtests)
+- WHEN the result is rendered
+- THEN exactly one message is shown: "This strategy has no imported backtests. Import its Deploy and
+  Evaluation backtests with the Import backtests action on the strategy row." (EN and ES), and neither
+  "No run held for this slot" nor any panel is shown
+
+#### Scenario: Before the first Run a single hint replaces the empty slots
+- GIVEN the modal has opened and no Run has been requested
+- WHEN the modal is rendered
+- THEN one hint is shown ("Enter the risk per trade and press Run to see results." / "Ingrese el riesgo
+  por operación y presione Ejecutar para ver los resultados.", consistent with the Run button label) and
+  no "No run held for this slot" slot is rendered
+
+#### Scenario: Exactly one missing kind still shows the slot marker
+- GIVEN a response holding a Deploy run but no Evaluation run
+- WHEN the result is rendered
+- THEN the Deploy panel is shown and the Evaluation slot reads "No run held for this slot", with no
+  zero-runs message
+
 #### Scenario: Narrow widths stack but do not merge the panels
 - GIVEN a viewport narrow enough that side-by-side panels do not fit
 - WHEN the result is rendered
@@ -151,6 +177,11 @@ never as `0`.
 - THEN Min/Q1/Median/Q3/Max render as explicitly absent, not as `0`
 
 ### Requirement: A Whole-Run Refusal Shows Its Reason
+
+> Post-PR1 fix (2026-10-01): `LimitsNotConfigured` and `ProductNotTwoStep` are properties of the
+> broker's risk-limit configuration, so their copy MUST name the broker of the submitted query (for
+> example "The broker 'Darwinex' has no FTMO limits configured.") and MUST NOT blame the account. The
+> broker is the one captured at Run, so later edits of the field do not change a rendered refusal.
 
 When a run's `Status` is `Refused`, the panel MUST show the refusal reason (`Refusal`) and MUST NOT
 render any outcome shares or order statistics for that run. `InstrumentSpecMissing`, `FxRateNotDeclared`,
@@ -201,25 +232,48 @@ disclosure that start 1 differs from the single-start endpoint's anchor.
 - WHEN the panel is rendered
 - THEN an explicit disclosure that start 1 diverges from the single-start anchor is shown
 
-### Requirement: The Disclosure Text Is Always Visible, And Is Shown Verbatim As Data
+### Requirement: The Disclosure Is Always Visible, And Is Translated (EN And ES)
 
-An i18n-keyed disclosure block MUST be visible at all times, even before any run has completed. Every
-rendered run's server-provided `Disclosure` text MUST also be visible without requiring an extra
-interaction (no collapsed-by-default accordion hiding it), for every run status. The server's
-`Disclosure` and `NotModelled` text MUST be shown **verbatim as data** — this is an explicit exception to
-"Every Visible String Comes From i18n": that requirement governs UI-authored copy, not server-supplied
-disclosure text, which is authoritative data shown as-is and is never looked up as an i18n key.
+**Amended by user decision 2026-10-03** (reason: the user wants a Spanish UI; every text in the modal
+MUST be available in Spanish). Previously the server's `Disclosure` and `NotModelled` text was shown
+verbatim as data. The UI MUST NOT render the server's `Disclosure` text any more.
+
+An i18n-keyed short disclosure block MUST be visible at all times, even before any run has completed.
+Once a result with at least one run is shown, ONE i18n disclosure (`DISCLOSURE_RESULT`), rendered once
+for the whole result and never once per panel, MUST be visible without any extra interaction (no
+collapsed-by-default accordion). It MUST faithfully cover the three points of the server text:
+
+1. consecutive monthly starts share most trades, so they are not independent trials, and the figures
+   describe this backtest, not probabilities or a forecast;
+2. unmodelled swap and closed-trade replay make targets easier to reach and understate breaches;
+3. the funded phase models no reward withdrawal and no Scaling Plan, which keeps profit as cushion and
+   is also optimistic.
+
+The server's `NotModelled` values MUST be mapped by exact string to i18n labels (`Swap`,
+`FtmoCommission`, `IntradayEquity`), merged and deduplicated across runs, and rendered once next to the
+disclosure. An unrecognised value MUST render through an explicit UNKNOWN label that shows the raw value
+through a `{{value}}` param, and MUST never leak a placeholder.
 
 #### Scenario: The disclosure block is visible before any run
 - GIVEN the modal has just opened and no run has completed
 - WHEN the modal is rendered
-- THEN the i18n-keyed disclosure block is visible without further interaction
+- THEN the i18n-keyed short disclosure block is visible without further interaction
 
-#### Scenario: Disclosure is visible on a normal run
-- GIVEN any rendered run with a non-empty `Disclosure`
-- WHEN the panel is rendered
-- THEN the disclosure text is visible without further interaction, shown verbatim as returned by the
-  server
+#### Scenario: The translated disclosure is shown once for the whole result
+- GIVEN a result with a Deploy run and an Evaluation run
+- WHEN the result is rendered in EN or ES
+- THEN the `DISCLOSURE_RESULT` text is shown exactly once, no panel renders its own disclosure, and the
+  server's `Disclosure` text appears nowhere
+
+#### Scenario: NotModelled values render as translated labels, once
+- GIVEN runs whose `NotModelled` is `Swap`, `FtmoCommission`, `IntradayEquity`
+- WHEN the result is rendered in ES
+- THEN one list shows "Swap", "Comisión de FTMO", "Equity intradía"
+
+#### Scenario: An unknown NotModelled value shows the raw value
+- GIVEN a `NotModelled` value that is not one of the three known strings
+- WHEN the result is rendered
+- THEN the UNKNOWN label shows the raw value and no `{{` is visible
 
 ### Requirement: An HTTP Error Or 400 Response Is Shown, Never Silently Swallowed
 
@@ -291,15 +345,13 @@ refusal or outcome whose enum value is `0` MUST render its correct label, not di
 - THEN both `Refused` and `InvalidRequest` render their correct labels, neither treated as absent by a
   truthy check
 
-### Requirement: Every Visible String Comes From i18n, In EN And ES, Except The Server's Disclosure Text
+### Requirement: Every Visible String Comes From i18n, In EN And ES
 
 Every user-facing string produced by this capability (labels, disclosures, refusal reasons, error
-states) MUST be sourced from an i18n key present in both `public/assets/i18n/en.json` and
-`public/assets/i18n/es.json`. No hardcoded user-facing string MUST appear in the component templates or
-TypeScript. **Explicit exception**: the server-supplied `Disclosure` and `NotModelled` text (see "The
-Disclosure Text Is Always Visible, And Is Shown Verbatim As Data") is authoritative data, not
-UI-authored copy, and is shown verbatim exactly as the server returns it — it is not required to resolve
-to an i18n key in either language.
+states, the not-modelled labels) MUST be sourced from an i18n key present in both
+`public/assets/i18n/en.json` and `public/assets/i18n/es.json`. No hardcoded user-facing string MUST
+appear in the component templates or TypeScript. The earlier exception for the server's `Disclosure` and
+`NotModelled` text was removed by user decision 2026-10-03: that text is no longer rendered.
 
 #### Scenario: Every rendered string resolves to an i18n key in both languages
 - GIVEN the modal rendered in each of the EN and ES locales

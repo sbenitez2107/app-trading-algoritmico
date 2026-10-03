@@ -49,7 +49,8 @@
       "NEW_REPORT": "New Report",
       "TOGGLE_THEME_LIGHT": "Switch to light mode",
       "TOGGLE_THEME_DARK": "Switch to dark mode",
-      "TOGGLE_LANG": "Switch language"
+      "SWITCH_TO_EN": "Switch to English",
+      "SWITCH_TO_ES": "Switch to Spanish"
     }
   },
   "COMMON": {
@@ -341,9 +342,19 @@
     "RUN": "Run",
     "RUNNING": "Running…",
     "NO_RUN_HELD": "No run held for this slot",
+    "NO_BACKTESTS_IMPORTED": "This strategy has no imported backtests. Import its Deploy and Evaluation backtests with the Import backtests action on the strategy row.",
     "NOT_REPORTED": "Not reported",
     "UNKNOWN_VALUE": "Unknown value ({{value}})",
     "DISCLOSURE_ALWAYS_VISIBLE": "This simulation models elimination against FTMO limits from historical backtest data. It is not a certification, and a favorable result does not guarantee a real funded outcome.",
+    "DISCLOSURE_RESULT": "Consecutive monthly starts share most of their trades, so they are not independent trials. These figures describe this backtest; they are not probabilities or a forecast. Unmodelled swap and closed-trade replay make targets easier to reach and understate breaches. The funded phase models no reward withdrawal and no Scaling Plan, which keeps profit as cushion; that omission is also optimistic.",
+    "BEFORE_RUN_HINT": "Enter the risk per trade and press Run to see results.",
+    "NOT_MODELLED_HEADING": "Not modelled",
+    "NOT_MODELLED": {
+      "SWAP": "Swap",
+      "FTMO_COMMISSION": "FTMO commission",
+      "INTRADAY_EQUITY": "Intraday equity",
+      "UNKNOWN": "Unknown ({{value}})"
+    },
     "MONTHS_WITHOUT_START": "Months without a start ({{count}})",
     "START1_DIFFERS_DISCLOSURE": "Start 1 differs from the single-start anchor.",
     "STORED_PROFIT_TARGET": "Stored profit target: {{value}}",
@@ -374,8 +385,8 @@
     },
     "REFUSAL": {
       "INVALID_REQUEST": "The request is invalid: one or more required fields could not be validated.",
-      "PRODUCT_NOT_TWO_STEP": "This account is not configured as a two-step challenge product.",
-      "LIMITS_NOT_CONFIGURED": "No FTMO limits are configured for this account.",
+      "PRODUCT_NOT_TWO_STEP": "The broker '{{broker}}' is not configured as a two-step challenge product.",
+      "LIMITS_NOT_CONFIGURED": "The broker '{{broker}}' has no FTMO limits configured.",
       "DRAWDOWN_MODEL_NOT_STATIC": "The drawdown model is not the static model this simulation assumes.",
       "INSTRUMENT_SPEC_MISSING": "No FTMO instrument specification is declared for this symbol.",
       "POINT_VALUE_NOT_CALIBRATED": "The point value for this symbol has not been calibrated.",

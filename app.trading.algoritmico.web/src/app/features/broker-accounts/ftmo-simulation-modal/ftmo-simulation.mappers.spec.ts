@@ -33,6 +33,7 @@ import {
   STATUS_LABELS,
   labelFor,
   toPanels,
+  toNotModelledItems,
   toRunPanelVm,
 } from './ftmo-simulation.mappers';
 
@@ -330,14 +331,14 @@ describe('toRunPanelVm / toPanels', () => {
     expect(vm.start1Differs).toBe(true);
   });
 
-  it('the server Disclosure and NotModelled text pass through verbatim, never looked up as an i18n key', () => {
+  it('the panel VM no longer carries the server disclosure or notModelled text (user decision 2026-10-03)', () => {
     const run = baseRun({
-      disclosure: 'Arbitrary server text — not a key',
+      disclosure: 'Arbitrary server text - not rendered',
       notModelled: ['spread widening'],
     });
     const vm = toRunPanelVm(run);
-    expect(vm.disclosure).toBe('Arbitrary server text — not a key');
-    expect(vm.notModelled).toEqual(['spread widening']);
+    expect('disclosure' in vm).toBe(false);
+    expect('notModelled' in vm).toBe(false);
   });
 
   it('toPanels maps every run in the DTO, and returns [] for a null DTO', () => {
@@ -382,3 +383,38 @@ describe('toRunPanelVm — the raw refusal value reaches the VM (UNKNOWN_VALUE n
 
 // re-export used only to keep CHAIN_OUTCOME_ORDER's import path exercised (see fixed-order builder)
 void CHAIN_OUTCOME_ORDER;
+
+describe('toNotModelledItems - notModelled strings map to i18n labels by exact value (user decision 2026-10-03)', () => {
+  const dtoWith = (...lists: string[][]) => ({
+    strategyId: 's',
+    runs: lists.map((notModelled, i) =>
+      baseRun({ kind: i === 0 ? BacktestRunKind.Deploy : BacktestRunKind.Evaluation, notModelled }),
+    ),
+  });
+
+  it('maps the three server values to their label keys, in server order', () => {
+    expect(toNotModelledItems(dtoWith(['Swap', 'FtmoCommission', 'IntradayEquity']))).toEqual([
+      { key: 'FTMO_SIMULATION.NOT_MODELLED.SWAP', value: 'Swap' },
+      { key: 'FTMO_SIMULATION.NOT_MODELLED.FTMO_COMMISSION', value: 'FtmoCommission' },
+      { key: 'FTMO_SIMULATION.NOT_MODELLED.INTRADAY_EQUITY', value: 'IntradayEquity' },
+    ]);
+  });
+
+  it('an unknown value maps to the UNKNOWN key and keeps the raw value as the param', () => {
+    expect(toNotModelledItems(dtoWith(['Slippage']))).toEqual([
+      { key: 'FTMO_SIMULATION.NOT_MODELLED.UNKNOWN', value: 'Slippage' },
+    ]);
+  });
+
+  it('falsification: matching is exact, so a case variant is unknown, not Swap', () => {
+    expect(toNotModelledItems(dtoWith(['swap']))[0].key).toBe(
+      'FTMO_SIMULATION.NOT_MODELLED.UNKNOWN',
+    );
+  });
+
+  it('merges both runs into one deduplicated list, and a null DTO gives []', () => {
+    const items = toNotModelledItems(dtoWith(['Swap'], ['Swap', 'IntradayEquity']));
+    expect(items.map((i) => i.value)).toEqual(['Swap', 'IntradayEquity']);
+    expect(toNotModelledItems(null)).toEqual([]);
+  });
+});

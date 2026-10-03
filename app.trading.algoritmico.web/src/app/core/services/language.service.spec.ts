@@ -54,4 +54,14 @@ describe('LanguageService', () => {
     service = TestBed.inject(LanguageService);
     expect(service.language()).toBe('es');
   });
+
+  it('currentLabel_ShowsTheActiveLanguage_NotTheTargetOne', () => {
+    service = TestBed.inject(LanguageService);
+    expect(service.currentLabel()).toBe('ES');
+    expect(service.switchTitleKey()).toBe('LAYOUT.HEADER.SWITCH_TO_EN');
+
+    service.toggleLanguage();
+    expect(service.currentLabel()).toBe('EN');
+    expect(service.switchTitleKey()).toBe('LAYOUT.HEADER.SWITCH_TO_ES');
+  });
 });

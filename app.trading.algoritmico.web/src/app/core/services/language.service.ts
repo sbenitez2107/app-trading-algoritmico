@@ -11,6 +11,12 @@ export class LanguageService {
 
   readonly language = this._language.asReadonly();
   readonly isSpanish = computed(() => this._language() === 'es');
+  /** The active language, as the header toggle shows it. */
+  readonly currentLabel = computed(() => (this._language() === 'es' ? 'ES' : 'EN'));
+  /** i18n key naming what the toggle does: the language it switches to. */
+  readonly switchTitleKey = computed(() =>
+    this._language() === 'es' ? 'LAYOUT.HEADER.SWITCH_TO_EN' : 'LAYOUT.HEADER.SWITCH_TO_ES',
+  );
 
   constructor() {
     this.translate.setDefaultLang('es');

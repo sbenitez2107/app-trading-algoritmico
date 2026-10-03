@@ -42,14 +42,12 @@ describe('FtmoSimulationModalComponent', () => {
       strategyId?: string;
       strategyName?: string;
       symbol?: string | null;
-      broker?: string | null;
     } = {},
   ): ComponentFixture<FtmoSimulationModalComponent> {
     const fixture = TestBed.createComponent(FtmoSimulationModalComponent);
     fixture.componentRef.setInput('strategyId', overrides.strategyId ?? 'strat-1');
     fixture.componentRef.setInput('strategyName', overrides.strategyName ?? 'My Strategy');
     fixture.componentRef.setInput('symbol', overrides.symbol ?? 'EURUSD');
-    fixture.componentRef.setInput('broker', overrides.broker ?? 'FTMO');
     fixture.detectChanges();
     return fixture;
   }
@@ -62,7 +60,7 @@ describe('FtmoSimulationModalComponent', () => {
 
   // --- Phase 1d.1: form signals and canRun ---
 
-  it('onOpen_PrefillsSourceGridFromConstant_BrokerFromAccountContext_AndInitialCapitalTo10000', () => {
+  it('onOpen_PrefillsSourceGridFromConstant_BrokerToFtmo_AndInitialCapitalTo10000', () => {
     const fixture = create();
     const comp = fixture.componentInstance;
     expect(comp.sizeDecimals()).toBe(IMOX_RETESTER_LOT_GRID.sizeDecimals);
@@ -470,6 +468,267 @@ describe('FtmoSimulationModalComponent', () => {
       start1DiffersFromSingleStartAnchor: true,
     };
   }
+
+  // --- Post-PR1 fixes (2026-10-01) ---
+
+  describe('post-PR1 fixes', () => {
+    beforeEach(() => {
+      const translate = TestBed.inject(TranslateService);
+      translate.setTranslation('en', en);
+      translate.setTranslation('es', es);
+      translate.use('en');
+    });
+
+    function runWith(
+      fixture: ComponentFixture<FtmoSimulationModalComponent>,
+      runs: unknown[],
+    ): HTMLElement {
+      const comp = fixture.componentInstance;
+      fillRequiredFields(comp);
+      fixture.detectChanges();
+      comp.run();
+      expectOneRequest().flush({ strategyId: 'strat-1', runs });
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    // Fix 1: broker prefill is always FTMO (user decision 2026-10-01), still editable.
+    it('broker_IsPrefilledWithFtmo_AndTheModalTakesNoBrokerInput', () => {
+      const fixture = create();
+      expect(fixture.componentInstance.brokerValue()).toBe('FTMO');
+      const input = (fixture.nativeElement as HTMLElement).querySelector(
+        '#ftmo-broker',
+      ) as HTMLInputElement;
+      expect(input).not.toBeNull();
+    });
+
+    it('broker_StaysEditable_AndTheTypedValueIsWhatTheRequestCarries', () => {
+      const fixture = create();
+      const comp = fixture.componentInstance;
+      comp.brokerValue.set('Darwinex');
+      fillRequiredFields(comp);
+      fixture.detectChanges();
+      comp.run();
+      const req = expectOneRequest();
+      expect(req.request.params.get('broker')).toBe('Darwinex');
+      req.flush({ strategyId: 'strat-1', runs: [] });
+    });
+
+    it('falsification_TheDefaultBrokerIsTheConstant_NotAnAccountBrokerLikeDarwinex', () => {
+      const fixture = create();
+      expect(fixture.componentInstance.brokerValue()).not.toBe('Darwinex');
+      expect(fixture.componentInstance.brokerValue()).toBe('FTMO');
+    });
+
+    // Fix 2: the refusal names the broker from the SUBMITTED query.
+    it('limitsNotConfigured_NamesTheSubmittedBroker_InEnglishAndSpanish', () => {
+      const fixture = create();
+      fixture.componentInstance.brokerValue.set('Darwinex');
+      const host = runWith(fixture, [
+        { ...makeRunDto(BacktestRunKind.Deploy), refusal: 2 },
+        { ...makeRunDto(BacktestRunKind.Evaluation), refusal: 2 },
+      ]);
+      const refusals = Array.from(host.querySelectorAll('.ftmo-run-panel__refusal')).map((e) =>
+        visibleText(e as HTMLElement),
+      );
+      expect(refusals).toEqual([
+        "The broker 'Darwinex' has no FTMO limits configured.",
+        "The broker 'Darwinex' has no FTMO limits configured.",
+      ]);
+      TestBed.inject(TranslateService).use('es');
+      fixture.detectChanges();
+      expect(visibleText(host.querySelector('.ftmo-run-panel__refusal') as HTMLElement)).toBe(
+        "El broker 'Darwinex' no tiene límites de FTMO configurados.",
+      );
+      expect(visibleText(host)).not.toContain('{{');
+      expect(visibleText(host)).not.toContain('FTMO_SIMULATION.');
+    });
+
+    it('productNotTwoStep_NamesTheSubmittedBroker_NotTheAccount', () => {
+      const fixture = create();
+      const host = runWith(fixture, [{ ...makeRunDto(BacktestRunKind.Deploy), refusal: 1 }]);
+      expect(visibleText(host.querySelector('.ftmo-run-panel__refusal') as HTMLElement)).toBe(
+        "The broker 'FTMO' is not configured as a two-step challenge product.",
+      );
+    });
+
+    it('falsification_TheRefusalFollowsTheSubmittedBroker_NotAHardcodedOne', () => {
+      const fixture = create();
+      fixture.componentInstance.brokerValue.set('Other Broker');
+      const host = runWith(fixture, [{ ...makeRunDto(BacktestRunKind.Deploy), refusal: 2 }]);
+      const text = visibleText(host.querySelector('.ftmo-run-panel__refusal') as HTMLElement);
+      expect(text).toContain("'Other Broker'");
+      expect(text).not.toContain('Darwinex');
+      expect(text).not.toContain('account');
+    });
+
+    it('theRefusalKeepsTheSubmittedBroker_WhenTheFieldIsEditedAfterTheRun', () => {
+      const fixture = create();
+      const host = runWith(fixture, [{ ...makeRunDto(BacktestRunKind.Deploy), refusal: 2 }]);
+      fixture.componentInstance.brokerValue.set('Edited After');
+      fixture.detectChanges();
+      expect(visibleText(host.querySelector('.ftmo-run-panel__refusal') as HTMLElement)).toContain(
+        "'FTMO'",
+      );
+    });
+
+    // Fix 4: zero runs => one explicit message; one missing kind => the existing slot marker.
+    it('aResponseWithZeroRuns_RendersOneExplicitNoBacktestsMessage_InEnglishAndSpanish', () => {
+      const fixture = create();
+      const host = runWith(fixture, []);
+      const messages = host.querySelectorAll('.ftmo-sim__no-backtests');
+      expect(messages.length).toBe(1);
+      expect(visibleText(messages[0] as HTMLElement)).toBe(
+        'This strategy has no imported backtests. Import its Deploy and Evaluation backtests with the Import backtests action on the strategy row.',
+      );
+      expect(host.querySelectorAll('.ftmo-sim__no-run').length).toBe(0);
+      expect(visibleText(host)).not.toContain(en.FTMO_SIMULATION.NO_RUN_HELD);
+      TestBed.inject(TranslateService).use('es');
+      fixture.detectChanges();
+      expect(visibleText(host.querySelector('.ftmo-sim__no-backtests') as HTMLElement)).toBe(
+        es.FTMO_SIMULATION.NO_BACKTESTS_IMPORTED,
+      );
+      expect(visibleText(host)).not.toContain('{{');
+      expect(visibleText(host)).not.toContain('FTMO_SIMULATION.');
+    });
+
+    it('exactlyOneMissingKind_StillRendersNoRunHeld_AndNoNoBacktestsMessage', () => {
+      const fixture = create();
+      const host = runWith(fixture, [makeRunDto(BacktestRunKind.Deploy)]);
+      expect(host.querySelectorAll('.ftmo-sim__no-run').length).toBe(1);
+      expect(visibleText(host.querySelector('.ftmo-sim__no-run') as HTMLElement)).toBe(
+        en.FTMO_SIMULATION.NO_RUN_HELD,
+      );
+      expect(host.querySelector('.ftmo-sim__no-backtests')).toBeNull();
+    });
+
+    it('falsification_BothKindsPresent_RendersNeitherMessage', () => {
+      const fixture = create();
+      const host = runWith(fixture, [
+        makeRunDto(BacktestRunKind.Deploy),
+        makeRunDto(BacktestRunKind.Evaluation),
+      ]);
+      expect(host.querySelector('.ftmo-sim__no-backtests')).toBeNull();
+      expect(host.querySelector('.ftmo-sim__no-run')).toBeNull();
+    });
+
+    // Fix 5: server disclosure -> i18n, rendered once for the whole result (user decision 2026-10-03).
+    for (const locale of ['en', 'es'] as const) {
+      it(`theResultDisclosureAndNotModelledList_RenderOnceInTheRealDictionary_${locale}`, () => {
+        TestBed.inject(TranslateService).use(locale);
+        const dict = locale === 'en' ? en : es;
+        const fixture = create();
+        const run = (kind: BacktestRunKind) => ({
+          ...makeEvaluatedRunDto(kind),
+          notModelled: ['Swap', 'FtmoCommission', 'IntradayEquity'],
+          disclosure: 'RAW SERVER DISCLOSURE',
+        });
+        const host = runWith(fixture, [
+          run(BacktestRunKind.Deploy),
+          run(BacktestRunKind.Evaluation),
+        ]);
+        const blocks = host.querySelectorAll('.ftmo-sim__result-disclosure');
+        expect(blocks.length).toBe(1);
+        expect(visibleText(blocks[0] as HTMLElement)).toBe(dict.FTMO_SIMULATION.DISCLOSURE_RESULT);
+        const items = Array.from(host.querySelectorAll('.ftmo-sim__not-modelled li')).map((li) =>
+          visibleText(li as HTMLElement),
+        );
+        expect(items).toEqual([
+          dict.FTMO_SIMULATION.NOT_MODELLED.SWAP,
+          dict.FTMO_SIMULATION.NOT_MODELLED.FTMO_COMMISSION,
+          dict.FTMO_SIMULATION.NOT_MODELLED.INTRADAY_EQUITY,
+        ]);
+        expect(host.querySelectorAll('.ftmo-run-panel__disclosure').length).toBe(0);
+        expect(host.querySelectorAll('.ftmo-run-panel__not-modelled').length).toBe(0);
+        const text = visibleText(host);
+        expect(text).not.toContain('RAW SERVER DISCLOSURE');
+        expect(text).not.toContain('{{');
+        expect(text).not.toContain('FTMO_SIMULATION.');
+      });
+    }
+
+    it('theSpanishNotModelledLabelsAreTheDecidedWording', () => {
+      expect(es.FTMO_SIMULATION.NOT_MODELLED.SWAP).toBe('Swap');
+      expect(es.FTMO_SIMULATION.NOT_MODELLED.FTMO_COMMISSION).toBe('Comisión de FTMO');
+      expect(es.FTMO_SIMULATION.NOT_MODELLED.INTRADAY_EQUITY).toBe('Equity intradía');
+    });
+
+    it('theDisclosureCoversTheThreePoints_InBothLocales', () => {
+      const en3 = en.FTMO_SIMULATION.DISCLOSURE_RESULT.toLowerCase();
+      expect(en3).toContain('not independent');
+      expect(en3).toContain('not probabilities or a forecast');
+      expect(en3).toContain('swap');
+      expect(en3).toContain('understate breaches');
+      expect(en3).toContain('no reward withdrawal and no scaling plan');
+      expect(en3).toContain('optimistic');
+      const es3 = es.FTMO_SIMULATION.DISCLOSURE_RESULT.toLowerCase();
+      expect(es3).toContain('no son pruebas independientes');
+      expect(es3).toContain('ni un pronóstico');
+      expect(es3).toContain('swap');
+      expect(es3).toContain('subestiman');
+      expect(es3).toContain('scaling plan');
+      expect(es3).toContain('optimista');
+    });
+
+    it('anUnknownNotModelledValue_ShowsTheRawValueThroughTheParam_NeverALeakedPlaceholder', () => {
+      for (const locale of ['en', 'es'] as const) {
+        TestBed.inject(TranslateService).use(locale);
+        const fixture = create();
+        const host = runWith(fixture, [
+          { ...makeEvaluatedRunDto(BacktestRunKind.Deploy), notModelled: ['Slippage'] },
+          makeEvaluatedRunDto(BacktestRunKind.Evaluation),
+        ]);
+        const li = host.querySelectorAll('.ftmo-sim__not-modelled li');
+        expect(li.length).toBe(1);
+        const dict = locale === 'en' ? en : es;
+        expect(visibleText(li[0] as HTMLElement)).toBe(
+          dict.FTMO_SIMULATION.NOT_MODELLED.UNKNOWN.replace('{{value}}', 'Slippage'),
+        );
+        expect(visibleText(host)).not.toContain('{{');
+        fixture.destroy();
+      }
+    });
+
+    it('falsification_NoResultDisclosureBeforeARun_OrForAZeroRunResult', () => {
+      expect(
+        (create().nativeElement as HTMLElement).querySelector('.ftmo-sim__result-disclosure'),
+      ).toBeNull();
+      const host = runWith(create(), []);
+      expect(host.querySelector('.ftmo-sim__result-disclosure')).toBeNull();
+    });
+
+    // Fix 6: before the first Run, one hint instead of two empty slots.
+    for (const locale of ['en', 'es'] as const) {
+      it(`beforeTheFirstRun_ShowsOneHintAndNoEmptySlots_${locale}`, () => {
+        TestBed.inject(TranslateService).use(locale);
+        const dict = locale === 'en' ? en : es;
+        const host = create().nativeElement as HTMLElement;
+        expect(host.querySelectorAll('.ftmo-sim__no-run').length).toBe(0);
+        const hints = host.querySelectorAll('.ftmo-sim__before-run');
+        expect(hints.length).toBe(1);
+        expect(visibleText(hints[0] as HTMLElement)).toBe(dict.FTMO_SIMULATION.BEFORE_RUN_HINT);
+        expect(dict.FTMO_SIMULATION.BEFORE_RUN_HINT).toContain(dict.FTMO_SIMULATION.RUN);
+        expect(visibleText(host)).not.toContain('{{');
+        expect(visibleText(host)).not.toContain('FTMO_SIMULATION.');
+      });
+    }
+
+    it('falsification_AfterARun_TheHintIsGone_ForOneKindZeroKindsAndBothKinds', () => {
+      for (const runs of [
+        [makeRunDto(BacktestRunKind.Deploy)],
+        [],
+        [makeRunDto(BacktestRunKind.Deploy), makeRunDto(BacktestRunKind.Evaluation)],
+      ]) {
+        const host = runWith(create(), runs);
+        expect(host.querySelector('.ftmo-sim__before-run')).toBeNull();
+      }
+    });
+
+    it('beforeAnyRun_NoBacktestsMessageIsNotShown', () => {
+      const host = create().nativeElement as HTMLElement;
+      expect(host.querySelector('.ftmo-sim__no-backtests')).toBeNull();
+    });
+  });
 
   function makeRunDto(kind: BacktestRunKind) {
     return {

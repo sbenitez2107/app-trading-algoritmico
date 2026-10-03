@@ -149,13 +149,38 @@
       </p>
 
       <div class="ftmo-sim__runs">
-        @for (kind of runKinds; track kind) {
-          @if (panelFor(kind); as vm) {
-            <app-ftmo-run-panel [vm]="vm" />
-          } @else {
-            <section class="ftmo-sim__no-run">
-              {{ 'FTMO_SIMULATION.NO_RUN_HELD' | translate }}
-            </section>
+        @if (isBeforeFirstRun()) {
+          <p class="ftmo-sim__before-run" role="status">
+            {{ 'FTMO_SIMULATION.BEFORE_RUN_HINT' | translate }}
+          </p>
+        } @else if (hasNoRuns()) {
+          <section class="ftmo-sim__no-backtests" role="status">
+            {{ 'FTMO_SIMULATION.NO_BACKTESTS_IMPORTED' | translate }}
+          </section>
+        } @else if (result() !== null) {
+          <section class="ftmo-sim__result-notes">
+            <p class="ftmo-sim__result-disclosure">
+              {{ 'FTMO_SIMULATION.DISCLOSURE_RESULT' | translate }}
+            </p>
+            @if (notModelledItems().length > 0) {
+              <p class="ftmo-sim__not-modelled-heading">
+                {{ 'FTMO_SIMULATION.NOT_MODELLED_HEADING' | translate }}
+              </p>
+              <ul class="ftmo-sim__not-modelled">
+                @for (item of notModelledItems(); track item.value) {
+                  <li>{{ item.key | translate: { value: item.value } }}</li>
+                }
+              </ul>
+            }
+          </section>
+          @for (kind of runKinds; track kind) {
+            @if (panelFor(kind); as vm) {
+              <app-ftmo-run-panel [vm]="vm" [broker]="submittedBroker()" />
+            } @else {
+              <section class="ftmo-sim__no-run">
+                {{ 'FTMO_SIMULATION.NO_RUN_HELD' | translate }}
+              </section>
+            }
           }
         }
       </div>

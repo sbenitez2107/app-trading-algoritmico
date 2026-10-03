@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.45.1] - 2026-10-03
+
+### Changed
+
+- The FTMO simulation now always starts with `FTMO` as the broker, since the strategies with backtests live in a Darwinex account. The field stays editable.
+- Every text in the FTMO simulation window is translated into Spanish, including the disclosure and the list of what is not modelled, which now show once for the whole result instead of in each panel.
+- The language button in the header now shows the active language and is titled with the language it switches to.
+
+### Fixed
+
+- Refusals about FTMO limits name the broker that was submitted instead of blaming the account.
+- The FTMO simulation panels no longer render white inside the window under the light theme.
+- A strategy with no imported backtests shows one message explaining how to import them, instead of two empty slots. Before the first Run, a hint replaces the empty slots.
+
 ## [0.45.0] - 2026-09-28
 
 ### Added

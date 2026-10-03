@@ -81,3 +81,24 @@ describe('FTMO_SIMULATION i18n', () => {
     expect(Object.keys(enFlat).some((k) => k.startsWith('SQX'))).toBe(false);
   });
 });
+
+describe('broker-scoped refusal copy (post-PR1 fix 2)', () => {
+  const scoped = ['LIMITS_NOT_CONFIGURED', 'PRODUCT_NOT_TWO_STEP'] as const;
+
+  for (const key of scoped) {
+    it(`${key}_NamesTheBrokerInBothLocales_AndNeverBlamesTheAccount`, () => {
+      const enText = (en as JsonTree)['FTMO_SIMULATION']['REFUSAL'][key] as string;
+      const esText = (es as JsonTree)['FTMO_SIMULATION']['REFUSAL'][key] as string;
+      expect(enText).toContain('{{broker}}');
+      expect(esText).toContain('{{broker}}');
+      expect(enText.toLowerCase()).not.toContain('account');
+      expect(esText.toLowerCase()).not.toContain('cuenta');
+    });
+  }
+
+  it('falsification_TheOriginalAccountWordingWouldBeCaught', () => {
+    const original = 'No FTMO limits are configured for this account.';
+    expect(original).not.toContain('{{broker}}');
+    expect(original.toLowerCase()).toContain('account');
+  });
+});

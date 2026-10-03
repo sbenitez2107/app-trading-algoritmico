@@ -23,13 +23,19 @@ import {
   IMOX_RETESTER_LOT_GRID,
 } from '../../../core/models/ftmo-simulation.model';
 import { BacktestRunKind } from '../../../core/services/backtest.service';
-import { toPanels, FtmoRunPanelVm } from './ftmo-simulation.mappers';
+import { toPanels, toNotModelledItems, FtmoRunPanelVm } from './ftmo-simulation.mappers';
 import { FtmoRunPanelComponent } from './ftmo-run-panel/ftmo-run-panel.component';
 
 /** `!== null`/`!== undefined` and finite — `0` is a legal value (hard rule 2). */
 function isPresentNumber(value: number | null): value is number {
   return value !== null && value !== undefined && Number.isFinite(value);
 }
+
+/**
+ * The simulation always targets FTMO limits, so `broker` is prefilled with this constant and not
+ * with the account's own broker (user decision 2026-10-01, design.md AD8). The field stays editable.
+ */
+export const FTMO_DEFAULT_BROKER = 'FTMO';
 
 /**
  * Container modal (design.md AD1, AD5, AD6, AD9, AD10). Opened from `account-detail` via `@if`,
@@ -47,7 +53,6 @@ export class FtmoSimulationModalComponent implements OnInit {
   readonly strategyId = input.required<string>();
   readonly strategyName = input.required<string>();
   readonly symbol = input.required<string | null>();
-  readonly broker = input.required<string | null>();
   readonly closed = output<void>();
 
   private readonly ftmoService = inject(FtmoSimulationService);
@@ -73,6 +78,17 @@ export class FtmoSimulationModalComponent implements OnInit {
 
   readonly panels = computed<FtmoRunPanelVm[]>(() => toPanels(this.result()));
 
+  /** The deduplicated not-modelled list for the whole result, shown once next to the disclosure. */
+  readonly notModelledItems = computed(() => toNotModelledItems(this.result()));
+
+  /** Before the first Run: nothing requested, nothing running, no error shown yet. */
+  readonly isBeforeFirstRun = computed(
+    () => this.result() === null && !this.running() && this.error() === null,
+  );
+
+  /** A completed response with zero runs: the strategy has no imported backtests at all. */
+  readonly hasNoRuns = computed(() => this.result() !== null && this.panels().length === 0);
+
   /** All 8 required fields per AD6, `!running()`. `sizeDecimals=0` counts as present (hard rule 2). */
   readonly canRun = computed(() => {
     if (this.running()) {
@@ -91,7 +107,7 @@ export class FtmoSimulationModalComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.brokerValue.set(this.broker() ?? '');
+    this.brokerValue.set(FTMO_DEFAULT_BROKER);
     this.sqxSymbol.set(this.symbol() ?? '');
   }
 
@@ -148,6 +164,11 @@ export class FtmoSimulationModalComponent implements OnInit {
           this.running.set(false);
         },
       });
+  }
+
+  /** Broker of the last submitted query: refusals name it, and later edits of the field do not change it. */
+  submittedBroker(): string | null {
+    return this.lastQuery?.broker ?? null;
   }
 
   /** Snapshot of the query used by the last activated Run (design.md AD10/AD12; consumed from PR2). */

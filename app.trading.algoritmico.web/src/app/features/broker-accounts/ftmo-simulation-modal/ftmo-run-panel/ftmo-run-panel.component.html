@@ -3,16 +3,6 @@
     <h3 class="ftmo-run-panel__title">{{ kindLabelKey() | translate }}</h3>
   </header>
 
-  <p class="ftmo-run-panel__disclosure">{{ vm().disclosure }}</p>
-
-  @if (vm().notModelled.length > 0) {
-    <ul class="ftmo-run-panel__not-modelled">
-      @for (item of vm().notModelled; track item) {
-        <li>{{ item }}</li>
-      }
-    </ul>
-  }
-
   @if (vm().monthsWithoutStartCount > 0) {
     <p class="ftmo-run-panel__months-without-start">
       {{
@@ -36,7 +26,10 @@
         {{
           $any(vm()).refusalKey
             | translate
-              : { value: $any(vm()).refusalValue ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate) }
+              : {
+                  value: $any(vm()).refusalValue ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                  broker: broker() ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                }
         }}
       </p>
     }

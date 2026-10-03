@@ -862,3 +862,53 @@ Do not start PR2b until PR2a's Phase 2a.4 gates are all green.
 | Banned Wording Is Excluded From The FTMO i18n Keys | 1b, 2a | 1b.1.2–1b.1.3, 2a.3.6 |
 | Every FTMO Enum Is Mapped By Exact Value, Never By Truthiness | 1a, 1b, 2a | 1a.1.1, 1b.2.1–1b.2.5, 2a.1.1, 2a.3.2–2a.3.3 |
 | Every Visible String Comes From i18n, In EN And ES, Except The Server's Disclosure Text | 1b, 1c, 2a, 2b | 1b.1.1, 1c.1.3, 2a.3.6, 2b.1.3 |
+
+---
+
+## Post-PR1 fixes (2026-10-01)
+
+Four UX defects found while the user tested the modal with real data, plus three fixes (P5 to P7) from the user decision of 2026-10-03 (every modal text must be available in Spanish). Strict TDD (RED, GREEN, falsification each), no backend change.
+
+- [x] P1 Broker prefill: `brokerValue` starts as the constant `FTMO` (`FTMO_DEFAULT_BROKER`); the modal's
+  `broker` input and the `[broker]` binding in `account-detail.component.html` were removed; the field
+  stays editable. User decision 2026-10-01 (strategies with backtests live in a Darwinex account, so an
+  account-derived broker always refused with `LimitsNotConfigured`). Spec requirement and scenario and
+  design AD8 amended. _Existing test changed (user-decided behaviour change): the `create()` helper in
+  `ftmo-simulation-modal.component.spec.ts` no longer sets the removed `broker` input, and the test
+  `onOpen_PrefillsSourceGridFromConstant_BrokerFromAccountContext_...` was renamed `..._BrokerToFtmo_...`
+  (its `'FTMO'` assertion is unchanged). The account-detail spec never asserted that the broker was passed._
+- [x] P2 Refusal copy: `LIMITS_NOT_CONFIGURED` and `PRODUCT_NOT_TWO_STEP` (EN and ES) now name the broker
+  via a `{{broker}}` param. `FtmoRunPanelComponent` takes a `broker` input, fed by the modal's
+  `submittedBroker()` (the broker of `lastQuery`, so later edits do not change it). The other refusals
+  were checked: none else blames the account (`FX_RATE_NOT_DECLARED` mentions the profit currency, which
+  is not a misattribution).
+- [x] P3 White panels: root cause, the modal shell read variables that `styles/_variables.scss` never
+  declares (`--color-surface`, `--color-text-primary`, ...), so it always painted its hardcoded
+  Catppuccin dark fallbacks, while the panels read the real `--bg-surface` and followed the light theme
+  (white). The modal now uses `--bg-surface`, `--bg-surface-2`, `--border-color`, `--text-main`,
+  `--text-muted`, `--color-primary`; its run-button text no longer uses a hardcoded dark hex.
+  `ftmo-simulation.theme.spec.ts` asserts on the compiled CSS that no FTMO stylesheet reads an
+  undeclared legacy variable and that the shell uses the theme surface and border variables.
+  _Manual check (jsdom does not resolve `var()`): open the modal with `data-theme="dark"` and with the
+  light theme, confirm the modal and both panels share one surface colour in each._
+- [x] P4 Empty response: `hasNoRuns` (result present, zero panels) renders one
+  `NO_BACKTESTS_IMPORTED` message (EN and ES); `NO_RUN_HELD` stays only when exactly one kind is
+  missing. Spec scenarios added (zero runs; exactly one missing).
+- [x] P5 Disclosure to i18n: the per-panel verbatim server `disclosure` is no longer rendered or carried
+  by the panel VM. The modal renders ONE `DISCLOSURE_RESULT` (EN and neutral ES) when the result has
+  runs. Spec requirement and design AD11 amended (user decision 2026-10-03; reason: the user wants a
+  Spanish UI). _Existing assertions changed (forced by the decision): the panel spec test
+  `theRunsDisclosureAndNotModelledText_AreAlwaysVisible_ShownVerbatim_...` now asserts the panel does
+  NOT render them; the mappers spec test "the server Disclosure and NotModelled text pass through
+  verbatim" now asserts the VM no longer carries them._
+- [x] P6 notModelled to i18n labels: `toNotModelledItems` maps the exact values `Swap`, `FtmoCommission`,
+  `IntradayEquity` (verified against `FtmoRunSimulationResultDto.DefaultNotModelled`) to
+  `NOT_MODELLED.*` labels, UNKNOWN fallback with the raw value as `{{value}}`, deduplicated across runs
+  and rendered once beside the disclosure. ES: "Swap", "Comisión de FTMO", "Equity intradía".
+- [x] P7 Before the first Run: one `BEFORE_RUN_HINT` replaces the two "No run held" slots (shown only
+  while there is no result, no running request and no error). The ES hint names the real ES Run label
+  "Ejecutar". "No run held" stays for exactly one missing kind; the zero-runs message is unchanged.
+  _No existing assertion changed for P7: no test asserted the two empty slots before a run._
+- [x] Gates: prettier clean, `tsc --noEmit` exit 0, `ng test` 42 files / 549 tests (536 + 13 net new).
+
+- [x] P8 Header language toggle shows the active language (ES/EN) and titles what it switches to (`LanguageService.currentLabel` / `switchTitleKey`, keys `LAYOUT.HEADER.SWITCH_TO_EN|ES`); removed the now-unused `TOGGLE_LANG` key and `currentLang` field. RED: TS2339 on the new members; GREEN 550/550. Pre-existing prettier debt in `language.service.spec.ts` left untouched.
