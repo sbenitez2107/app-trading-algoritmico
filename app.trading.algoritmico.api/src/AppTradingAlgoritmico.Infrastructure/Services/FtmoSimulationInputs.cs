@@ -56,20 +56,36 @@ internal static class FtmoSimulationInputs
         int CappedAtMaximumCount,
         int UnscalableCount);
 
-    internal static async Task<SharedResolution> ResolveSharedAsync(AppDbContext db, FtmoBreachSimulationRequest request, CancellationToken ct)
+    /// <summary>
+    /// ftmo-group-simulation B1 (design.md D1): the broker-wide half of the shipped guard chain — limits
+    /// row, product, drawdown model. Independent of any symbol, so a group resolves it ONCE.
+    /// <see cref="Refusal"/> is <see cref="FtmoSimulationRefusal.LimitsNotConfigured"/> (percentages zeroed),
+    /// <see cref="FtmoSimulationRefusal.ProductNotTwoStep"/> or
+    /// <see cref="FtmoSimulationRefusal.DrawdownModelNotStatic"/> (percentages and profit target carried).
+    /// </summary>
+    internal sealed record LimitsResolution(
+        FtmoSimulationRefusal? Refusal, decimal DailyPct, decimal MaxPct, decimal? ProfitTargetPct);
+
+    /// <summary>
+    /// ftmo-group-simulation B1 (design.md D1): the symbol-wide half — spec, grid, point value, FX band
+    /// and source zone. <see cref="Refusal"/> is the first failure of spec -&gt; calibration -&gt; FX; every
+    /// other field holds the value it had at that point, exactly as the shipped chain did.
+    /// <see cref="ZoneRefusal"/> is a SEPARATE channel (set only when <see cref="Refusal"/> is null) so the
+    /// composition can keep <c>InvalidRequest</c> ahead of <c>TimeZoneDataUnavailable</c>.
+    /// </summary>
+    internal sealed record SymbolResolution(
+        FtmoSimulationRefusal? Refusal,
+        FtmoInstrumentSpec? Spec,
+        LotGrid? FtmoGrid,
+        decimal PointValue,
+        (decimal Low, decimal High) FxBand,
+        FtmoSimulationRefusal? ZoneRefusal,
+        TimeZoneInfo? SourceZone);
+
+    internal static async Task<LimitsResolution> ResolveLimitsAsync(AppDbContext db, string broker, CancellationToken ct)
     {
-        var runs = await db.BacktestRuns.AsNoTracking()
-            .Where(r => r.StrategyId == request.StrategyId)
-            .Select(r => new { r.Id, r.Kind })
-            .ToListAsync(ct);
-
-        var runTuples = runs.Select(r => (r.Id, r.Kind)).ToList();
-
-        if (runs.Count == 0)
-            return new SharedResolution(true, null, runTuples, 0m, 0m, null, null, null, 0m, (1m, 1m), null, null, null);
-
         var limits = await db.BrokerRiskLimits.AsNoTracking()
-            .Where(l => l.Broker == request.Broker && l.Kind == GuardrailKind.LossLimits)
+            .Where(l => l.Broker == broker && l.Kind == GuardrailKind.LossLimits)
             .FirstOrDefaultAsync(ct);
 
         // A null percentage means the rule is NOT configured — never a 0% rule: 0% would put the max
@@ -84,82 +100,150 @@ internal static class FtmoSimulationInputs
                 MaxLossLimitPct: { } maxPct and > 0m and <= 1m,
             })
         {
-            return new SharedResolution(
-                false, FtmoSimulationRefusal.LimitsNotConfigured, runTuples, 0m, 0m, null, null, null, 0m, (1m, 1m), null, null, null);
+            return new LimitsResolution(FtmoSimulationRefusal.LimitsNotConfigured, 0m, 0m, null);
         }
 
-        FtmoSimulationRefusal? sharedRefusal =
+        FtmoSimulationRefusal? refusal =
             limits.FtmoProduct is null || limits.FtmoProduct != FtmoProduct.TwoStep ? FtmoSimulationRefusal.ProductNotTwoStep
             : limits.DrawdownModel != DrawdownModel.Static ? FtmoSimulationRefusal.DrawdownModelNotStatic
             : null;
 
-        FtmoInstrumentSpec? spec = null;
-        LotGrid? ftmoGrid = null;
-        if (sharedRefusal is null)
-        {
-            spec = await db.FtmoInstrumentSpecs.AsNoTracking()
-                .FirstOrDefaultAsync(s => s.SqxSymbol == request.SqxSymbol, ct);
+        return new LimitsResolution(refusal, dailyPct, maxPct, limits.ProfitTargetPct);
+    }
 
-            if (spec is null || spec.ContractSize <= 0m)
-            {
-                sharedRefusal = FtmoSimulationRefusal.InstrumentSpecMissing;
-            }
-            else
-            {
-                try
-                {
-                    ftmoGrid = new LotGrid(spec.SizeDecimals, spec.Step, spec.MinLot, spec.MaxLots);
-                }
-                catch (ArgumentOutOfRangeException)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.InstrumentSpecMissing;
-                }
-            }
+    /// <summary>A spec is usable when its contract size is positive and its lot grid constructs.</summary>
+    private static bool TryBuildSpecGrid(FtmoInstrumentSpec? spec, out LotGrid? grid)
+    {
+        grid = null;
+        if (spec is null || spec.ContractSize <= 0m)
+            return false;
+
+        try
+        {
+            grid = new LotGrid(spec.SizeDecimals, spec.Step, spec.MinLot, spec.MaxLots);
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
+
+    internal static SymbolResolution ResolveSymbol(
+        FtmoInstrumentSpec? spec, SymbolCalibration? calibration, decimal? fxLow, decimal? fxHigh)
+    {
+        if (!TryBuildSpecGrid(spec, out var ftmoGrid))
+        {
+            // Spec refusal wins: the calibration is only consulted for a usable spec.
+            return new SymbolResolution(
+                FtmoSimulationRefusal.InstrumentSpecMissing, spec, null, 0m, (1m, 1m), null, null);
         }
 
-        var pointValue = 0m;
-        if (sharedRefusal is null)
+        // Load-bearing null check (design.md Decision 6): Calibrated == 0 is the CLR default, so
+        // a null PointValue must be checked independently of Status. Covers NQ.
+        if (calibration is null
+            || calibration.Status != CalibrationStatus.Calibrated
+            || calibration.PointValue is null
+            || calibration.PointValue.Value <= 0m)
         {
-            var calibration = await db.SymbolCalibrations.AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Symbol == request.SqxSymbol, ct);
-
-            // Load-bearing null check (design.md Decision 6): Calibrated == 0 is the CLR default, so
-            // a null PointValue must be checked independently of Status. Covers NQ.
-            if (calibration is null
-                || calibration.Status != CalibrationStatus.Calibrated
-                || calibration.PointValue is null
-                || calibration.PointValue.Value <= 0m)
-            {
-                sharedRefusal = FtmoSimulationRefusal.PointValueNotCalibrated;
-            }
-            else
-            {
-                pointValue = calibration.PointValue.Value;
-            }
+            return new SymbolResolution(
+                FtmoSimulationRefusal.PointValueNotCalibrated, spec, ftmoGrid, 0m, (1m, 1m), null, null);
         }
+
+        var pointValue = calibration.PointValue.Value;
 
         (decimal Low, decimal High) fxBand = (1m, 1m);
-        if (sharedRefusal is null)
+        if (!SettlesInAccountCurrency(spec!))
         {
-            var sameCurrency = string.Equals(spec!.ProfitCurrency, UsdCurrency, StringComparison.OrdinalIgnoreCase);
-            if (!sameCurrency)
+            if (fxLow is null || fxHigh is null)
             {
-                if (request.FxLow is null || request.FxHigh is null)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.FxRateNotDeclared;
-                }
-                else if (request.FxLow.Value <= 0m || request.FxHigh.Value <= 0m || request.FxLow.Value > request.FxHigh.Value)
-                {
-                    sharedRefusal = FtmoSimulationRefusal.InvalidFxBand;
-                }
-                else
-                {
-                    fxBand = (request.FxLow.Value, request.FxHigh.Value);
-                }
+                return new SymbolResolution(
+                    FtmoSimulationRefusal.FxRateNotDeclared, spec, ftmoGrid, pointValue, fxBand, null, null);
             }
+
+            if (fxLow.Value <= 0m || fxHigh.Value <= 0m || fxLow.Value > fxHigh.Value)
+            {
+                return new SymbolResolution(
+                    FtmoSimulationRefusal.InvalidFxBand, spec, ftmoGrid, pointValue, fxBand, null, null);
+            }
+
+            fxBand = (fxLow.Value, fxHigh.Value);
+        }
+
+        // Zone resolution has no side effects, so it is evaluated here but reported on its OWN channel:
+        // the shipped chain reported request validity (InvalidRequest) before the zone.
+        var zoneRefusal = FtmoDayClock.TryResolveZone(spec!.SourceTimeZoneId, out var sourceZone)
+            ? (FtmoSimulationRefusal?)null
+            : FtmoSimulationRefusal.TimeZoneDataUnavailable;
+
+        return new SymbolResolution(null, spec, ftmoGrid, pointValue, fxBand, zoneRefusal, sourceZone);
+    }
+
+    internal static async Task<SymbolResolution> ResolveSymbolAsync(
+        AppDbContext db, string sqxSymbol, decimal? fxLow, decimal? fxHigh, CancellationToken ct)
+    {
+        var spec = await db.FtmoInstrumentSpecs.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SqxSymbol == sqxSymbol, ct);
+
+        // The calibration query is only issued for a usable spec (preserves the shipped query shape).
+        SymbolCalibration? calibration = null;
+        if (TryBuildSpecGrid(spec, out _))
+        {
+            calibration = await db.SymbolCalibrations.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Symbol == sqxSymbol, ct);
+        }
+
+        return ResolveSymbol(spec, calibration, fxLow, fxHigh);
+    }
+
+    /// <summary>
+    /// Known, deliberate test gap: the false branch is unreachable in practice because
+    /// <c>BerlinIanaId</c> is a hardcoded, always-shipped IANA id. It stays as a defensive guard for a
+    /// host without ICU/tz data; no test contorts the environment to reach it.
+    /// </summary>
+    internal static bool TryResolveBerlin(out TimeZoneInfo? berlinZone)
+        => FtmoDayClock.TryResolveZone(BerlinIanaId, out berlinZone);
+
+    /// <summary>True when the spec's profit currency is the FTMO account currency (<c>UsdCurrency</c>).</summary>
+    internal static bool SettlesInAccountCurrency(FtmoInstrumentSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        return string.Equals(spec.ProfitCurrency, UsdCurrency, StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static async Task<SharedResolution> ResolveSharedAsync(AppDbContext db, FtmoBreachSimulationRequest request, CancellationToken ct)
+    {
+        var runs = await db.BacktestRuns.AsNoTracking()
+            .Where(r => r.StrategyId == request.StrategyId)
+            .Select(r => new { r.Id, r.Kind })
+            .ToListAsync(ct);
+
+        var runTuples = runs.Select(r => (r.Id, r.Kind)).ToList();
+
+        if (runs.Count == 0)
+            return new SharedResolution(true, null, runTuples, 0m, 0m, null, null, null, 0m, (1m, 1m), null, null, null);
+
+        var limits = await ResolveLimitsAsync(db, request.Broker, ct);
+
+        if (limits.Refusal == FtmoSimulationRefusal.LimitsNotConfigured)
+        {
+            return new SharedResolution(
+                false, limits.Refusal, runTuples, 0m, 0m, null, null, null, 0m, (1m, 1m), null, null, null);
         }
 
         var sourceGrid = request.TryBuildSourceGrid();
+
+        if (limits.Refusal is not null)
+        {
+            // Product / drawdown-model refusal: the symbol queries are never issued.
+            return new SharedResolution(
+                false, limits.Refusal, runTuples, limits.DailyPct, limits.MaxPct, null, sourceGrid, null, 0m, (1m, 1m),
+                null, null, limits.ProfitTargetPct);
+        }
+
+        var symbol = await ResolveSymbolAsync(db, request.SqxSymbol, request.FxLow, request.FxHigh, ct);
+        var sharedRefusal = symbol.Refusal;
+
         if (sharedRefusal is null
             && (sourceGrid is null || request.InitialCapital <= 0m || request.TargetRiskPerTrade <= 0m))
         {
@@ -170,19 +254,14 @@ internal static class FtmoSimulationInputs
         TimeZoneInfo? berlinZone = null;
         if (sharedRefusal is null)
         {
-            // Known, deliberate test gap: the Berlin disjunct is unreachable in practice because
-            // BerlinIanaId is a hardcoded, always-shipped IANA id. It stays as a defensive guard for
-            // a host without ICU/tz data; no test contorts the environment to reach it.
-            if (!FtmoDayClock.TryResolveZone(spec!.SourceTimeZoneId, out sourceZone)
-                || !FtmoDayClock.TryResolveZone(BerlinIanaId, out berlinZone))
-            {
+            sourceZone = symbol.SourceZone;
+            if (symbol.ZoneRefusal is not null || !TryResolveBerlin(out berlinZone))
                 sharedRefusal = FtmoSimulationRefusal.TimeZoneDataUnavailable;
-            }
         }
 
         return new SharedResolution(
-            false, sharedRefusal, runTuples, dailyPct, maxPct, spec, sourceGrid, ftmoGrid, pointValue, fxBand,
-            sourceZone, berlinZone, limits.ProfitTargetPct);
+            false, sharedRefusal, runTuples, limits.DailyPct, limits.MaxPct, symbol.Spec, sourceGrid, symbol.FtmoGrid,
+            symbol.PointValue, symbol.FxBand, sourceZone, berlinZone, limits.ProfitTargetPct);
     }
 
     internal static RunProjection ProjectRun(
