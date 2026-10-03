@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Point-value calibration now ignores stop-loss samples shorter than 200 price ticks. SQX exports prices rounded to the price grid, and on very short stops that rounding alone pushed a correct sample past the 0.5% consistency gate. This kept NQ (`USATECHIDXUSD_M1_UTC02`) uncalibrated and refused its FTMO simulation. Symbols are recalibrated on their next backtest import, and calibration counts now describe only the samples kept: gold's drops from 776 to 266.
+- Point-value calibration now ignores stop-loss samples shorter than 200 price ticks. SQX exports prices rounded to the price grid, and on very short stops that rounding alone pushed a correct sample past the 0.5% consistency gate. This kept NQ (`USATECHIDXUSD_M1_UTC02`) uncalibrated and refused its FTMO simulation. Symbols are recalibrated on their next backtest import, and calibration counts now describe only the samples kept. NQ now calibrates at 10 from 1,915 samples; gold (776) and DAX (485) keep every sample, because none of their stops is under 200 ticks.
 
 ## [0.45.1] - 2026-10-03
 

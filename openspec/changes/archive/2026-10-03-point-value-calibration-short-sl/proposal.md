@@ -36,7 +36,7 @@ Inside `Calibrate`, compute `tick = 10^-d`, where `d` is the maximum number of s
 |------|--------|-------------|
 | `Infrastructure/Services/SymbolPointValueCalibrator.cs` | Modified | Tick inference + exclusion |
 | `tests/.../Backtests/SymbolPointValueCalibratorShortSlTests.cs` | New | RED scenarios |
-| `SymbolCalibrations` rows (data) | Modified | NQ → Calibrated 10; gold n 776 → 266 |
+| `SymbolCalibrations` rows (data) | Modified | NQ → Calibrated 10 (n=1915); gold and DAX unchanged (776, 485) |
 
 No Domain/Application/WebAPI/Angular code changes. Display-only consumers: `backtests-list.component.html:97-99`, cost decomposition `SampleCount`.
 
@@ -59,7 +59,7 @@ Revert the calibrator commit, then re-import one file per symbol (with authoriza
 ## Success Criteria
 
 - [ ] NQ: Calibrated, 10, n=1915, spread 0.264%.
-- [ ] Gold: 100, n=266. DAX: unchanged at 10.
+- [x] Gold: 100, n=776 (unchanged). DAX: unchanged at 10, n=485.
 - [ ] All pre-existing calibrator tests green and unedited.
 
 ## Proposal question round
@@ -73,3 +73,10 @@ Assumed, needs review:
 Approved: the user approved the plan and all four assumptions above on 2026-10-03
 (excluded-sample count deferred with no schema change; gold 776 -> 266 samples accepted;
 integer-only symbols stay unfiltered; recalibration by re-importing existing files).
+
+## Correction (2026-10-03, after recalibration)
+
+The "gold 776 -> 266" figure came from a 20-point cutoff in the investigation, not from the
+implemented 200-tick rule. Gold's tick is 0.01, so the threshold is 2.00, and gold's shortest
+stop-loss distance is 4.27 — no gold sample is excluded. Measured after re-import: gold stays
+Calibrated at 100 with n=776; NQ is Calibrated at 10 with n=1915 (min 9.985631, max 10.011995).

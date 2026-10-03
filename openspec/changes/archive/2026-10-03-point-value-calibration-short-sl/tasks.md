@@ -59,7 +59,12 @@ Each mutation is temporary. Revert it and confirm with `git diff` that only the 
 
 ## Phase 5: Recalibration of stored rows (DB WRITE — authorization required)
 
-- [ ] 5.1 STOP and ask the user for explicit authorization. Name the target: local Docker container `mssql-db`, database `AppTA`, table `SymbolCalibrations` (rows for NQ, XAUUSD, DAX). Proceed only after a yes.
-- [ ] 5.2 The user restarts their API on the new build (the agent never kills processes). Through the API, record the baseline from `GET api/backtests/calibrations`.
-- [ ] 5.3 Re-import one already-imported file per symbol into its existing slot (`POST api/strategies/{id}/backtests/{kind}` or the import modal). Expect outcome `Unchanged`, which writes no run/trade rows and recalibrates.
-- [ ] 5.4 Verify: NQ Calibrated 10, n=1915; XAUUSD 100, n=266; DAX 10 with an unchanged `SampleCount`. An NQ FTMO simulation no longer refuses `PointValueNotCalibrated`.
+- [x] 5.1 STOP and ask the user for explicit authorization. Name the target: local Docker container `mssql-db`, database `AppTA`, table `SymbolCalibrations` (rows for NQ, XAUUSD, DAX). Proceed only after a yes.
+- [x] 5.2 The user restarts their API on the new build (the agent never kills processes). Through the API, record the baseline from `GET api/backtests/calibrations`.
+- [x] 5.3 Re-import one already-imported file per symbol into its existing slot (`POST api/strategies/{id}/backtests/{kind}` or the import modal). Expect outcome `Unchanged`, which writes no run/trade rows and recalibrates.
+- [x] 5.4 Verify: NQ Calibrated 10, n=1915; XAUUSD 100, n=776 (corrected: no gold stop is under 200 ticks); DAX 10 with an unchanged `SampleCount`. An NQ FTMO simulation no longer refuses `PointValueNotCalibrated`.
+
+Recalibration evidence (2026-10-03, user-authorized; target mssql-db/AppTA/SymbolCalibrations): API started from the
+committed build on :5000, both Deploy CSVs re-imported (SHA-256 identical to the stored ContentHash, outcome Unchanged,
+no run/trade rows written), API stopped afterwards. Before: NQ Inconsistent/NULL/2034. After: NQ Calibrated 10/1915,
+XAUUSD Calibrated 100/776 (recalibrated at 21:38:18 UTC), DAX untouched 10/485.
