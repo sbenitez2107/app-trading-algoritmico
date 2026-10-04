@@ -270,3 +270,9 @@ Gaps: `Start1DiffersFromSingleStartAnchor` relabelling for groups (design D4) ha
   - RESILIENCE-001: no `ILogger` on refusals or run duration.
   - RESILIENCE-002 / RISK: thread-pool use of `Parallel.For` per request; negligible for a single user.
   - READABILITY-001..003: the controller reads `MaxMembers` from Infrastructure; the validator duplicates `TryValidateFtmoBreachQuery`; a repeated per-member resolution expression.
+
+## Post-F4 fixes from the user's real test (2026-10-04)
+
+- [x] P1 The browser's native constraint validation blocked Run: number inputs had no `step`, so 0.01 was rejected before submit. The form is now `novalidate` and every number input is `step="any"`; `ftmo-group-form.native-validation.spec.ts` was RED before the fix.
+- [x] P2 Selected strategies hidden by the search or filter could not be removed, so a full group could not be edited. The picker now shows an always-visible selected list with a remove button per member, plus a hint to clear the search when the cap is reached and no rows show. `ftmo-group-picker.selected.spec.ts` was RED 5/5, then GREEN; falsified by filtering the list through the visible rows.
+- Deferred UI polish: the risk readout repeats the 1% warning per line; attribution tables show all zeros when nothing breached (a "nothing to attribute" message would read better); diagnostics tables are wider than the panel.

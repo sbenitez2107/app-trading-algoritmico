@@ -39,6 +39,10 @@ export class FtmoGroupPickerComponent {
       search: this.search(),
     }).map(toCandidateRowVm),
   );
+  /** Selected candidates in candidate order; independent of the filter and the search. */
+  readonly selectedCandidates = computed(() =>
+    this.candidates().filter((c) => this.selectedIds().has(c.strategyId)),
+  );
   readonly capReached = computed(() => this.selectedIds().size >= this.maxMembers());
 
   isSelected(strategyId: string): boolean {
@@ -51,6 +55,10 @@ export class FtmoGroupPickerComponent {
 
   onToggle(strategyId: string): void {
     this.selectionChange.emit(toggleSelection(this.selectedIds(), strategyId, this.maxMembers()));
+  }
+
+  onRemove(strategyId: string): void {
+    this.onToggle(strategyId);
   }
 
   onSymbolChange(value: string): void {

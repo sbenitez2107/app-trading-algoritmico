@@ -1,6 +1,40 @@
 <section class="ftmo-group-picker">
   <h2 class="ftmo-group-picker__title">{{ 'SIMULATOR.FTMO_GROUP.PICKER.TITLE' | translate }}</h2>
 
+  <div class="ftmo-group-picker__selected">
+    <h3 class="ftmo-group-picker__selected-title">
+      {{ 'SIMULATOR.FTMO_GROUP.PICKER.SELECTED_TITLE' | translate }}
+    </h3>
+    @if (selectedCandidates().length === 0) {
+      <p class="ftmo-group-picker__empty">
+        {{ 'SIMULATOR.FTMO_GROUP.PICKER.SELECTED_NONE' | translate }}
+      </p>
+    } @else {
+      <ul class="ftmo-group-picker__selected-list">
+        @for (item of selectedCandidates(); track item.strategyId) {
+          <li class="ftmo-group-picker__selected-item">
+            <span>
+              {{ item.name }}
+              <span class="ftmo-group-picker__selected-symbol">
+                {{ item.symbol ?? ('SIMULATOR.FTMO_GROUP.PICKER.NO_SYMBOL' | translate) }}
+              </span>
+            </span>
+            <button
+              type="button"
+              class="ftmo-group-picker__remove"
+              [attr.aria-label]="
+                'SIMULATOR.FTMO_GROUP.PICKER.REMOVE' | translate: { name: item.name }
+              "
+              (click)="onRemove(item.strategyId)"
+            >
+              &times;
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
   <div class="ftmo-group-picker__filters">
     <label class="ftmo-group-picker__field">
       <span>{{ 'SIMULATOR.FTMO_GROUP.PICKER.SYMBOL_LABEL' | translate }}</span>
@@ -36,6 +70,12 @@
   @if (capReached()) {
     <p class="ftmo-group-picker__cap" role="status">
       {{ 'SIMULATOR.FTMO_GROUP.PICKER.CAP_REACHED' | translate: { max: maxMembers() } }}
+    </p>
+  }
+
+  @if (capReached() && rows().length === 0) {
+    <p class="ftmo-group-picker__cap" role="status">
+      {{ 'SIMULATOR.FTMO_GROUP.PICKER.CAP_CLEAR_SEARCH' | translate }}
     </p>
   }
 

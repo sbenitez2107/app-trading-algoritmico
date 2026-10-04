@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.52.1] - 2026-10-04
+
+### Fixed
+
+- The FTMO group form no longer refuses decimal values such as a 0.01 lot step. The browser was blocking Run before the page could act.
+- Selected strategies are always listed above the picker, each with a remove button, so a group can be edited even when the search or filter hides its members.
+
 ## [0.52.0] - 2026-10-04
 
 ### Added
