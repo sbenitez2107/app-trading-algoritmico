@@ -20,6 +20,7 @@ import {
 import { TradingAccountService } from '../../../core/services/trading-account.service';
 import { FtmoGroupFormComponent } from '../ftmo-group-form/ftmo-group-form.component';
 import { FtmoGroupPickerComponent } from '../ftmo-group-picker/ftmo-group-picker.component';
+import { FtmoGroupResultComponent } from '../ftmo-group-result/ftmo-group-result.component';
 import {
   DEFAULT_GROUP_FORM,
   GroupFormValue,
@@ -29,10 +30,11 @@ import {
   toGroupRequest,
   toWorstCaseReadout,
 } from '../ftmo-group-simulation.mappers';
+import { toGroupResultVm } from '../ftmo-group-simulation.result.mappers';
 
 /**
  * Container of the FTMO group simulation screen: title, always-visible disclosure, the account select
- * the strategy picker and the parameter form. A run is explicit: only the form's Run starts a request, a
+ * the strategy picker, the parameter form and the result area (reused run panels, refusals, window). A run is explicit: only the form's Run starts a request, a
  * second one is blocked while it is in flight, and leaving the screen cancels it. Candidates reload through `switchMap` when the account changes, which also
  * drops a stale in-flight response and clears the selection. Selecting never issues a run request.
  *
@@ -44,7 +46,12 @@ import {
 @Component({
   selector: 'app-ftmo-group-simulation-page',
   standalone: true,
-  imports: [TranslateModule, FtmoGroupPickerComponent, FtmoGroupFormComponent],
+  imports: [
+    TranslateModule,
+    FtmoGroupPickerComponent,
+    FtmoGroupFormComponent,
+    FtmoGroupResultComponent,
+  ],
   templateUrl: './ftmo-group-simulation-page.component.html',
   styleUrl: './ftmo-group-simulation-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,6 +76,11 @@ export class FtmoGroupSimulationPageComponent {
   readonly result = signal<FtmoGroupSimulationDto | null>(null);
   readonly runError = signal<FtmoRequestError | null>(null);
 
+  /** The result area's view model; `null` before the first run and after any invalidation. */
+  readonly resultVm = computed(() => {
+    const result = this.result();
+    return result === null ? null : toGroupResultVm(result);
+  });
   readonly showFx = computed(() =>
     needsFxInputs(this.candidates()?.candidates ?? [], this.selectedIds()),
   );

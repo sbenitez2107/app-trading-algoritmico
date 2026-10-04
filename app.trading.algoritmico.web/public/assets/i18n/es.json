@@ -515,6 +515,33 @@
         "ABOVE_ACADEMY": "Por encima del criterio de la academia del {{limit}}%.",
         "ABOVE_DAILY": "Por encima del límite diario del {{limit}}%.",
         "OBSERVED": "Pico observado, {{kind}}: {{peak}} abiertas a la vez x riesgo = {{amount}} ({{pct}}% del capital)."
+      },
+      "RESULT": {
+        "NAME_WARNING": "Varias estrategias comparten el nombre {{name}} ({{ids}}). Pueden ser la misma estrategia importada en más de una cuenta.",
+        "REFUSAL": {
+          "INVALID_REQUEST": "La solicitud del grupo no es válida: revise los miembros seleccionados y los valores ingresados.",
+          "SHARED_INPUTS_REFUSED": "Se rechazó un dato compartido por todo el grupo, por lo que no se pudo simular ningún miembro.",
+          "MEMBER_NOT_FOUND": "Una o más estrategias seleccionadas ya no existen.",
+          "MEMBER_MISSING_KIND": "Este miembro no tiene una corrida de este tipo.",
+          "MEMBER_RUN_REFUSED": "Se rechazó la corrida de este miembro.",
+          "MIXED_SOURCE_TIME_ZONES": "Las zonas horarias de origen de los miembros difieren, por lo que el grupo no se puede reproducir con un solo reloj.",
+          "NO_COMMON_WINDOW": "Los rangos de operaciones de los miembros no se superponen, por lo que no hay una ventana compartida para reproducir.",
+          "MEMBER_HAS_NO_TRADES_IN_WINDOW": "Este miembro no tiene operaciones dentro de la ventana compartida."
+        },
+        "UNKNOWN_IDS": "Ids de estrategia desconocidos: {{ids}}",
+        "ZONE_ROW": "{{name}}: {{zone}}",
+        "MEMBER_ROW": "{{name}}: {{reason}}",
+        "WINDOW": "Ventana de reproducción: {{start}} a {{end}}",
+        "COVERAGE_HEADING": "Cobertura por miembro",
+        "COVERAGE_ROW": "{{name}}: primera apertura {{first}}, último cierre {{last}}, {{trades}} operaciones en la ventana",
+        "COVERAGE_WIDER": "rango más amplio que la ventana",
+        "SHORTENED": "El rango de al menos un miembro es más amplio que la ventana compartida. Este resultado describe solo la ventana compartida.",
+        "DISCLOSURE": {
+          "TITLE": "Aviso del grupo",
+          "CONCURRENT": "En un grupo, se espera que dominen las eliminaciones causadas por posiciones abiertas simultáneas, por lo que la división Clean/Contingent de una eliminación pierde su sentido habitual.",
+          "SAME_CLOSE": "Cuando varias operaciones cierran en el mismo instante, el orden en que se aplican esos cierres es una decisión de modelado que puede crear o quitar una eliminación.",
+          "ELIGIBILITY": "Las reglas de elegibilidad del programa de fondeo, por ejemplo la prohibición de martingala o grid, no están modeladas."
+        }
       }
     }
   }

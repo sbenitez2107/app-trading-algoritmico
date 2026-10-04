@@ -1,0 +1,176 @@
+<ng-template #text let-ref>
+  {{
+    ref.key
+      | translate
+        : {
+            value: ref.value ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+            broker: broker() ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+          }
+  }}
+</ng-template>
+
+<div class="ftmo-group-result">
+  @for (warning of vm().nameWarnings; track warning.name) {
+    <p class="ftmo-group-result__name-warning" role="status">
+      {{
+        'SIMULATOR.FTMO_GROUP.RESULT.NAME_WARNING'
+          | translate: { name: warning.name, ids: warning.ids.join(', ') }
+      }}
+    </p>
+  }
+
+  @if (vm().groupRefusal; as refusal) {
+    <section class="ftmo-group-result__group-refusal" role="alert">
+      <p class="ftmo-group-result__refusal-text">
+        <ng-container *ngTemplateOutlet="text; context: { $implicit: refusal.label }" />
+      </p>
+      @if (refusal.shared; as shared) {
+        <p class="ftmo-group-result__shared-reason">
+          <ng-container *ngTemplateOutlet="text; context: { $implicit: shared }" />
+        </p>
+      }
+      @if (refusal.unknownIds.length > 0) {
+        <p class="ftmo-group-result__unknown-ids">
+          {{
+            'SIMULATOR.FTMO_GROUP.RESULT.UNKNOWN_IDS'
+              | translate: { ids: refusal.unknownIds.join(', ') }
+          }}
+        </p>
+      }
+      @if (refusal.zones.length > 0) {
+        <ul class="ftmo-group-result__zones">
+          @for (zone of refusal.zones; track zone.name) {
+            <li>
+              {{
+                'SIMULATOR.FTMO_GROUP.RESULT.ZONE_ROW'
+                  | translate
+                    : {
+                        name: zone.name,
+                        zone: zone.zone ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                      }
+              }}
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  } @else {
+    <div class="ftmo-group-result__slots">
+      @for (slot of vm().slots; track slot.kind) {
+        <section class="ftmo-group-result__slot" [attr.data-kind]="slot.kind">
+          @if (slot.panel; as panel) {
+            <app-ftmo-run-panel [vm]="panel" [broker]="broker()" />
+          } @else {
+            <h3 class="ftmo-group-result__kind-title">{{ slot.kindLabelKey | translate }}</h3>
+            @if (slot.refusal; as refusal) {
+              <div class="ftmo-group-result__slot-refusal" role="alert">
+                <p class="ftmo-group-result__refusal-text">
+                  <ng-container *ngTemplateOutlet="text; context: { $implicit: refusal }" />
+                </p>
+                @if (slot.members.length > 0) {
+                  <ul class="ftmo-group-result__members">
+                    @for (member of slot.members; track member.strategyId) {
+                      <li class="ftmo-group-result__member">
+                        {{
+                          'SIMULATOR.FTMO_GROUP.RESULT.MEMBER_ROW'
+                            | translate
+                              : {
+                                  name: member.name,
+                                  reason:
+                                    member.reason.key
+                                    | translate
+                                      : {
+                                          value:
+                                            member.reason.value ??
+                                            ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                                          broker:
+                                            broker() ??
+                                            ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                                        },
+                                }
+                        }}
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            } @else {
+              <p class="ftmo-group-result__no-run">
+                {{ 'FTMO_SIMULATION.NO_RUN_HELD' | translate }}
+              </p>
+            }
+          }
+
+          @if (slot.window; as window) {
+            <p class="ftmo-group-result__window">
+              {{
+                'SIMULATOR.FTMO_GROUP.RESULT.WINDOW'
+                  | translate: { start: window.start, end: window.end }
+              }}
+            </p>
+          }
+          @if (slot.coverage.length > 0) {
+            <h4 class="ftmo-group-result__coverage-heading">
+              {{ 'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_HEADING' | translate }}
+            </h4>
+            <ul class="ftmo-group-result__coverage">
+              @for (row of slot.coverage; track row.strategyId) {
+                <li
+                  class="ftmo-group-result__coverage-row"
+                  [class.ftmo-group-result__coverage-row--wider]="row.wider"
+                >
+                  {{
+                    'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_ROW'
+                      | translate
+                        : {
+                            name: row.name,
+                            first: row.firstOpen ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                            last: row.lastClose ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                            trades: row.inWindowTrades,
+                          }
+                  }}
+                  @if (row.wider) {
+                    <span class="ftmo-group-result__wider">
+                      ({{ 'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_WIDER' | translate }})
+                    </span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (slot.shortened) {
+            <p class="ftmo-group-result__shortened">
+              {{ 'SIMULATOR.FTMO_GROUP.RESULT.SHORTENED' | translate }}
+            </p>
+          }
+        </section>
+      }
+    </div>
+  }
+
+  <section class="ftmo-group-result__disclosure">
+    <h3 class="ftmo-group-result__disclosure-title">
+      {{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.TITLE' | translate }}
+    </h3>
+    <ul class="ftmo-group-result__disclosure-points">
+      <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.CONCURRENT' | translate }}</li>
+      <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.SAME_CLOSE' | translate }}</li>
+      <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.ELIGIBILITY' | translate }}</li>
+    </ul>
+    @if (vm().showRunNotes) {
+      <p class="ftmo-group-result__result-disclosure">
+        {{ 'FTMO_SIMULATION.DISCLOSURE_RESULT' | translate }}
+      </p>
+      @if (vm().notModelled.length > 0) {
+        <p class="ftmo-group-result__not-modelled-heading">
+          {{ 'FTMO_SIMULATION.NOT_MODELLED_HEADING' | translate }}
+        </p>
+        <ul class="ftmo-group-result__not-modelled">
+          @for (item of vm().notModelled; track item.value) {
+            <li>{{ item.key | translate: { value: item.value } }}</li>
+          }
+        </ul>
+      }
+    }
+  </section>
+</div>

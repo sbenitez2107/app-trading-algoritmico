@@ -1,0 +1,96 @@
+.ftmo-group-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+
+  &__slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: var(--spacing-md);
+    align-items: start;
+  }
+
+  &__slot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    min-width: 0;
+  }
+
+  &__kind-title,
+  &__disclosure-title,
+  &__coverage-heading {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__coverage-heading {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__name-warning,
+  &__shortened,
+  &__wider {
+    color: var(--color-warning);
+  }
+
+  &__name-warning,
+  &__shortened {
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+  }
+
+  &__group-refusal,
+  &__slot-refusal {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--color-loss);
+    border: 1px solid var(--color-loss);
+    border-radius: var(--radius-md);
+
+    p,
+    ul {
+      margin: 0;
+    }
+  }
+
+  &__members,
+  &__zones,
+  &__coverage,
+  &__disclosure-points,
+  &__not-modelled {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+  }
+
+  &__window,
+  &__coverage,
+  &__no-run {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__disclosure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+
+    p {
+      margin: 0;
+    }
+  }
+}

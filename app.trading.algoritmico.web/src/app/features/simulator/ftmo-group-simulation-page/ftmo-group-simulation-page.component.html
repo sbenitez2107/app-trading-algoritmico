@@ -57,6 +57,13 @@
       (valueChange)="onFormChange($event)"
       (run)="run()"
     />
+    @if (resultVm(); as vm) {
+      <app-ftmo-group-result [vm]="vm" [broker]="form().broker" />
+    } @else if (!running() && runError() === null) {
+      <p class="ftmo-group-page__hint" role="status">
+        {{ 'FTMO_SIMULATION.BEFORE_RUN_HINT' | translate }}
+      </p>
+    }
   }
 
   @if (runError(); as e) {

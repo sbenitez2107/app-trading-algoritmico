@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.51.0] - 2026-10-04
+
+### Added
+
+- The FTMO group page now shows its results: Deploy and Evaluation side by side, each with the replay window and each member's coverage inside it.
+- A problem with the whole group is shown once, above the panels. A problem with one panel names each failing strategy and its reason.
+- Three translated group disclosures are always visible:
+  - in a group, most breaches happen while other positions are open;
+  - the order of same-instant closes can change a result;
+  - FTMO's eligibility rules are not checked.
+- Server text is never shown verbatim, and the start-1 note of the single-strategy view never appears for a group.
+
 ## [0.50.0] - 2026-10-04
 
 ### Added

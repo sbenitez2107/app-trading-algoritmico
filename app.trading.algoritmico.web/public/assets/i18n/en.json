@@ -515,6 +515,33 @@
         "ABOVE_ACADEMY": "Above the {{limit}}% academy criterion.",
         "ABOVE_DAILY": "Above the {{limit}}% daily limit.",
         "OBSERVED": "Observed peak, {{kind}}: {{peak}} open together x risk = {{amount}} ({{pct}}% of capital)."
+      },
+      "RESULT": {
+        "NAME_WARNING": "Several strategies share the name {{name}} ({{ids}}). They may be the same strategy imported on more than one account.",
+        "REFUSAL": {
+          "INVALID_REQUEST": "The group request is invalid: check the selected members and the typed values.",
+          "SHARED_INPUTS_REFUSED": "An input shared by the whole group was refused, so no member could be simulated.",
+          "MEMBER_NOT_FOUND": "One or more selected strategies no longer exist.",
+          "MEMBER_MISSING_KIND": "This member has no run of this kind.",
+          "MEMBER_RUN_REFUSED": "This member's run was refused.",
+          "MIXED_SOURCE_TIME_ZONES": "The members' source time zones differ, so the group cannot be replayed on one clock.",
+          "NO_COMMON_WINDOW": "The members' trade ranges do not overlap, so there is no shared window to replay.",
+          "MEMBER_HAS_NO_TRADES_IN_WINDOW": "This member has no trades inside the shared window."
+        },
+        "UNKNOWN_IDS": "Unknown strategy ids: {{ids}}",
+        "ZONE_ROW": "{{name}}: {{zone}}",
+        "MEMBER_ROW": "{{name}}: {{reason}}",
+        "WINDOW": "Replay window: {{start}} to {{end}}",
+        "COVERAGE_HEADING": "Coverage by member",
+        "COVERAGE_ROW": "{{name}}: first open {{first}}, last close {{last}}, {{trades}} trades in the window",
+        "COVERAGE_WIDER": "range wider than the window",
+        "SHORTENED": "At least one member's range is wider than the shared window. This result describes the shared window only.",
+        "DISCLOSURE": {
+          "TITLE": "Group disclosure",
+          "CONCURRENT": "In a group, breaches caused by concurrent open positions are expected to dominate, so the Clean/Contingent split of a breach loses its usual meaning.",
+          "SAME_CLOSE": "When several trades close at the same instant, the order in which those closes are applied is a modelling choice that can create or remove a breach.",
+          "ELIGIBILITY": "Eligibility rules of the funding programme, for example a martingale or grid ban, are not modelled."
+        }
       }
     }
   }
