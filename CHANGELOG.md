@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.49.0] - 2026-10-04
+
+### Added
+
+- The FTMO group page now has a strategy picker. Choose an account (SBDEMO2 by default), filter by symbol and search by name. Each strategy shows whether it has Deploy and Evaluation backtests, their dates and trade counts, whether its symbol has an FTMO spec and calibration, whether an FX band is needed, and whether the same name exists on another account. The number of members you can pick comes from the backend.
+
 ## [0.48.0] - 2026-10-04
 
 ### Added

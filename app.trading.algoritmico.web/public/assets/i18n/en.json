@@ -464,7 +464,45 @@
     },
     "FTMO_GROUP": {
       "TITLE": "FTMO group simulation",
-      "DISCLOSURE": "This screen replays the backtest trades of a group of strategies together on one FTMO account. It models elimination against FTMO limits; it is not a certification, and a favorable result does not guarantee a real funded outcome."
+      "DISCLOSURE": "This screen replays the backtest trades of a group of strategies together on one FTMO account. It models elimination against FTMO limits; it is not a certification, and a favorable result does not guarantee a real funded outcome.",
+      "PICKER": {
+        "TITLE": "Strategies",
+        "ACCOUNT_LABEL": "Account",
+        "NO_ACCOUNTS": "There are no trading accounts to simulate.",
+        "LOADING": "Loading strategies...",
+        "SYMBOL_LABEL": "Symbol",
+        "ALL_SYMBOLS": "All symbols",
+        "SEARCH_LABEL": "Search by name",
+        "SEARCH_PLACEHOLDER": "Strategy name",
+        "SELECTED_COUNT": "{{count}} of {{max}} selected",
+        "CAP_REACHED": "Selection limit reached: a group has at most {{max}} strategies. Deselect one to choose another.",
+        "EMPTY": "No strategies match the filter.",
+        "NO_SYMBOL": "No symbol",
+        "COLUMN": {
+          "SELECT": "Select",
+          "NAME": "Strategy",
+          "SYMBOL": "Symbol",
+          "DEPLOY": "Deploy",
+          "EVALUATION": "Evaluation",
+          "FLAGS": "Flags"
+        },
+        "KIND": {
+          "PRESENT": "Present",
+          "ABSENT": "Absent",
+          "RANGE": "{{from}} to {{to}}",
+          "NO_TRADES": "No trades",
+          "TRADES": "{{count}} trades",
+          "SPEC_YES": "Spec: yes",
+          "SPEC_NO": "Spec: missing",
+          "CALIBRATION_YES": "Calibration: yes",
+          "CALIBRATION_NO": "Calibration: missing",
+          "CALIBRATION_NA": "Calibration: n/a"
+        },
+        "FLAG": {
+          "FX_NEEDED": "FX band needed",
+          "OTHER_ACCOUNT": "Same name on another account"
+        }
+      }
     }
   }
 }

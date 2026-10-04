@@ -464,7 +464,45 @@
     },
     "FTMO_GROUP": {
       "TITLE": "Simulación de grupo FTMO",
-      "DISCLOSURE": "Esta pantalla reproduce juntas, sobre una única cuenta FTMO, las operaciones de backtest de un grupo de estrategias. Modela la eliminación frente a los límites de FTMO; no es una certificación, y un resultado favorable no garantiza un resultado real con fondeo."
+      "DISCLOSURE": "Esta pantalla reproduce juntas, sobre una única cuenta FTMO, las operaciones de backtest de un grupo de estrategias. Modela la eliminación frente a los límites de FTMO; no es una certificación, y un resultado favorable no garantiza un resultado real con fondeo.",
+      "PICKER": {
+        "TITLE": "Estrategias",
+        "ACCOUNT_LABEL": "Cuenta",
+        "NO_ACCOUNTS": "No hay cuentas de trading para simular.",
+        "LOADING": "Cargando estrategias...",
+        "SYMBOL_LABEL": "Símbolo",
+        "ALL_SYMBOLS": "Todos los símbolos",
+        "SEARCH_LABEL": "Buscar por nombre",
+        "SEARCH_PLACEHOLDER": "Nombre de la estrategia",
+        "SELECTED_COUNT": "{{count}} de {{max}} seleccionadas",
+        "CAP_REACHED": "Límite de selección alcanzado: un grupo tiene como máximo {{max}} estrategias. Deselecciona una para elegir otra.",
+        "EMPTY": "Ninguna estrategia coincide con el filtro.",
+        "NO_SYMBOL": "Sin símbolo",
+        "COLUMN": {
+          "SELECT": "Seleccionar",
+          "NAME": "Estrategia",
+          "SYMBOL": "Símbolo",
+          "DEPLOY": "Deploy",
+          "EVALUATION": "Evaluación",
+          "FLAGS": "Indicadores"
+        },
+        "KIND": {
+          "PRESENT": "Presente",
+          "ABSENT": "Ausente",
+          "RANGE": "{{from}} a {{to}}",
+          "NO_TRADES": "Sin operaciones",
+          "TRADES": "{{count}} operaciones",
+          "SPEC_YES": "Especificación: sí",
+          "SPEC_NO": "Especificación: falta",
+          "CALIBRATION_YES": "Calibración: sí",
+          "CALIBRATION_NO": "Calibración: falta",
+          "CALIBRATION_NA": "Calibración: n/a"
+        },
+        "FLAG": {
+          "FX_NEEDED": "Requiere banda FX",
+          "OTHER_ACCOUNT": "Mismo nombre en otra cuenta"
+        }
+      }
     }
   }
 }

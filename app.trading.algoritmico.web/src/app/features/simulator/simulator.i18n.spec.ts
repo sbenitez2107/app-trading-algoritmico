@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
+import { FtmoSimulationService } from '../../core/services/ftmo-simulation.service';
+import { TradingAccountService } from '../../core/services/trading-account.service';
 import { FtmoGroupSimulationPageComponent } from './ftmo-group-simulation-page/ftmo-group-simulation-page.component';
 import en from '../../../../public/assets/i18n/en.json';
 import es from '../../../../public/assets/i18n/es.json';
@@ -99,6 +102,10 @@ describe('FtmoGroupSimulationPageComponent shell with the real dictionaries', ()
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [FtmoGroupSimulationPageComponent, TranslateModule.forRoot()],
+      providers: [
+        { provide: TradingAccountService, useValue: { getAll: () => of([]) } },
+        { provide: FtmoSimulationService, useValue: { getGroupCandidates: () => of() } },
+      ],
     });
     const translate = TestBed.inject(TranslateService);
     translate.setTranslation('en', en);

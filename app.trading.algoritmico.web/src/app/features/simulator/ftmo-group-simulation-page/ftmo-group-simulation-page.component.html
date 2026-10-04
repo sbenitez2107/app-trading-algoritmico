@@ -1,4 +1,46 @@
 <section class="ftmo-group-page">
   <h1 class="ftmo-group-page__title">{{ 'SIMULATOR.FTMO_GROUP.TITLE' | translate }}</h1>
   <p class="ftmo-group-page__disclosure">{{ 'SIMULATOR.FTMO_GROUP.DISCLOSURE' | translate }}</p>
+
+  @if (accounts().length === 0) {
+    @if (accountsLoaded()) {
+      <p class="ftmo-group-page__empty">
+        {{ 'SIMULATOR.FTMO_GROUP.PICKER.NO_ACCOUNTS' | translate }}
+      </p>
+    }
+  } @else {
+    <label class="ftmo-group-page__field">
+      <span>{{ 'SIMULATOR.FTMO_GROUP.PICKER.ACCOUNT_LABEL' | translate }}</span>
+      <select
+        class="ftmo-group-page__account"
+        [value]="accountId() ?? ''"
+        (change)="selectAccount($any($event.target).value)"
+      >
+        @for (account of accounts(); track account.id) {
+          <option [value]="account.id" [selected]="account.id === accountId()">
+            {{ account.name }}
+          </option>
+        }
+      </select>
+    </label>
+  }
+
+  @if (loading()) {
+    <p class="ftmo-group-page__status">{{ 'SIMULATOR.FTMO_GROUP.PICKER.LOADING' | translate }}</p>
+  }
+
+  @if (error(); as e) {
+    <div class="ftmo-group-page__error" role="alert">
+      {{ errorKey(e) | translate: { detail: e.detail ?? '' } }}
+    </div>
+  }
+
+  @if (candidates(); as data) {
+    <app-ftmo-group-picker
+      [candidates]="data.candidates"
+      [maxMembers]="data.maxMembers"
+      [selectedIds]="selectedIds()"
+      (selectionChange)="onSelectionChange($event)"
+    />
+  }
 </section>

@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
+import { FtmoGroupCandidatesDto } from '../models/ftmo-group-simulation.model';
 import { FtmoMultiStartDto, FtmoSimulationQuery } from '../models/ftmo-simulation.model';
 
 /** A mapped Run-request failure, ready for the `translate` pipe (design.md AD10). */
@@ -73,6 +74,14 @@ export class FtmoSimulationService {
           params,
         },
       )
+      .pipe(catchError(mapFtmoRequestError));
+  }
+
+  /** The picker's candidates for ONE account, with the server's member cap (design D8). */
+  getGroupCandidates(tradingAccountId: string): Observable<FtmoGroupCandidatesDto> {
+    const params = new HttpParams().set('tradingAccountId', tradingAccountId);
+    return this.http
+      .get<FtmoGroupCandidatesDto>(`${this.apiUrl}/api/ftmo-simulations/candidates`, { params })
       .pipe(catchError(mapFtmoRequestError));
   }
 }
