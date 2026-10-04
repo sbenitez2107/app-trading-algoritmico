@@ -2,6 +2,12 @@
   <h1 class="ftmo-group-page__title">{{ 'SIMULATOR.FTMO_GROUP.TITLE' | translate }}</h1>
   <p class="ftmo-group-page__disclosure">{{ 'SIMULATOR.FTMO_GROUP.DISCLOSURE' | translate }}</p>
 
+  @if (accountsError()) {
+    <div class="ftmo-group-page__accounts-error" role="alert">
+      {{ 'SIMULATOR.FTMO_GROUP.PICKER.ACCOUNTS_ERROR' | translate }}
+    </div>
+  }
+
   @if (accounts().length === 0) {
     @if (accountsLoaded()) {
       <p class="ftmo-group-page__empty">
@@ -42,5 +48,23 @@
       [selectedIds]="selectedIds()"
       (selectionChange)="onSelectionChange($event)"
     />
+    <app-ftmo-group-form
+      [value]="form()"
+      [showFx]="showFx()"
+      [canRun]="canRun()"
+      [running]="running()"
+      [readout]="readout()"
+      (valueChange)="onFormChange($event)"
+      (run)="run()"
+    />
+  }
+
+  @if (runError(); as e) {
+    <div class="ftmo-group-page__run-error" role="alert">
+      {{
+        errorKey(e)
+          | translate: { detail: e.detail ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate) }
+      }}
+    </div>
   }
 </section>

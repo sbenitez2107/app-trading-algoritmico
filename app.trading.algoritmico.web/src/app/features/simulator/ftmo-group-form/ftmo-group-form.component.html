@@ -1,0 +1,124 @@
+<form class="ftmo-group-form" (submit)="onSubmit($event)">
+  <div class="ftmo-group-form__field">
+    <label for="ftmo-group-broker">{{ 'FTMO_SIMULATION.FIELDS.BROKER' | translate }}</label>
+    <input
+      id="ftmo-group-broker"
+      type="text"
+      name="broker"
+      [value]="value().broker"
+      (input)="setBroker($event)"
+    />
+  </div>
+  @for (f of moneyFields; track f.key) {
+    <div class="ftmo-group-form__field">
+      <label [for]="'ftmo-group-' + f.key">{{ f.labelKey | translate }}</label>
+      <input
+        [id]="'ftmo-group-' + f.key"
+        type="number"
+        [name]="f.key"
+        [value]="numberValue(f.key)"
+        (input)="setNumber(f.key, $event)"
+      />
+    </div>
+  }
+
+  <fieldset class="ftmo-group-form__grid">
+    <legend>{{ 'FTMO_SIMULATION.FIELDS.SOURCE_LOT_GRID_LABEL' | translate }}</legend>
+    @for (f of gridFields; track f.key) {
+      <div class="ftmo-group-form__field">
+        <label [for]="'ftmo-group-' + f.key">{{ f.labelKey | translate }}</label>
+        <input
+          [id]="'ftmo-group-' + f.key"
+          type="number"
+          [name]="f.key"
+          [value]="numberValue(f.key)"
+          (input)="setNumber(f.key, $event)"
+        />
+      </div>
+    }
+  </fieldset>
+
+  @if (showFx()) {
+    <fieldset class="ftmo-group-form__fx">
+      <legend>{{ 'SIMULATOR.FTMO_GROUP.FORM.FX_LEGEND' | translate }}</legend>
+      @for (f of fxFields; track f.key) {
+        <div class="ftmo-group-form__field">
+          <label [for]="'ftmo-group-' + f.key">{{ f.labelKey | translate }}</label>
+          <input
+            [id]="'ftmo-group-' + f.key"
+            type="number"
+            [name]="f.key"
+            [value]="numberValue(f.key)"
+            (input)="setNumber(f.key, $event)"
+          />
+        </div>
+      }
+    </fieldset>
+  }
+
+  @if (readout(); as r) {
+    <section class="ftmo-group-form__readout" aria-live="polite">
+      <h3 class="ftmo-group-form__readout-title">
+        {{ 'SIMULATOR.FTMO_GROUP.READOUT.TITLE' | translate }}
+      </h3>
+      <p class="ftmo-group-form__worst">
+        {{
+          'SIMULATOR.FTMO_GROUP.READOUT.WORST'
+            | translate: { count: r.memberCount, amount: r.worst.amountText, pct: r.worst.pctText }
+        }}
+      </p>
+      <p class="ftmo-group-form__reference">
+        {{ 'SIMULATOR.FTMO_GROUP.READOUT.ACADEMY_REF' | translate: { limit: r.academyPct } }}
+      </p>
+      <p class="ftmo-group-form__reference">
+        {{ 'SIMULATOR.FTMO_GROUP.READOUT.DAILY_REF' | translate: { limit: r.dailyLimitPct } }}
+      </p>
+      <ng-container
+        [ngTemplateOutlet]="flags"
+        [ngTemplateOutletContext]="{ $implicit: r.worst, readout: r }"
+      />
+      @for (o of r.observed; track o.kind) {
+        <p class="ftmo-group-form__observed">
+          {{
+            'SIMULATOR.FTMO_GROUP.READOUT.OBSERVED'
+              | translate
+                : {
+                    kind: kindLabelKey(o.kind) | translate,
+                    peak: o.peak,
+                    amount: o.line.amountText,
+                    pct: o.line.pctText,
+                  }
+          }}
+        </p>
+        <ng-container
+          [ngTemplateOutlet]="flags"
+          [ngTemplateOutletContext]="{ $implicit: o.line, readout: r }"
+        />
+      }
+    </section>
+  }
+
+  <ng-template #flags let-line let-r="readout">
+    @if (line.exceedsAcademy) {
+      <p class="ftmo-group-form__exceeded">
+        {{ 'SIMULATOR.FTMO_GROUP.READOUT.ABOVE_ACADEMY' | translate: { limit: r.academyPct } }}
+      </p>
+    }
+    @if (line.exceedsDaily) {
+      <p class="ftmo-group-form__exceeded">
+        {{ 'SIMULATOR.FTMO_GROUP.READOUT.ABOVE_DAILY' | translate: { limit: r.dailyLimitPct } }}
+      </p>
+    }
+  </ng-template>
+
+  <div class="ftmo-group-form__run-row">
+    <button type="submit" class="ftmo-group-form__run" [disabled]="!canRun()">
+      {{ 'FTMO_SIMULATION.RUN' | translate }}
+    </button>
+    @if (running()) {
+      <span class="ftmo-group-form__running" role="status">
+        {{ 'FTMO_SIMULATION.RUNNING' | translate }}
+      </span>
+    }
+  </div>
+</form>

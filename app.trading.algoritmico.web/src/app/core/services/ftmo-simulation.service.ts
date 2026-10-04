@@ -2,7 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import { API_BASE_URL } from '../../app.config';
-import { FtmoGroupCandidatesDto } from '../models/ftmo-group-simulation.model';
+import {
+  FtmoGroupCandidatesDto,
+  FtmoGroupSimulationDto,
+  FtmoGroupSimulationRequest,
+} from '../models/ftmo-group-simulation.model';
 import { FtmoMultiStartDto, FtmoSimulationQuery } from '../models/ftmo-simulation.model';
 
 /** A mapped Run-request failure, ready for the `translate` pipe (design.md AD10). */
@@ -82,6 +86,13 @@ export class FtmoSimulationService {
     const params = new HttpParams().set('tradingAccountId', tradingAccountId);
     return this.http
       .get<FtmoGroupCandidatesDto>(`${this.apiUrl}/api/ftmo-simulations/candidates`, { params })
+      .pipe(catchError(mapFtmoRequestError));
+  }
+
+  /** One explicit group run: the body is posted as built, so `0` and `null` survive on the wire. */
+  simulateGroup(body: FtmoGroupSimulationRequest): Observable<FtmoGroupSimulationDto> {
+    return this.http
+      .post<FtmoGroupSimulationDto>(`${this.apiUrl}/api/ftmo-simulations/group`, body)
       .pipe(catchError(mapFtmoRequestError));
   }
 }

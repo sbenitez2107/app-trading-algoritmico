@@ -501,7 +501,20 @@
         "FLAG": {
           "FX_NEEDED": "Requiere banda FX",
           "OTHER_ACCOUNT": "Mismo nombre en otra cuenta"
-        }
+        },
+        "ACCOUNTS_ERROR": "No se pudieron cargar las cuentas de trading. Intente nuevamente más tarde."
+      },
+      "FORM": {
+        "FX_LEGEND": "Banda FX (la necesita un miembro seleccionado que liquida en una moneda distinta de USD)"
+      },
+      "READOUT": {
+        "TITLE": "Riesgo simultáneo en el peor caso",
+        "WORST": "Con {{count}} miembros abiertos a la vez al riesgo ingresado: {{amount}} ({{pct}}% del capital).",
+        "ACADEMY_REF": "Criterio de grupo de la academia: {{limit}}%.",
+        "DAILY_REF": "Límite diario de FTMO: {{limit}}%.",
+        "ABOVE_ACADEMY": "Por encima del criterio de la academia del {{limit}}%.",
+        "ABOVE_DAILY": "Por encima del límite diario del {{limit}}%.",
+        "OBSERVED": "Pico observado, {{kind}}: {{peak}} abiertas a la vez x riesgo = {{amount}} ({{pct}}% del capital)."
       }
     }
   }

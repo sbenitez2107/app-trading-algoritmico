@@ -501,7 +501,20 @@
         "FLAG": {
           "FX_NEEDED": "FX band needed",
           "OTHER_ACCOUNT": "Same name on another account"
-        }
+        },
+        "ACCOUNTS_ERROR": "The trading accounts could not be loaded. Try again later."
+      },
+      "FORM": {
+        "FX_LEGEND": "FX band (needed by a selected member that settles in a non-USD currency)"
+      },
+      "READOUT": {
+        "TITLE": "Worst simultaneous risk",
+        "WORST": "With {{count}} members open together at the typed risk: {{amount}} ({{pct}}% of capital).",
+        "ACADEMY_REF": "Academy group criterion: {{limit}}%.",
+        "DAILY_REF": "FTMO daily limit: {{limit}}%.",
+        "ABOVE_ACADEMY": "Above the {{limit}}% academy criterion.",
+        "ABOVE_DAILY": "Above the {{limit}}% daily limit.",
+        "OBSERVED": "Observed peak, {{kind}}: {{peak}} open together x risk = {{amount}} ({{pct}}% of capital)."
       }
     }
   }

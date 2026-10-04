@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.50.0] - 2026-10-04
+
+### Added
+
+- The FTMO group page now has its simulation form, prefilled with the `FTMO` broker, 10,000 capital and the IMOX retester backtest lot grid. FX inputs appear only when a selected strategy needs them, and the simulation runs only when you press Run.
+- A readout shows the worst simultaneous risk (members × risk) against the academy's 1% criterion and FTMO's daily limit. After a run it also shows the peak number of positions observed open at once × risk, per kind. Going over a limit is flagged but never blocks the run.
+- Changing the account, the selection or any form field cancels a run in progress and clears the previous result, so a result always matches its inputs.
+
+### Fixed
+
+- The FTMO group page shows an error instead of a blank screen when the account list cannot be loaded.
+
 ## [0.49.0] - 2026-10-04
 
 ### Added
