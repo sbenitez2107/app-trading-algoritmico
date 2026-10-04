@@ -65,7 +65,7 @@ calls. The projection depends on (trades, grid, symbol, risk, FX) only, never on
   - (b) a pair conflict: different source zones, or disjoint coverage. In 1-D, pairwise-overlapping
     intervals share a common point (Helly), so the pair prune is exactly `Intersect != null`
     (`FtmoGroupMerger.cs:58-69`);
-  - (c) Academy 1% rule (opt-in): proxy peak x risk > 1% x capital.
+  - (c) Academy 1% rule (opt-in): k x risk > 1% x capital (k = member count, the spec's exact rule; a peak-based variant was rejected as it needs the proxy first).
 - Proxy, per kind and per candidate: `Intersect` + `Merge` (the shipped pure functions, so it runs
   on the candidate's actual common window, which covers the window-shrink gotcha). Then:
   - `FtmoDailyLossProfile.Compute(merged.Low|High, dayOf, capital, dailyPct)`. This is a new pure
@@ -144,7 +144,7 @@ with an optional `bool includeDiagnostics = true` parameter.
   (`Volatile.Write`).
 - **Cancel**: `DELETE` triggers the CTS. The token flows into `ComputeGroup` and from there into
   `Parallel.For` (`FtmoMultiStartReadService.cs:163-164`). The terminal state is `Cancelled`, with
-  partial ranked results.
+  partial ranked results. Engine contract (1b-ii): the pure engine catches `OperationCanceledException` and returns a result flagged `Cancelled` carrying the candidates completed before the cancel (the one in flight is discarded); the worker (2a) maps that flag to the `Cancelled` status. A cancel is not a stop reason.
 - **Budget**: checked before each candidate and every 256 proxies. On a hit the status is
   `StoppedAtBudget` (a distinct status, per the spec; never `Completed`), a stop reason names the limit hit
   (simulation count or time), the not-computed count is reported, and the results are ranked over what was

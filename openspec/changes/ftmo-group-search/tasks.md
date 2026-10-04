@@ -167,15 +167,17 @@ outside the slice's hunks is reported to the user, not reformatted.
 - [x] 1b.3.5 GREEN enumeration, prunes, proxy (`Intersect` + `Merge` + `FtmoDailyLossProfile` + `FtmoPeakConcurrency`) and shortlist in the engine.
 - [x] 1b.3.6 Falsification: trim the proxy to the pool window instead of the candidate window; confirm 1b.3.3 red; also let the proxy depend on enumeration order; restore.
 
+**1b-ii status: Phases 1b.4-1b.5 DONE.** `Simulate` (engine stage `Simulating`): sequential, both budgets checked before each candidate (max full simulations first, then an injected `Func<bool>` wall-clock check), progress callback, token passed into `ComputeGroup`; cancel returns a `Cancelled`-flagged outcome with the partial results (worker 2a maps it to `Cancelled`). Deviation: the every-256-proxies budget check of 1b.4.4 is NOT implemented (the proxy stage is parallel and pure; the budget is enforced around the simulation stage); revisit in 2a/1d if the benchmark shows the proxy pass needs a deadline.
+
 ### Phase 1b.4 — Full computation, budget, cancel
-- [ ] 1b.4.1 RED `ComputeGroup` runs only for shortlisted candidates, once per kind; full-sim count = shortlist size x kinds evaluated; a refused kind carries its refusal and no metrics. _[Req: Shortlist only]_
-- [ ] 1b.4.2 RED **parity (hard rule 4c)**: for each shortlisted candidate, metrics equal `FtmoGroupSimulationReadService.SimulateAsync` for the same members, risk, capital, grid and FX (SQLite fixture, outcome counts, shares, order statistics).
-- [ ] 1b.4.3 RED budget and cancel hooks: simulation budget stops with the limit named and the not-computed count; wall-clock budget stops (injectable clock in the registry layer; the pure engine receives a deadline check delegate); cancelled token throws `OperationCanceledException` and returns partial results; progress snapshots monotonic. _[Req: Budget; Cancel]_
-- [ ] 1b.4.4 GREEN engine stage `Simulating` with budget check before each candidate and every 256 proxies, progress callback, cancellation token passed into `ComputeGroup`.
-- [ ] 1b.4.5 Falsification: drop the budget check; confirm 1b.4.3 red. Run two identical searches; assert identical shortlists and metrics.
+- [x] 1b.4.1 RED `ComputeGroup` runs only for shortlisted candidates, once per kind; full-sim count = shortlist size x kinds evaluated; a refused kind carries its refusal and no metrics. _[Req: Shortlist only]_
+- [x] 1b.4.2 RED **parity (hard rule 4c)**: for each shortlisted candidate, metrics equal `FtmoGroupSimulationReadService.SimulateAsync` for the same members, risk, capital, grid and FX (SQLite fixture, outcome counts, shares, order statistics).
+- [x] 1b.4.3 RED budget and cancel hooks: simulation budget stops with the limit named and the not-computed count; wall-clock budget stops (injectable clock in the registry layer; the pure engine receives a deadline check delegate); cancelled token throws `OperationCanceledException` and returns partial results; progress snapshots monotonic. _[Req: Budget; Cancel]_
+- [x] 1b.4.4 GREEN engine stage `Simulating` with budget check before each candidate and every 256 proxies, progress callback, cancellation token passed into `ComputeGroup`.
+- [x] 1b.4.5 Falsification: drop the budget check; confirm 1b.4.3 red. Run two identical searches; assert identical shortlists and metrics.
 
 ### Phase 1b.5 — Gate
-- [ ] 1b.5.1 Format, build, full suite once; pins and tripwire green; engine files unchanged; delete `bin-scratch/`.
+- [x] 1b.5.1 Format, build, full suite once; pins and tripwire green; engine files unchanged; delete `bin-scratch/`.
 
 ## 1c — Headroom and ranking (~380)
 

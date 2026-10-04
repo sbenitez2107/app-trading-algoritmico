@@ -1,3 +1,4 @@
+using AppTradingAlgoritmico.Application.DTOs.Backtests;
 using AppTradingAlgoritmico.Domain.Enums;
 using static AppTradingAlgoritmico.Infrastructure.Services.FtmoGroupComputation;
 using static AppTradingAlgoritmico.Infrastructure.Services.FtmoGroupMemberResolution;
@@ -54,6 +55,29 @@ internal static class FtmoGroupSearchEngine
     internal sealed record SearchPlan(
         EligibilityResult Eligibility, Funnel Funnel, int RemovedNoCommonWindow, int RemovedMemberHasNoTrades,
         IReadOnlyList<ShortlistedCandidate> Shortlist);
+
+    /// <summary>Why the full computation stopped early. A cancel is NOT a stop reason; it is flagged separately.</summary>
+    internal enum SearchStopReason
+    {
+        Unknown = 0,
+        None,
+        MaxFullSimulations,
+        WallClock,
+    }
+
+    /// <summary>
+    /// The two budgets of the full computation. Time is a delegate, so the pure engine owns no clock: the worker
+    /// injects a stopwatch check and tests inject a counter.
+    /// </summary>
+    internal sealed record SimulationBudget(int MaxFullSimulations, Func<bool>? WallClockExceeded = null);
+
+    internal readonly record struct SimulationProgress(int Done, int Total);
+
+    internal sealed record CandidateResult(ShortlistedCandidate Candidate, IReadOnlyList<FtmoGroupKindResultDto> Kinds);
+
+    /// <param name="Cancelled">The token fired; <paramref name="Results"/> holds the candidates completed before it.</param>
+    internal sealed record SimulationOutcome(
+        IReadOnlyList<CandidateResult> Results, SearchStopReason Stop, int NotComputed, bool Cancelled);
 
     // ---- Eligibility ----
 
@@ -305,6 +329,57 @@ internal static class FtmoGroupSearchEngine
             proxies.Count(x => x.Removal == FtmoGroupRefusal.NoCommonWindow),
             proxies.Count(x => x.Removal == FtmoGroupRefusal.MemberHasNoTradesInWindow),
             shortlist);
+    }
+
+    // ---- Full computation (the Simulating stage) ----
+
+    /// <summary>
+    /// The shipped <c>ComputeGroup</c>, once per kind, for each shortlisted candidate in shortlist order and
+    /// sequentially (design D7: each run already uses all cores). Both budgets are checked BEFORE each candidate, so a
+    /// stop cuts the tail. The token goes into <c>ComputeGroup</c>; on cancel the candidate in flight is discarded and
+    /// the ones completed so far are returned, so the partial result is deterministic.
+    /// </summary>
+    internal static SimulationOutcome Simulate(
+        FtmoProjectionCache cache,
+        IReadOnlyList<ShortlistedCandidate> shortlist,
+        GroupParams p,
+        SimulationBudget budget,
+        Action<SimulationProgress>? progress,
+        CancellationToken ct)
+    {
+        var results = new List<CandidateResult>(shortlist.Count);
+        var stop = SearchStopReason.None;
+        var cancelled = false;
+
+        try
+        {
+            foreach (var candidate in shortlist)
+            {
+                if (results.Count >= budget.MaxFullSimulations)
+                {
+                    stop = SearchStopReason.MaxFullSimulations;
+                    break;
+                }
+
+                if (budget.WallClockExceeded?.Invoke() == true)
+                {
+                    stop = SearchStopReason.WallClock;
+                    break;
+                }
+
+                var kinds = FtmoGroupMemberResolution.Kinds
+                    .Select(kind => ComputeGroup(kind, cache.Rebind(candidate.MemberIds, kind), p, ct))
+                    .ToList();
+                results.Add(new CandidateResult(candidate, kinds));
+                progress?.Invoke(new SimulationProgress(results.Count, shortlist.Count));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+
+        return new SimulationOutcome(results, stop, shortlist.Count - results.Count, cancelled);
     }
 
     private static void ValidateOptions(SearchOptions o)
