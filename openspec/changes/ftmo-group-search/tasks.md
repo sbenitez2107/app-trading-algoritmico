@@ -182,18 +182,18 @@ outside the slice's hunks is reported to the user, not reformatted.
 ## 1c — Headroom and ranking (~380)
 
 ### Phase 1c.1 — `FtmoLimitHeadroom` (design D4)
-- [ ] 1c.1.1 RED `TESTS/FtmoLimitHeadroomTests.cs`: (a) daily used from the previous-midnight balance (10500 open, 400 loss -> divided by the daily allowance, not initial capital), worse FX end taken and reported; (b) per-start pass with P1 `Open >= StartSourceOpen`, `Close <= Phase1.OutcomeSourceClose`, P2/funded subset rule `Open >= T && Close > T`, each phase starting at capital, null nets skipped. _[Req: Headroom a, b]_
-- [ ] 1c.1.2 RED worst vs median across starts (2%, 4%, 8% of a 10% allowance -> worst 0.8, median 0.4, ranking uses 0.8; even count = mean of the two middle values); each kind carries its own values, never blended. Invariant: a phase with `BreachLimit` in {Max, BothSameClose} has `maxUsed > 1`, otherwise `<= 1`.
-- [ ] 1c.1.3 RED rank scalar: `headroom = 1 - max(dailyUsed, worstMaxUsed)` taken on the worse kind (lower per-kind headroom). A value of 0 is preserved (no truthiness).
-- [ ] 1c.1.4 GREEN create `SVC/FtmoLimitHeadroom.cs` (pure, outside the evaluator).
-- [ ] 1c.1.5 Falsification: use the median in the rank scalar; confirm 1c.1.2 red; restore.
+- [x] 1c.1.1 RED `TESTS/FtmoLimitHeadroomTests.cs`: (a) daily used from the previous-midnight balance (10500 open, 400 loss -> divided by the daily allowance, not initial capital), worse FX end taken and reported; (b) per-start pass with P1 `Open >= StartSourceOpen`, `Close <= Phase1.OutcomeSourceClose`, P2/funded subset rule `Open >= T && Close > T`, each phase starting at capital, null nets skipped. _[Req: Headroom a, b]_
+- [x] 1c.1.2 RED worst vs median across starts (2%, 4%, 8% of a 10% allowance -> worst 0.8, median 0.4, ranking uses 0.8; even count = mean of the two middle values); each kind carries its own values, never blended. Invariant: a phase with `BreachLimit` in {Max, BothSameClose} has `maxUsed > 1`, otherwise `<= 1`.
+- [x] 1c.1.3 RED rank scalar: `headroom = 1 - max(dailyUsed, worstMaxUsed)` taken on the worse kind (lower per-kind headroom). A value of 0 is preserved (no truthiness).
+- [x] 1c.1.4 GREEN create `SVC/FtmoLimitHeadroom.cs` (pure, outside the evaluator).
+- [x] 1c.1.5 Falsification: use the median in the rank scalar; confirm 1c.1.2 red; restore.
 
 ### Phase 1c.2 — `FtmoGroupSearchRanking.Comparer` (design D5)
-- [ ] 1c.2.1 RED one test per key 1..6: (1) both kinds evaluated, no `RaceRefusal`, `Summary != null` first, others after in id order with their refusal; (2) breach share `(P1+P2+FundedBreached)/StartCount`, worse kind; (3) headroom descending; (4) funded no-breach share descending, null last; (5) `DaysToBothTargets.Median` ascending, null last; (6) member count, then worse peak, then sorted-Guid sequence. Exact decimals, no epsilon. _[Req: Deterministic ranking]_
-- [ ] 1c.2.2 RED ties: 3-member before 4-member when equal on 1-5; equal sizes and peak fall to id order; the elimination ceiling (default 0.05) sets `WithinCeiling` and never reorders or drops rows; zero-valued enum members each tested.
-- [ ] 1c.2.3 RED determinism: shuffled input order (deterministic permutation, no RNG) gives the identical ranking; a refused-kind candidate ranks after a clean worse one.
-- [ ] 1c.2.4 GREEN create `SVC/FtmoGroupSearchRanking.cs`; wire headroom and ranking into the engine result.
-- [ ] 1c.2.5 Falsification: swap keys 2 and 3; confirm red; restore. Gate: format, build, full suite once, pins; delete `bin-scratch/`.
+- [x] 1c.2.1 RED one test per key 1..6: (1) both kinds evaluated, no `RaceRefusal`, `Summary != null` first, others after in id order with their refusal; (2) breach share `(P1+P2+FundedBreached)/StartCount`, worse kind; (3) headroom descending; (4) funded no-breach share descending, null last; (5) `DaysToBothTargets.Median` ascending, null last; (6) member count, then worse peak, then sorted-Guid sequence. Exact decimals, no epsilon. _[Req: Deterministic ranking]_
+- [x] 1c.2.2 RED ties: 3-member before 4-member when equal on 1-5; equal sizes and peak fall to id order; the elimination ceiling (default 0.05) sets `WithinCeiling` and never reorders or drops rows; zero-valued enum members each tested.
+- [x] 1c.2.3 RED determinism: shuffled input order (deterministic permutation, no RNG) gives the identical ranking; a refused-kind candidate ranks after a clean worse one.
+- [x] 1c.2.4 GREEN create `SVC/FtmoGroupSearchRanking.cs`; wire headroom and ranking into the engine result.
+- [x] 1c.2.5 Falsification: swap keys 2 and 3; confirm red; restore. Gate: format, build, full suite once, pins; delete `bin-scratch/`.
 
 ## 1d — Benchmark, calibration, tripwire (~350)
 

@@ -374,7 +374,7 @@ internal static class FtmoGroupSearchEngine
                 progress?.Invoke(new SimulationProgress(results.Count, shortlist.Count));
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             cancelled = true;
         }
