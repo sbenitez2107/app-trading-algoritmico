@@ -103,7 +103,14 @@ public sealed record FtmoGroupKindResultDto(
     IReadOnlyList<FtmoGroupMemberRefusalDto> MemberRefusals,
     FtmoGroupWindowDto? Window,
     IReadOnlyList<FtmoGroupMemberCoverageDto> Coverage,
-    FtmoMultiStartRunDto? Run);
+    FtmoMultiStartRunDto? Run)
+{
+    /// <summary>
+    /// ftmo-group-simulation B3 (design.md D6). Non-positional on purpose, so no B2 construction site or
+    /// assertion changes. Set only on a successful kind; null on a refused one.
+    /// </summary>
+    public FtmoGroupDiagnosticsDto? Diagnostics { get; init; }
+}
 
 /// <summary>
 /// The response envelope. <see cref="Status"/> is <see cref="FtmoSimulationStatus.Refused"/> only for a

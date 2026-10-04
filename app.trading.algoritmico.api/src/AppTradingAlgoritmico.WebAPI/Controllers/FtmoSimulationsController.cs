@@ -42,6 +42,27 @@ public class FtmoSimulationsController(IFtmoGroupSimulationReadService groupSimu
     }
 
     /// <summary>
+    /// The group picker's facts for ONE account: its strategies with, per kind (Deploy and Evaluation), the held
+    /// run's presence, trade count, range, spec/calibration flags, currency and zone, plus whether the name also
+    /// exists on another account, and the member cap. A missing or empty <c>tradingAccountId</c> is a 400.
+    /// The service is bound with <c>[FromServices]</c> so the controller constructor, and the tests that build
+    /// it, stay as they were.
+    /// </summary>
+    [HttpGet("candidates")]
+    [ProducesResponseType(typeof(FtmoGroupCandidatesDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<FtmoGroupCandidatesDto>> GetCandidates(
+        [FromQuery] Guid? tradingAccountId,
+        [FromServices] IFtmoGroupCandidatesReadService candidatesReadService,
+        CancellationToken ct)
+    {
+        if (tradingAccountId is null || tradingAccountId == Guid.Empty)
+            return BadRequest(new { message = "The 'tradingAccountId' query parameter is required." });
+
+        return Ok(await candidatesReadService.GetCandidatesAsync(tradingAccountId.Value, ct));
+    }
+
+    /// <summary>
     /// Mirrors <c>StrategyBacktestsController.TryValidateFtmoBreachQuery</c> (private there, and that file is
     /// out of scope). The ids are forwarded AS SENT: the service deduplicates them and echoes the removed ones.
     /// </summary>

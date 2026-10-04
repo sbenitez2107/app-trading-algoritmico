@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.47.0] - 2026-10-04
+
+### Added
+
+- The FTMO group simulation now explains its result. For each member it reports how much the member contributed, which members' trades closed at the breach that decided each start (shared closes are flagged), and the peak number of positions open at once.
+- New endpoint `GET api/ftmo-simulations/candidates?tradingAccountId=` lists an account's strategies for the group picker. Each entry shows whether Deploy and Evaluation runs exist, their date ranges, whether the symbol has an FTMO spec and calibration, whether an FX band is needed, and whether the same name exists on another account.
+
+### Fixed
+
+- A group member whose run has no trades is now named in the refusal, instead of an unattributed "no common window".
+
 ## [0.46.0] - 2026-10-04
 
 ### Added

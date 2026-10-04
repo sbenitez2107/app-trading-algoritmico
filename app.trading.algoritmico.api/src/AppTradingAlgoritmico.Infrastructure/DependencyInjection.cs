@@ -114,6 +114,7 @@ public static class DependencyInjection
 
         // ftmo-group-simulation, B2 — group read service.
         services.AddScoped<IFtmoGroupSimulationReadService, FtmoGroupSimulationReadService>();
+        services.AddScoped<IFtmoGroupCandidatesReadService, FtmoGroupCandidatesReadService>();
 
         return services;
     }

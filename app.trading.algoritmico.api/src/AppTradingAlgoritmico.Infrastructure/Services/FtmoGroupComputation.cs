@@ -88,7 +88,16 @@ internal static class FtmoGroupComputation
             .Select(m => new MemberSeries(m.MemberOrder, m.Projection!.ProjectedLow!, m.Projection.ProjectedHigh!))
             .ToList();
 
-        // Stage 2: the common window. Empty blames no member and echoes every member's coverage.
+        // Stage 2a: a member with a held run but no rows has no range, so the intersection is undefined. Name it
+        // (B2 review RELIABILITY-001) instead of reporting a window problem that blames nobody.
+        var rowless = ordered
+            .Where(m => m.Projection!.ProjectedLow!.Count == 0)
+            .Select(m => new FtmoGroupMemberRefusalDto(m.StrategyId, m.Name, FtmoGroupRefusal.MemberHasNoTradesInWindow, null))
+            .ToList();
+        if (rowless.Count > 0)
+            return Refused(kind, FtmoGroupRefusal.MemberHasNoTradesInWindow, rowless, window: null, Coverage(ordered, inWindow: null));
+
+        // Stage 2b: the common window. Empty blames no member and echoes every member's coverage.
         var window = Intersect(series);
         if (window is null)
             return Refused(kind, FtmoGroupRefusal.NoCommonWindow, [], window: null, Coverage(ordered, inWindow: null));
@@ -117,7 +126,13 @@ internal static class FtmoGroupComputation
             Guid.Empty, kind, segment, merged.Low, merged.High, sourceZone, p.BerlinZone, p.InitialCapital,
             p.DailyPct, p.MaxPct, p.ProfitTargetPct, p.EchoFxBand, unscalable, p.Rules, ct);
 
-        return new FtmoGroupKindResultDto(kind, FtmoSimulationStatus.Evaluated, null, [], windowDto, coverage, run);
+        // Diagnostics are derived from the merged series and the run, on a SUCCESSFUL kind only (design.md D6).
+        var diagnostics = FtmoGroupDiagnostics.Compute([.. ordered.Select(m => (m.StrategyId, m.Name))], merged, run);
+
+        return new FtmoGroupKindResultDto(kind, FtmoSimulationStatus.Evaluated, null, [], windowDto, coverage, run)
+        {
+            Diagnostics = diagnostics,
+        };
     }
 
     private static FtmoGroupKindResultDto Refused(
