@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.45.7] - 2026-10-04
+
+### Fixed
+
+- The FTMO multi-start simulation no longer fails when phase 1 reaches its target on the last trade in the data. That start is now counted as phase 2 undecided with zero runway left, the same rule the funded phase already applies when no trades are left.
+
 ## [0.45.3] - 2026-10-03
 
 ### Fixed

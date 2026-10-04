@@ -108,6 +108,13 @@ close).
 - THEN it reports the runway (days from phase start to last close), with no minimum-runway cutoff or
   Kaplan–Meier survival estimate applied
 
+#### Scenario: A censored phase with no trades left reports zero runway and counts in the order statistics
+- GIVEN a start whose phase 1 reaches its target on the last replayed close, with no trade opening
+  afterwards, so its chain outcome is `Phase2UndecidedAtEndOfData`
+- WHEN the start's result and the aggregate are produced
+- THEN its runway is 0 (the same rule as an empty funded phase), and that 0 is one observation in the
+  censored-runway order statistics — never null, dropped, or a failed request
+
 #### Scenario: Each of the six chain outcomes is produced by some fixture
 - GIVEN a fixture set covering `Phase1Breached`, `Phase1UndecidedAtEndOfData`, `Phase2Breached`,
   `Phase2UndecidedAtEndOfData`, `FundedBreached`, and `FundedNoBreachAtEndOfData`

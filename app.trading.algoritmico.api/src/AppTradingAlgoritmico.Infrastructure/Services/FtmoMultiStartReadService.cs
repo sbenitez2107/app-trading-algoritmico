@@ -169,9 +169,14 @@ public sealed class FtmoMultiStartReadService(AppDbContext db) : IFtmoMultiStart
                 ? FtmoDayClock.Attribute(chosen.Phase2.OutcomeSourceClose!.Value, sourceZone, berlinZone).BookkeepingDay.DayNumber - startDay.DayNumber
                 : null;
 
+            // A phase 2 with no trades left (phase 1 reached its target on the last replayed close) never
+            // started, so the race reports it with null days; its runway is 0 — the same rule
+            // FtmoFundedPhase applies to an empty funded phase (spec.md "A funded phase with no trades
+            // left reports NoBreachByEndOfData with zero runway").
             int? runwayCalendarDays = outcome switch
             {
                 FtmoChainOutcome.Phase1UndecidedAtEndOfData => chosen.Phase1.CalendarDaysElapsed,
+                FtmoChainOutcome.Phase2UndecidedAtEndOfData when chosen.Phase2.StartSourceOpen is null => 0,
                 FtmoChainOutcome.Phase2UndecidedAtEndOfData => chosen.Phase2.CalendarDaysElapsed,
                 FtmoChainOutcome.FundedNoBreachAtEndOfData => chosen.Funded.CalendarDaysFromFundedStart,
                 _ => null,
