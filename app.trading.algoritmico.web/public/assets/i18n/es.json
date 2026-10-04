@@ -456,5 +456,15 @@
         "CENSORED_RUNWAY": "Pista censurada"
       }
     }
+  },
+  "SIMULATOR": {
+    "NAV": {
+      "TITLE": "Simulador",
+      "FTMO_GROUP": "Grupo FTMO"
+    },
+    "FTMO_GROUP": {
+      "TITLE": "Simulación de grupo FTMO",
+      "DISCLOSURE": "Esta pantalla reproduce juntas, sobre una única cuenta FTMO, las operaciones de backtest de un grupo de estrategias. Modela la eliminación frente a los límites de FTMO; no es una certificación, y un resultado favorable no garantiza un resultado real con fondeo."
+    }
   }
 }

@@ -26,6 +26,7 @@ export class MainLayoutComponent {
   sidebarCollapsed = signal(false);
   darwinexExpanded = signal(false);
   ftmoExpanded = signal(false);
+  simulatorExpanded = signal(false);
   axiExpanded = signal(false);
   sqxExpanded = signal(false);
   administrationExpanded = signal(false);
@@ -49,6 +50,7 @@ export class MainLayoutComponent {
     if (this.sidebarCollapsed()) {
       this.darwinexExpanded.set(false);
       this.ftmoExpanded.set(false);
+      this.simulatorExpanded.set(false);
       this.axiExpanded.set(false);
       this.sqxExpanded.set(false);
       this.administrationExpanded.set(false);
@@ -61,6 +63,10 @@ export class MainLayoutComponent {
 
   toggleFtmo(): void {
     if (!this.sidebarCollapsed()) this.ftmoExpanded.update((v) => !v);
+  }
+
+  toggleSimulator(): void {
+    if (!this.sidebarCollapsed()) this.simulatorExpanded.update((v) => !v);
   }
 
   toggleAxi(): void {

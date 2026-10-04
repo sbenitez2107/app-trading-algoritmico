@@ -235,6 +235,64 @@
         }
       </div>
 
+      <!-- Simulator with submenu -->
+      <div class="l-sidebar__nav-group">
+        <button
+          class="l-sidebar__nav-item l-sidebar__nav-item--group"
+          (click)="toggleSimulator()"
+          [class.l-sidebar__nav-item--expanded]="simulatorExpanded()"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style="flex-shrink: 0"
+          >
+            <path
+              d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          @if (!sidebarCollapsed()) {
+            <span class="l-sidebar__nav-label">{{ 'SIMULATOR.NAV.TITLE' | translate }}</span>
+            <svg
+              class="l-sidebar__chevron"
+              [class.l-sidebar__chevron--open]="simulatorExpanded()"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          }
+        </button>
+
+        @if (simulatorExpanded() && !sidebarCollapsed()) {
+          <div class="l-sidebar__submenu">
+            <a
+              routerLink="/simulator/ftmo"
+              routerLinkActive="l-sidebar__subnav-item--active"
+              class="l-sidebar__subnav-item"
+            >
+              <span class="l-sidebar__subnav-dot"></span>
+              {{ 'SIMULATOR.NAV.FTMO_GROUP' | translate }}
+            </a>
+          </div>
+        }
+      </div>
+
       <!-- Axi Select with submenu -->
       <div class="l-sidebar__nav-group">
         <button

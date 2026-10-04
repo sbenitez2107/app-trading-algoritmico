@@ -456,5 +456,15 @@
         "CENSORED_RUNWAY": "Censored runway"
       }
     }
+  },
+  "SIMULATOR": {
+    "NAV": {
+      "TITLE": "Simulator",
+      "FTMO_GROUP": "FTMO group"
+    },
+    "FTMO_GROUP": {
+      "TITLE": "FTMO group simulation",
+      "DISCLOSURE": "This screen replays the backtest trades of a group of strategies together on one FTMO account. It models elimination against FTMO limits; it is not a certification, and a favorable result does not guarantee a real funded outcome."
+    }
   }
 }

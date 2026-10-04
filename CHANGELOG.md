@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.48.0] - 2026-10-04
+
+### Added
+
+- A new "Simulator" section in the sidebar, with an "FTMO group" page at `/simulator/ftmo`. For now the page shows only its title and the disclosure that the simulation models elimination, not certification. The strategy picker and the results arrive in the next releases.
+
 ## [0.47.0] - 2026-10-04
 
 ### Added

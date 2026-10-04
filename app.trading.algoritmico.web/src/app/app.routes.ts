@@ -30,6 +30,11 @@ export const routes: Routes = [
         loadChildren: () => import('./features/ftmo/ftmo.routes').then((m) => m.FTMO_ROUTES),
       },
       {
+        path: 'simulator',
+        loadChildren: () =>
+          import('./features/simulator/simulator.routes').then((m) => m.SIMULATOR_ROUTES),
+      },
+      {
         path: 'axi',
         loadChildren: () => import('./features/axi/axi.routes').then((m) => m.AXI_ROUTES),
       },
