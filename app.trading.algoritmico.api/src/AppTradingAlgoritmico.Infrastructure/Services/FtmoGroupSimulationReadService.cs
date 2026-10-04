@@ -28,17 +28,7 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// </summary>
 public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroupSimulationReadService
 {
-    private static readonly BacktestRunKind[] Kinds = [BacktestRunKind.Deploy, BacktestRunKind.Evaluation];
-
-    private sealed record MemberRun(Guid RunId, BacktestRunKind Kind, string? Symbol);
-
-    private sealed record Member(
-        Guid StrategyId,
-        string Name,
-        int Order,
-        IReadOnlyDictionary<BacktestRunKind, MemberRun> Runs,
-        FtmoSimulationInputs.SymbolResolution? SymbolRefusedBy,
-        FtmoSimulationInputs.SymbolResolution? Display);
+    private static readonly BacktestRunKind[] Kinds = FtmoGroupMemberResolution.Kinds;
 
     public async Task<FtmoGroupSimulationDto> SimulateAsync(FtmoGroupSimulationParameters parameters, CancellationToken ct)
     {
@@ -54,13 +44,9 @@ public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroup
         if (orderedIds.Count == 0 || sourceGrid is null || parameters.InitialCapital <= 0m || parameters.TargetRiskPerTrade <= 0m)
             return GroupWide(FtmoGroupRefusal.InvalidRequest, duplicates: duplicates);
 
-        var strategies = await db.Strategies.AsNoTracking()
-            .Where(s => orderedIds.Contains(s.Id))
-            .Select(s => new { s.Id, s.Name })
-            .ToListAsync(ct);
+        var names = await FtmoGroupMemberResolution.LoadNamesAsync(db, orderedIds, ct);
 
-        var foundIds = strategies.Select(s => s.Id).ToHashSet();
-        var names = strategies.ToDictionary(s => s.Id, s => s.Name);
+        var foundIds = names.Keys.ToHashSet();
         var knownOrdered = orderedIds.Where(foundIds.Contains).ToList();
         var warnings = NameWarnings(knownOrdered, names);
 
@@ -84,58 +70,10 @@ public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroup
                 members: BareMembers(knownOrdered, names), duplicates: duplicates, warnings: warnings);
         }
 
-        var runs = await db.BacktestRuns.AsNoTracking()
-            .Where(r => orderedIds.Contains(r.StrategyId))
-            .Select(r => new { r.Id, r.StrategyId, r.Kind, r.Symbol })
-            .ToListAsync(ct);
-
-        var symbols = runs
-            .Select(r => r.Symbol)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => s!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var specs = await db.FtmoInstrumentSpecs.AsNoTracking()
-            .Where(s => symbols.Contains(s.SqxSymbol))
-            .ToListAsync(ct);
-        var calibrations = await db.SymbolCalibrations.AsNoTracking()
-            .Where(c => symbols.Contains(c.Symbol))
-            .ToListAsync(ct);
-
-        var specBySymbol = specs
-            .GroupBy(s => s.SqxSymbol, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-        var calibrationBySymbol = calibrations
-            .GroupBy(c => c.Symbol, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        // Pure, per distinct symbol. A run with no symbol resolves like a symbol with no spec.
-        var resolutions = symbols.ToDictionary(
-            s => s,
-            s => FtmoSimulationInputs.ResolveSymbol(
-                specBySymbol.GetValueOrDefault(s), calibrationBySymbol.GetValueOrDefault(s), parameters.FxLow, parameters.FxHigh),
-            StringComparer.OrdinalIgnoreCase);
-        var noSymbol = FtmoSimulationInputs.ResolveSymbol(null, null, parameters.FxLow, parameters.FxHigh);
-
-        FtmoSimulationInputs.SymbolResolution Resolve(string? symbol)
-            => !string.IsNullOrWhiteSpace(symbol) && resolutions.TryGetValue(symbol, out var r) ? r : noSymbol;
-
-        var members = knownOrdered
-            .Select((id, order) =>
-            {
-                var held = runs
-                    .Where(r => r.StrategyId == id)
-                    .GroupBy(r => r.Kind)
-                    .ToDictionary(g => g.Key, g => new MemberRun(g.First().Id, g.Key, g.First().Symbol));
-                var heldResolutions = Kinds.Where(held.ContainsKey).Select(k => Resolve(held[k].Symbol)).ToList();
-
-                return new Member(
-                    id, names[id], order, held,
-                    SymbolRefusedBy: heldResolutions.FirstOrDefault(r => r.Refusal is not null),
-                    Display: heldResolutions.FirstOrDefault(r => r.Spec is not null && r.FtmoGrid is not null));
-            })
-            .ToList();
+        var resolved = await FtmoGroupMemberResolution.LoadMembersAsync(
+            db, orderedIds, knownOrdered, names, parameters.FxLow, parameters.FxHigh, ct);
+        var members = resolved.Members;
+        var resolve = resolved.Resolve;
 
         var memberDtos = members.Select(ToMemberDto).ToList();
 
@@ -153,7 +91,7 @@ public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroup
         }
 
         var anyZoneUnresolved = members.Any(m =>
-            Kinds.Where(m.Runs.ContainsKey).Select(k => Resolve(m.Runs[k].Symbol)).Any(r => r.Refusal is null && r.ZoneRefusal is not null));
+            Kinds.Where(m.Runs.ContainsKey).Select(k => resolve(m.Runs[k].Symbol)).Any(r => r.Refusal is null && r.ZoneRefusal is not null));
         if (anyZoneUnresolved || !FtmoSimulationInputs.TryResolveBerlin(out var berlinZone))
         {
             return GroupWide(
@@ -161,41 +99,19 @@ public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroup
                 daily: limits.DailyPct, max: limits.MaxPct, members: memberDtos, duplicates: duplicates, warnings: warnings);
         }
 
-        var sourceZone = members
-            .SelectMany(m => Kinds.Where(m.Runs.ContainsKey).Select(k => Resolve(m.Runs[k].Symbol)))
-            .Where(r => r.Refusal is null)
-            .Select(r => r.SourceZone)
-            .FirstOrDefault(z => z is not null);
-
         // Trades: one query for every run that can still be replayed (its member's symbol resolved).
-        var neededRunIds = members
-            .Where(m => m.SymbolRefusedBy is null)
-            .SelectMany(m => m.Runs.Values.Select(r => r.RunId))
-            .ToList();
-        var tradesByRun = neededRunIds.Count == 0
-            ? new Dictionary<Guid, List<BacktestTrade>>()
-            : (await db.BacktestTrades.AsNoTracking()
-                    .Where(t => neededRunIds.Contains(t.BacktestRunId))
-                    .ToListAsync(ct))
-                .GroupBy(t => t.BacktestRunId)
-                .ToDictionary(g => g.Key, g => g.ToList());
+        var tradesByRun = await FtmoGroupMemberResolution.LoadTradesAsync(db, members, ct);
 
         // From here on there is no database access.
-        var nonUsdMember = members.Any(m => m.Display is not null && !FtmoSimulationInputs.SettlesInAccountCurrency(m.Display.Spec!));
-        var echoBand = nonUsdMember ? (parameters.FxLow ?? 1m, parameters.FxHigh ?? 1m) : (1m, 1m);
-        var rules = new FtmoChallengeRulesDto(
-            FtmoChallengeRules.Phase1TargetPct, FtmoChallengeRules.Phase2TargetPct,
-            FtmoChallengeRules.MinTradingDaysPerPhase, TimeLimitDays: null);
-        var groupParams = new GroupParams(
-            sourceZone, berlinZone!, parameters.InitialCapital, limits.DailyPct, limits.MaxPct, limits.ProfitTargetPct,
-            echoBand, rules);
+        var groupParams = FtmoGroupMemberResolution.BuildGroupParams(
+            members, resolve, limits, berlinZone!, parameters.InitialCapital, parameters.FxLow, parameters.FxHigh);
 
         var kindResults = new List<FtmoGroupKindResultDto>(Kinds.Length);
         foreach (var kind in Kinds)
         {
             ct.ThrowIfCancellationRequested();
 
-            var inputs = members.Select(m => ToKindInput(m, kind, tradesByRun, sourceGrid, parameters.TargetRiskPerTrade, Resolve)).ToList();
+            var inputs = members.Select(m => FtmoGroupMemberResolution.ToKindInput(m, kind, tradesByRun, sourceGrid, parameters.TargetRiskPerTrade, resolve)).ToList();
             kindResults.Add(ComputeGroup(kind, inputs, groupParams, ct));
         }
 
@@ -204,33 +120,7 @@ public sealed class FtmoGroupSimulationReadService(AppDbContext db) : IFtmoGroup
             duplicates, warnings, UnknownStrategyIds: [], kindResults, FtmoGroupSimulationLimits.Disclosures);
     }
 
-    private static GroupMemberKindInput ToKindInput(
-        Member member,
-        BacktestRunKind kind,
-        IReadOnlyDictionary<Guid, List<BacktestTrade>> tradesByRun,
-        LotGrid sourceGrid,
-        decimal targetRiskPerTrade,
-        Func<string?, FtmoSimulationInputs.SymbolResolution> resolve)
-    {
-        if (!member.Runs.TryGetValue(kind, out var run))
-            return new GroupMemberKindInput(member.StrategyId, member.Name, member.Order, null, null, null);
-
-        // A symbol-level failure belongs to the member's symbol, so it refuses every kind the member has.
-        if (member.SymbolRefusedBy is not null)
-        {
-            return new GroupMemberKindInput(
-                member.StrategyId, member.Name, member.Order, run.RunId, member.SymbolRefusedBy.Refusal, null);
-        }
-
-        var symbol = resolve(run.Symbol);
-        var trades = tradesByRun.GetValueOrDefault(run.RunId) ?? [];
-        var projection = FtmoSimulationInputs.ProjectRun(
-            trades, sourceGrid, symbol.FtmoGrid!, targetRiskPerTrade, symbol.PointValue, symbol.Spec!.ContractSize, symbol.FxBand);
-
-        return new GroupMemberKindInput(member.StrategyId, member.Name, member.Order, run.RunId, null, projection);
-    }
-
-    private static FtmoGroupMemberDto ToMemberDto(Member member)
+    private static FtmoGroupMemberDto ToMemberDto(FtmoGroupMemberResolution.Member member)
     {
         var display = member.Display;
         var applied = display is not null && member.SymbolRefusedBy is null;

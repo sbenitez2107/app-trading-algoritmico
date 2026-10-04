@@ -121,31 +121,31 @@ outside the slice's hunks is reported to the user, not reformatted.
 ## 1a — Extraction + daily-loss profile + peak (~420)
 
 ### Phase 1a.0 — Baseline
-- [ ] 1a.0.1 Run the shipped suite filtered `Ftmo` plus `BacktestPortfolioRiskTripwireTests`; record the pass count. All green before any edit. _[Req: One-group computation unchanged]_
-- [ ] 1a.0.2 Read `FtmoGroupSimulationReadService.cs:33-231` and `FtmoGroupSimulationReadServiceTests.cs:612-640` (CountingInterceptor) to copy fixtures.
+- [x] 1a.0.1 Run the shipped suite filtered `Ftmo` plus `BacktestPortfolioRiskTripwireTests`; record the pass count. All green before any edit. _[Req: One-group computation unchanged]_ _Done: baseline 1228 passed / 8 skipped (supplied by the orchestrator, not re-run separately); final run 1263 / 8 = 1228 + 35 new tests._
+- [x] 1a.0.2 Read `FtmoGroupSimulationReadService.cs:33-231` and `FtmoGroupSimulationReadServiceTests.cs:612-640` (CountingInterceptor) to copy fixtures. _Done._
 
 ### Phase 1a.1 — `FtmoGroupMemberResolution` (design D1)
-- [ ] 1a.1.1 RED `TESTS/FtmoGroupMemberResolutionTests.cs`: staged methods `LoadNamesAsync` / `LoadMembersAsync` / `LoadTradesAsync` / `BuildGroupParams` / `ToKindInput` return what the inline code produced (source zone = first resolved member zone; echo band = non-USD among THIS group's members). _[Req: One-group computation unchanged]_
-- [ ] 1a.1.2 RED query-count pin through the new stages: names+limits issued before runs; an unknown id or limits refusal issues no runs/specs/trades query (same counts as `:612-640`).
-- [ ] 1a.1.3 GREEN create `SVC/FtmoGroupMemberResolution.cs` (`internal static`) by moving the listed line ranges VERBATIM; modify `SVC/FtmoGroupSimulationReadService.cs` to call the stages in the same order and keep every group-wide refusal precedence. Behaviour-preserving.
-- [ ] 1a.1.4 Pin: run every shipped Ftmo suite, golden pin, snapshot pin; `git diff --stat -- app.trading.algoritmico.api/tests` shows zero modified files. _[Req: Existing suites pass unedited; response byte-identical]_
-- [ ] 1a.1.5 RED/GREEN byte-identical response: serialize the group endpoint result for a fixture group before and after (snapshot test in a NEW file, JSON equality). _[Req: Group endpoint response unchanged]_
-- [ ] 1a.1.6 Falsification: reorder two stages so the runs query runs before the limits refusal; confirm the query-count pin red; restore.
+- [x] 1a.1.1 RED `TESTS/FtmoGroupMemberResolutionTests.cs`: staged methods `LoadNamesAsync` / `LoadMembersAsync` / `LoadTradesAsync` / `BuildGroupParams` / `ToKindInput` return what the inline code produced (source zone = first resolved member zone; echo band = non-USD among THIS group's members). _[Req: One-group computation unchanged]_ _RED: new test file did not compile without `FtmoGroupMemberResolution` (CS0234/CS0246). Done._
+- [x] 1a.1.2 RED query-count pin through the new stages: names+limits issued before runs; an unknown id or limits refusal issues no runs/specs/trades query (same counts as `:612-640`). _Done: unknown id = 1 command, limits refusal = 2, full run = 6 in order. Passes on the unmodified service by design (pins); its falsification is 1a.1.6._
+- [x] 1a.1.3 GREEN create `SVC/FtmoGroupMemberResolution.cs` (`internal static`) by moving the listed line ranges VERBATIM; modify `SVC/FtmoGroupSimulationReadService.cs` to call the stages in the same order and keep every group-wide refusal precedence. Behaviour-preserving. _Done: service 263 -> 140 lines; staged calls in the same order._
+- [x] 1a.1.4 Pin: run every shipped Ftmo suite, golden pin, snapshot pin; `git diff --stat -- app.trading.algoritmico.api/tests` shows zero modified files. _[Req: Existing suites pass unedited; response byte-identical]_ _Done: group service tests, query-count test, golden pin, snapshot pin green UNEDITED; `git diff --stat -- tests` is empty (new files only)._
+- [x] 1a.1.5 RED/GREEN byte-identical response: serialize the group endpoint result for a fixture group before and after (snapshot test in a NEW file, JSON equality). _[Req: Group endpoint response unchanged]_ _RED: placeholder hash mismatched on the unmodified service; real hashes captured pre-refactor (stable over 2 runs), then GREEN after it. Done._
+- [x] 1a.1.6 Falsification: reorder two stages so the runs query runs before the limits refusal; confirm the query-count pin red; restore. _Done: moved `LoadMembersAsync` before the limits refusal; the limits-refusal pin (5 commands, not 2) and the in-order pin went red; restored. NOTE: the shipped query-count test stayed green under this mutation (it only counts the happy path)._
 
 ### Phase 1a.2 — `FtmoDailyLossProfile` (design D3)
-- [ ] 1a.2.1 RED `TESTS/FtmoDailyLossProfileTests.cs`: worst day loss and its day on hand-computed series; moving floor seeded as the evaluator; day-change reference = balance carried from the previous day; null nets skipped. _[Req: Proxy, daily]_
-- [ ] 1a.2.2 RED **parity (hard rule 4a)**: on fixtures, `Evaluate(...).Daily.Verdict != NoBreachObserved` iff `WorstDayLoss > dailyPct x capital`, and the first breach day equals the profile's first exceeding day. The evaluator is only CALLED from tests.
-- [ ] 1a.2.3 GREEN create `SVC/FtmoDailyLossProfile.cs` (pure) replicating `FtmoBreachEvaluator.cs:128-137,159-184`.
-- [ ] 1a.2.4 Falsification: measure from initial capital instead of the previous-day balance; confirm 1a.2.1/1a.2.2 red; restore.
+- [x] 1a.2.1 RED `TESTS/FtmoDailyLossProfileTests.cs`: worst day loss and its day on hand-computed series; moving floor seeded as the evaluator; day-change reference = balance carried from the previous day; null nets skipped. _[Req: Proxy, daily]_ _RED: `FtmoDailyLossProfile` did not exist (compile error). Done._
+- [x] 1a.2.2 RED **parity (hard rule 4a)**: on fixtures, `Evaluate(...).Daily.Verdict != NoBreachObserved` iff `WorstDayLoss > dailyPct x capital`, and the first breach day equals the profile's first exceeding day. The evaluator is only CALLED from tests. _Done: 5 fixtures (quiet, breach day, merged-two, merged-three with null nets, Berlin boundary at late-March DST) x 2 FX ends x 5 allowances; non-vacuous guard._
+- [x] 1a.2.3 GREEN create `SVC/FtmoDailyLossProfile.cs` (pure) replicating `FtmoBreachEvaluator.cs:128-137,159-184`. _Done._
+- [x] 1a.2.4 Falsification: measure from initial capital instead of the previous-day balance; confirm 1a.2.1/1a.2.2 red; restore. _Done: reference = initial capital -> 8 of 13 red (all four parity fixtures that breach, plus the hand cases); restored._
 
 ### Phase 1a.3 — `FtmoPeakConcurrency`
-- [ ] 1a.3.1 RED `TESTS/FtmoPeakConcurrencyTests.cs`: A 10-12, B 11-13, C 11:30-11:45 -> peak 3; close 12:00 / open 12:00 not concurrent; zero-duration and Unscalable rows ignored. _[Req: Proxy, peak]_
-- [ ] 1a.3.2 RED **parity (hard rule 4b)**: proxy peak equals `ComputeGroup(...).Diagnostics.Peak.PeakConcurrentOpen` on the same members.
-- [ ] 1a.3.3 GREEN create `SVC/FtmoPeakConcurrency.cs` mirroring `FtmoGroupDiagnostics.cs:166-211` (closes before opens). `FtmoGroupDiagnostics.cs` NOT edited.
-- [ ] 1a.3.4 Falsification: process opens before closes at the same instant; confirm 1a.3.1 red; restore.
+- [x] 1a.3.1 RED `TESTS/FtmoPeakConcurrencyTests.cs`: A 10-12, B 11-13, C 11:30-11:45 -> peak 3; close 12:00 / open 12:00 not concurrent; zero-duration and Unscalable rows ignored. _[Req: Proxy, peak]_ _RED: `FtmoPeakConcurrency` did not exist (compile error). Done._
+- [x] 1a.3.2 RED **parity (hard rule 4b)**: proxy peak equals `ComputeGroup(...).Diagnostics.Peak.PeakConcurrentOpen` on the same members. _Done: 3 parity fixtures vs `ComputeGroup(...).Diagnostics.Peak.PeakConcurrentOpen` (peak 3 asserted, boundary touch, window trim)._
+- [x] 1a.3.3 GREEN create `SVC/FtmoPeakConcurrency.cs` mirroring `FtmoGroupDiagnostics.cs:166-211` (closes before opens). `FtmoGroupDiagnostics.cs` NOT edited. _Done (counter sweep, closes before opens)._
+- [x] 1a.3.4 Falsification: process opens before closes at the same instant; confirm 1a.3.1 red; restore. _Done: opens-before-closes -> 3 red (2 unit + the boundary parity); restored._
 
 ### Phase 1a.4 — Gate
-- [ ] 1a.4.1 Format, build `-warnaserror`, full suite once; golden/snapshot pins, tripwire green; `FtmoBreachEvaluator.cs`, `FtmoGroupComputation.cs`, `FtmoGroupDiagnostics.cs`, `FtmoGroupMerger.cs`, `FtmoMultiStartReadService.cs` unchanged; `FtmoGroupSimulationReadService.cs` is the only modified shipped file. Delete `bin-scratch/`.
+- [x] 1a.4.1 Format, build `-warnaserror`, full suite once; golden/snapshot pins, tripwire green; `FtmoBreachEvaluator.cs`, `FtmoGroupComputation.cs`, `FtmoGroupDiagnostics.cs`, `FtmoGroupMerger.cs`, `FtmoMultiStartReadService.cs` unchanged; `FtmoGroupSimulationReadService.cs` is the only modified shipped file. Delete `bin-scratch/`. _Done: `dotnet build -warnaserror` 0 warn / 0 err; `dotnet format --verify-no-changes` exit 0 (after whitespace-fixing two NEW test files); full suite 1263 passed / 8 skipped; `bin-scratch/` deleted._
 
 ## 1b — Funnel engine (~450)
 
