@@ -232,14 +232,33 @@ screen).
 - **Why**: the user's real goal is a separate portfolio-simulation screen: groups of 2..n strategies,
   for FTMO, Darwinex Zero and Axi Select, on backtest and later live data.
 - **Agreed next order**:
-  1. **FTMO group simulation, on its own screen — the immediate next change.**
-  2. Automatic combinations.
+  1. ~~FTMO group simulation, on its own screen~~ — **SHIPPED** (see the 2026-10-04 status below).
+  2. **Automatic combinations of 2..4 strategies — the immediate next change.** It must cross the
+     analytics tripwire (`BacktestPortfolioRiskTripwireTests`) deliberately, and compose the pure
+     `ComputeGroup` rather than loop inside the one-group contract.
   3. Live data.
-  4. Darwinex Zero and Axi.
+  4. Darwinex Zero and Axi Select. The target-key redesign (layer 3) is due before Axi, in about
+     November 2026.
+
+**Status (2026-10-04)**
+
+- **Shipped and archived 2026-10-04**: the FTMO group simulation (`ftmo-group-simulation`), on its own
+  screen at `/simulator/ftmo`, with `MaxMembers = 4`, measured by benchmark. Main specs:
+  `openspec/specs/ftmo-group-simulation/spec.md` (16 requirements, 67 scenarios) and
+  `openspec/specs/ftmo-group-simulation-ui/spec.md` (15 requirements, 52 scenarios).
 
 **Pending items (not scheduled)**
 
 - **App-wide i18n change**: 24 templates still carry hardcoded strings and need their own i18n change.
+- **Deferred UI polish (FTMO group screen)**: the repeated 1% readout line, an all-zero attribution
+  table when there are no breaches, and diagnostics tables wider than their panel.
+- **Unidentified flaky frontend test**: 1 failure in 9 runs; the test is not yet identified.
+- **Re-export two strategies' CSVs**: two of the user's tested strategies have identical Deploy and
+  Eval CSVs (`WF_9_26_XAUUSD_H1_KAMA_BB_4.53.318`, and likely
+  `WF_9_26_XAUUSD_H4_H_ATR_CD_SMA_8.15.181`); they should be re-exported.
+- **Real-test findings (FTMO group simulation)**: in groups that hold two NQ strategies, those two
+  decided most breaches (concentration risk). The observed peak of 4 concurrent positions is 4%
+  exposure at risk 100.
 - **Latent theme-variable bug**: the existing strategy-analytics modals read CSS variables that
   `styles/_variables.scss` never declares (`--color-surface` and similar), so they always paint their
   hardcoded fallbacks and ignore the light theme. The FTMO modal was fixed in its own post-PR1 fix (P3);
