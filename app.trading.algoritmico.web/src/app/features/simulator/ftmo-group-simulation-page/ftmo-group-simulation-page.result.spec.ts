@@ -15,6 +15,8 @@ import {
   TradingAccountService,
 } from '../../../core/services/trading-account.service';
 import {
+  THREE_MEMBERS,
+  diagnosticsFixture,
   groupResult,
   groupWideRefusal,
   refusedKind,
@@ -124,6 +126,25 @@ describe('FtmoGroupSimulationPageComponent result area (F3.4)', () => {
     run(f);
     expect(el(f).querySelectorAll('.ftmo-group-result__group-refusal')).toHaveLength(1);
     expect(el(f).querySelector('app-ftmo-run-panel')).toBeNull();
+  });
+
+  it('rendersOneDiagnosticsPanelPerSuccessfulKind_WithMembersNamedFromTheEnvelope', () => {
+    const f = create(() =>
+      of(
+        groupResult(
+          [
+            successKind(BacktestRunKind.Deploy, diagnosticsFixture()),
+            refusedKind(BacktestRunKind.Evaluation, FtmoGroupRefusal.NoCommonWindow),
+          ],
+          { members: THREE_MEMBERS },
+        ),
+      ),
+    );
+    run(f);
+    expect(el(f).querySelectorAll('app-ftmo-group-diagnostics')).toHaveLength(1);
+    expect(el(f).querySelector('.ftmo-group-diagnostics__peak-member')?.textContent).toContain(
+      'Alpha',
+    );
   });
 
   it('aFailedRunShowsTheErrorAndNeitherAResultNorTheHint', () => {

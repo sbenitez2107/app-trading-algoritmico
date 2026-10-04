@@ -1,0 +1,199 @@
+<ng-template #absent>{{ 'FTMO_SIMULATION.NOT_REPORTED' | translate }}</ng-template>
+
+<ng-template #plain let-value>
+  @if (value === null) {
+    <ng-container *ngTemplateOutlet="absent" />
+  } @else {
+    {{ value }}
+  }
+</ng-template>
+
+<ng-template #countShare let-cell>
+  @if (cell.count === null) {
+    <ng-container *ngTemplateOutlet="absent" />
+  } @else if (cell.share === null) {
+    {{ cell.count }}
+  } @else {
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.COUNT_SHARE' | translate: cell }}
+  }
+</ng-template>
+
+<section class="ftmo-group-diagnostics">
+  <h3 class="ftmo-group-diagnostics__title">
+    {{
+      'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.TITLE' | translate: { kind: vm().kindLabelKey | translate }
+    }}
+  </h3>
+
+  <h4 class="ftmo-group-diagnostics__heading">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.HEADING' | translate }}
+  </h4>
+  <p class="ftmo-group-diagnostics__note">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.NOTE' | translate }}
+  </p>
+  <div class="ftmo-group-diagnostics__scroll">
+    <table class="ftmo-group-diagnostics__table">
+      <thead>
+        <tr>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.MEMBER' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.TRADES' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.SCALABLE' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.NET_LOW' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.NET_HIGH' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.RAISED' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.CAPPED' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.CONTRIBUTION.COLUMN.UNSCALABLE' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of vm().contributions; track row.strategyId) {
+          <tr class="ftmo-group-diagnostics__contribution-row">
+            <th scope="row">{{ row.name }}</th>
+            <td>
+              <ng-container *ngTemplateOutlet="plain; context: { $implicit: row.inWindowTrades }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="plain; context: { $implicit: row.scalableTrades }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="plain; context: { $implicit: row.netLowText }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="plain; context: { $implicit: row.netHighText }" />
+            </td>
+            <td>
+              <ng-container
+                *ngTemplateOutlet="plain; context: { $implicit: row.raisedToMinimum }"
+              />
+            </td>
+            <td>
+              <ng-container
+                *ngTemplateOutlet="plain; context: { $implicit: row.cappedAtMaximum }"
+              />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="plain; context: { $implicit: row.unscalable }" />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <h4 class="ftmo-group-diagnostics__heading">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.HEADING' | translate }}
+  </h4>
+  <p class="ftmo-group-diagnostics__note ftmo-group-diagnostics__attribution-note">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.NOTE' | translate }}
+  </p>
+  <div class="ftmo-group-diagnostics__scroll">
+    <table class="ftmo-group-diagnostics__table">
+      <thead>
+        <tr>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.MEMBER' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.PHASE1' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.PHASE2' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.FUNDED' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.SOLE' | translate }}
+          </th>
+          <th scope="col">
+            {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.COLUMN.TIED' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of vm().attribution.rows; track row.strategyId) {
+          <tr class="ftmo-group-diagnostics__attribution-row">
+            <th scope="row">{{ row.name }}</th>
+            <td>
+              <ng-container *ngTemplateOutlet="countShare; context: { $implicit: row.phase1 }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="countShare; context: { $implicit: row.phase2 }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="countShare; context: { $implicit: row.funded }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="countShare; context: { $implicit: row.sole }" />
+            </td>
+            <td>
+              <ng-container *ngTemplateOutlet="countShare; context: { $implicit: row.tied }" />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <ul class="ftmo-group-diagnostics__totals">
+    <li class="ftmo-group-diagnostics__total-deciding">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.TOTAL.DECIDING' | translate }}:
+      <ng-container
+        *ngTemplateOutlet="plain; context: { $implicit: vm().attribution.decidingBreachStarts }"
+      />
+    </li>
+    <li class="ftmo-group-diagnostics__total-tied">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.TOTAL.TIED' | translate }}:
+      <ng-container *ngTemplateOutlet="countShare; context: { $implicit: vm().attribution.tied }" />
+    </li>
+    <li class="ftmo-group-diagnostics__total-unattributed">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.TOTAL.UNATTRIBUTED' | translate }}:
+      <ng-container
+        *ngTemplateOutlet="countShare; context: { $implicit: vm().attribution.unattributed }"
+      />
+    </li>
+  </ul>
+  @if (vm().attribution.unattributed.count !== null && vm().attribution.unattributed.count! > 0) {
+    <p class="ftmo-group-diagnostics__note ftmo-group-diagnostics__unattributed-note">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.ATTRIBUTION.UNATTRIBUTED_NOTE' | translate }}
+    </p>
+  }
+
+  <h4 class="ftmo-group-diagnostics__heading">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.PEAK.HEADING' | translate }}
+  </h4>
+  <p class="ftmo-group-diagnostics__peak-value">
+    {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.PEAK.VALUE' | translate }}:
+    <ng-container *ngTemplateOutlet="plain; context: { $implicit: vm().peak.peak }" />
+  </p>
+  @if (vm().peak.members.length > 0) {
+    <p class="ftmo-group-diagnostics__peak-members-label">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.PEAK.MEMBERS' | translate }}
+    </p>
+    <ul class="ftmo-group-diagnostics__peak-members">
+      @for (member of vm().peak.members; track member.strategyId) {
+        <li class="ftmo-group-diagnostics__peak-member">{{ member.name }}</li>
+      }
+    </ul>
+  }
+  @if (vm().peak.firstReached; as when) {
+    <p class="ftmo-group-diagnostics__peak-first">
+      {{ 'SIMULATOR.FTMO_GROUP.DIAGNOSTICS.PEAK.FIRST_REACHED' | translate: { when: when } }}
+    </p>
+  }
+</section>

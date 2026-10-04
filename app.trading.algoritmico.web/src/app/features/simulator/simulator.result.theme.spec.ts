@@ -4,7 +4,12 @@ import { describe, expect, it } from 'vitest';
 import { FtmoGroupRefusal } from '../../core/models/ftmo-group-simulation.model';
 import { BacktestRunKind } from '../../core/services/backtest.service';
 import { FtmoGroupResultComponent } from './ftmo-group-result/ftmo-group-result.component';
-import { groupResult, refusedKind, successKind } from './ftmo-group-simulation.result.fixtures';
+import {
+  diagnosticsFixture,
+  groupResult,
+  refusedKind,
+  successKind,
+} from './ftmo-group-simulation.result.fixtures';
 import { toGroupResultVm } from './ftmo-group-simulation.result.mappers';
 
 /**
@@ -38,7 +43,7 @@ function resultCss(): string {
     .map((s) => s.textContent ?? '')
     .join('\n')
     .split('}')
-    .filter((rule) => /ftmo-group-result/.test(rule))
+    .filter((rule) => /ftmo-group-(result|diagnostics)/.test(rule))
     .join('}\n');
 }
 
@@ -60,7 +65,7 @@ describe('simulator result theming', () => {
       'vm',
       toGroupResultVm(
         groupResult([
-          successKind(BacktestRunKind.Deploy),
+          successKind(BacktestRunKind.Deploy, diagnosticsFixture()),
           refusedKind(BacktestRunKind.Evaluation, FtmoGroupRefusal.NoCommonWindow),
         ]),
       ),
@@ -70,6 +75,10 @@ describe('simulator result theming', () => {
 
   it('theResultStylesheetIsPartOfTheCheckedCss', () => {
     expect(resultCss()).toContain('.ftmo-group-result__slots');
+  });
+
+  it('theDiagnosticsStylesheetIsPartOfTheCheckedCss', () => {
+    expect(resultCss()).toContain('.ftmo-group-diagnostics__table');
   });
 
   it('theResultStylesheetContainsNoColourLiteral_FallbacksIncluded', () => {

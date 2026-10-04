@@ -1,5 +1,8 @@
 import {
+  FtmoGroupDiagnosticsDto,
   FtmoGroupKindResultDto,
+  FtmoGroupMemberAttributionDto,
+  FtmoGroupMemberContributionDto,
   FtmoGroupMemberCoverageDto,
   FtmoGroupMemberDto,
   FtmoGroupMemberRefusalDto,
@@ -101,7 +104,10 @@ export function memberRefusal(
 }
 
 /** A successful kind whose members all fit the window exactly. */
-export function successKind(kind: BacktestRunKind): FtmoGroupKindResultDto {
+export function successKind(
+  kind: BacktestRunKind,
+  diagnostics: FtmoGroupDiagnosticsDto | null = null,
+): FtmoGroupKindResultDto {
   return {
     kind,
     status: FtmoSimulationStatus.Evaluated,
@@ -110,7 +116,7 @@ export function successKind(kind: BacktestRunKind): FtmoGroupKindResultDto {
     window: { start: '2020-02-01T00:00:00', end: '2021-06-30T00:00:00' },
     coverage: [coverage('a', 'Alpha'), coverage('b', 'Beta')],
     run: evaluatedRun(kind),
-    diagnostics: null,
+    diagnostics,
   };
 }
 
@@ -184,4 +190,89 @@ export function groupWideRefusal(
     refusal,
     ...overrides,
   });
+}
+
+/** Three members (Alpha, Beta, Gamma) for the diagnostics specs. */
+export const THREE_MEMBERS: FtmoGroupMemberDto[] = [
+  ...MEMBERS,
+  { ...MEMBERS[0], strategyId: 'c', name: 'Gamma', memberOrder: 2 },
+];
+
+export function contribution(
+  id: string,
+  name: string,
+  overrides: Partial<FtmoGroupMemberContributionDto> = {},
+): FtmoGroupMemberContributionDto {
+  return {
+    strategyId: id,
+    name,
+    inWindowTrades: 20,
+    scalableTrades: 18,
+    netLow: 150.5,
+    netHigh: 210.25,
+    raisedToMinimum: 2,
+    cappedAtMaximum: 1,
+    unscalable: 2,
+    ...overrides,
+  };
+}
+
+export function memberAttribution(
+  id: string,
+  name: string,
+  overrides: Partial<FtmoGroupMemberAttributionDto> = {},
+): FtmoGroupMemberAttributionDto {
+  return {
+    strategyId: id,
+    name,
+    phase1Starts: 4,
+    phase2Starts: 1,
+    fundedStarts: 1,
+    soleContributorStarts: 4,
+    sharedCloseStarts: 2,
+    ...overrides,
+  };
+}
+
+/**
+ * Three members; 10 deciding-breach starts = 8 sole (4 + 3 + 1) + 2 tied + 0 unattributed. Alpha and Beta tie
+ * on both shared closes, so each member's phase counts add up to its sole + tied starts (6, 5, 1).
+ */
+export function diagnosticsFixture(
+  overrides: Partial<FtmoGroupDiagnosticsDto> = {},
+): FtmoGroupDiagnosticsDto {
+  return {
+    contributions: [
+      contribution('a', 'Alpha'),
+      contribution('b', 'Beta', { netLow: -42.5, netHigh: 0 }),
+      contribution('c', 'Gamma', { raisedToMinimum: 0, cappedAtMaximum: 0, unscalable: 0 }),
+    ],
+    attribution: {
+      decidingBreachStarts: 10,
+      sharedCloseStarts: 2,
+      unattributedStarts: 0,
+      members: [
+        memberAttribution('a', 'Alpha'),
+        memberAttribution('b', 'Beta', {
+          phase1Starts: 3,
+          phase2Starts: 2,
+          fundedStarts: 0,
+          soleContributorStarts: 3,
+        }),
+        memberAttribution('c', 'Gamma', {
+          phase1Starts: 0,
+          phase2Starts: 0,
+          fundedStarts: 1,
+          soleContributorStarts: 1,
+          sharedCloseStarts: 0,
+        }),
+      ],
+    },
+    peak: {
+      peakConcurrentOpen: 3,
+      firstReachedSource: '2020-05-04T10:30:00',
+      memberIdsAtPeak: ['a', 'b', 'c'],
+    },
+    ...overrides,
+  };
 }

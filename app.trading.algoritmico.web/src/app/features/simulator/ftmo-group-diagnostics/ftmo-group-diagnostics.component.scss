@@ -1,0 +1,76 @@
+.ftmo-group-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__title,
+  &__heading {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__heading {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__note,
+  &__peak-value,
+  &__peak-members-label,
+  &__peak-first {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  &__peak-value {
+    color: var(--text-main);
+  }
+
+  &__unattributed-note {
+    color: var(--color-warning);
+  }
+
+  &__scroll {
+    overflow-x: auto;
+  }
+
+  &__table {
+    width: 100%;
+    font-size: 0.875rem;
+    color: var(--text-main);
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      text-align: right;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th:first-child {
+      text-align: left;
+    }
+
+    thead th {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+  }
+
+  &__totals,
+  &__peak-members {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    font-size: 0.875rem;
+    color: var(--text-main);
+  }
+}

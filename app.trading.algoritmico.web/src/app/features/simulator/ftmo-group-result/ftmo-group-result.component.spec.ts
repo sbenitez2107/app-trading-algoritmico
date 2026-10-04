@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   FtmoGroupRefusal,
   FtmoGroupSimulationDto,
@@ -8,9 +8,12 @@ import {
 import { FtmoSimulationRefusal } from '../../../core/models/ftmo-simulation.model';
 import { BacktestRunKind } from '../../../core/services/backtest.service';
 import {
+  THREE_MEMBERS,
   coverage,
+  diagnosticsFixture,
   groupResult,
   groupWideRefusal,
+  MEMBERS,
   memberRefusal,
   refusedKind,
   successKind,
@@ -201,6 +204,116 @@ describe('per-member reasons (F3.4.2)', () => {
     expect(slot.textContent).toContain(r.t(`${RESULT}REFUSAL.NO_COMMON_WINDOW`));
     expect(slot.querySelectorAll('.ftmo-group-result__member')).toHaveLength(0);
     expect(slot.querySelectorAll('.ftmo-group-result__coverage-row')).toHaveLength(2);
+  });
+});
+
+describe('F3b follow-ups (RELIABILITY-001/003)', () => {
+  it('noWindowKindRendersADistinctNoWindowCount_NeverZeroTrades_InBothLocales', () => {
+    for (const lang of ['en', 'es'] as const) {
+      for (const refusal of [
+        FtmoGroupRefusal.NoCommonWindow,
+        FtmoGroupRefusal.MemberHasNoTradesInWindow,
+      ]) {
+        const r = render(
+          groupResult([
+            refusedKind(DEPLOY, refusal, [], [coverage('a', 'Alpha', { inWindowTrades: 0 })]),
+          ]),
+          lang,
+        );
+        const row = r.el.querySelector('.ftmo-group-result__coverage-row')!.textContent ?? '';
+        expect(row, `${lang}/${refusal}`).toContain(
+          r.t(`${RESULT}COVERAGE_ROW_NO_WINDOW`, {
+            name: 'Alpha',
+            first: '2020-02-01',
+            last: '2021-06-30',
+          }),
+        );
+        expect(row).toContain('2020-02-01');
+        expect(row).not.toMatch(/\b0\b/);
+      }
+    }
+  });
+
+  it('aGenuineZeroInAnExistingWindowStillRendersZeroTrades', () => {
+    const kind = successKind(DEPLOY);
+    kind.coverage = [coverage('a', 'Alpha', { inWindowTrades: 0 })];
+    const r = render(groupResult([kind]));
+    const row = r.el.querySelector('.ftmo-group-result__coverage-row')!.textContent ?? '';
+    expect(row).toContain(
+      r.t(`${RESULT}COVERAGE_ROW`, {
+        name: 'Alpha',
+        first: '2020-02-01',
+        last: '2021-06-30',
+        trades: 0,
+      }),
+    );
+  });
+
+  it('twoMembersSharingANameBothRenderInTheZonesList_WithNoDuplicateTrackKeyWarning', () => {
+    const twins = (first: string, second: string): FtmoGroupSimulationDto =>
+      groupWideRefusal(FtmoGroupRefusal.MixedSourceTimeZones, {
+        members: [
+          { ...MEMBERS[0], strategyId: 'x1', name: 'Twin', sourceTimeZoneId: first },
+          { ...MEMBERS[1], strategyId: 'x2', name: 'Twin', sourceTimeZoneId: second },
+        ],
+      });
+    const r = render(twins('Europe/Berlin', 'America/New_York'));
+    const rows = (): string[] =>
+      Array.from(r.el.querySelectorAll('.ftmo-group-result__zones li')).map(
+        (li) => li.textContent ?? '',
+      );
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0]).toContain('Europe/Berlin');
+    expect(rows()[1]).toContain('America/New_York');
+
+    // Angular only WARNS (NG0955) on a duplicate `track` key, and only when the list is reconciled, so
+    // re-render with a changed list and treat the warning as a failure.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    r.fixture.componentRef.setInput('vm', toGroupResultVm(twins('Asia/Tokyo', 'Europe/London')));
+    r.fixture.detectChanges();
+    const logged = warn.mock.calls.map((c) => String(c[0]));
+    warn.mockRestore();
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0]).toContain('Asia/Tokyo');
+    expect(rows()[1]).toContain('Europe/London');
+    expect(logged.filter((m) => m.includes('NG0955'))).toEqual([]);
+  });
+});
+
+describe('diagnostics panels (F4.3)', () => {
+  it('rendersOneDiagnosticsPanelPerSuccessfulKind_AndNoneForARefusedKind', () => {
+    const r = render(
+      groupResult(
+        [
+          successKind(DEPLOY, diagnosticsFixture()),
+          refusedKind(EVAL, FtmoGroupRefusal.NoCommonWindow),
+        ],
+        { members: THREE_MEMBERS },
+      ),
+    );
+    expect(r.el.querySelectorAll('app-ftmo-group-diagnostics')).toHaveLength(1);
+    const deploy = r.el.querySelector('[data-kind="1"]') as HTMLElement;
+    expect(deploy.querySelectorAll('app-ftmo-group-diagnostics')).toHaveLength(1);
+    const both = render(
+      groupResult(
+        [successKind(DEPLOY, diagnosticsFixture()), successKind(EVAL, diagnosticsFixture())],
+        {
+          members: THREE_MEMBERS,
+        },
+      ),
+    );
+    expect(both.el.querySelectorAll('app-ftmo-group-diagnostics')).toHaveLength(2);
+  });
+
+  it('rendersNoDiagnosticsPanelWhenTheKindCarriesNone_AndNoneBesideAGroupRefusal', () => {
+    expect(
+      render(groupResult([successKind(DEPLOY)])).el.querySelector('app-ftmo-group-diagnostics'),
+    ).toBeNull();
+    expect(
+      render(groupWideRefusal(FtmoGroupRefusal.InvalidRequest)).el.querySelector(
+        'app-ftmo-group-diagnostics',
+      ),
+    ).toBeNull();
   });
 });
 

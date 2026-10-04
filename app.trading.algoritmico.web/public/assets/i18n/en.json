@@ -516,6 +516,48 @@
         "ABOVE_DAILY": "Above the {{limit}}% daily limit.",
         "OBSERVED": "Observed peak, {{kind}}: {{peak}} open together x risk = {{amount}} ({{pct}}% of capital)."
       },
+      "DIAGNOSTICS": {
+        "TITLE": "Group diagnostics, {{kind}}",
+        "COUNT_SHARE": "{{count}} ({{share}}%)",
+        "CONTRIBUTION": {
+          "HEADING": "Contribution by member",
+          "NOTE": "Over the whole window. Net is an amount of money at each end of the FX band, not a fraction of capital. Unscalable trades add nothing to the net.",
+          "COLUMN": {
+            "MEMBER": "Member",
+            "TRADES": "Trades in the window",
+            "SCALABLE": "Scalable trades",
+            "NET_LOW": "Net, low FX end",
+            "NET_HIGH": "Net, high FX end",
+            "RAISED": "Raised to minimum",
+            "CAPPED": "Capped at maximum",
+            "UNSCALABLE": "Unscalable"
+          }
+        },
+        "ATTRIBUTION": {
+          "HEADING": "Which member's trades decided the breaches",
+          "NOTE": "Each start that ended in a breach is credited to the member whose trade closed at the deciding breach. Counts are starts; shares are of this kind's deciding-breach starts. When several members have a trade closing at the same instant the start is a tie: it is credited to each of them and counted as tied, so the rows do not add up to the total. This describes elimination contribution, not a ranking.",
+          "COLUMN": {
+            "MEMBER": "Member",
+            "PHASE1": "Phase 1 starts",
+            "PHASE2": "Phase 2 starts",
+            "FUNDED": "Funded starts",
+            "SOLE": "Sole contributor",
+            "TIED": "Tied (shared close)"
+          },
+          "TOTAL": {
+            "DECIDING": "Deciding-breach starts",
+            "TIED": "Tied starts (shared close)",
+            "UNATTRIBUTED": "Unattributed starts"
+          },
+          "UNATTRIBUTED_NOTE": "Some breaches closed at an instant with no trade in the merged series, so no member is credited. This points to a data defect worth checking."
+        },
+        "PEAK": {
+          "HEADING": "Peak concurrent open positions",
+          "VALUE": "Peak open together",
+          "MEMBERS": "Members with a position open at the peak:",
+          "FIRST_REACHED": "First reached at {{when}} (source time)."
+        }
+      },
       "RESULT": {
         "NAME_WARNING": "Several strategies share the name {{name}} ({{ids}}). They may be the same strategy imported on more than one account.",
         "REFUSAL": {
@@ -534,6 +576,7 @@
         "WINDOW": "Replay window: {{start}} to {{end}}",
         "COVERAGE_HEADING": "Coverage by member",
         "COVERAGE_ROW": "{{name}}: first open {{first}}, last close {{last}}, {{trades}} trades in the window",
+        "COVERAGE_ROW_NO_WINDOW": "{{name}}: first open {{first}}, last close {{last}}, no shared window to count trades in",
         "COVERAGE_WIDER": "range wider than the window",
         "SHORTENED": "At least one member's range is wider than the shared window. This result describes the shared window only.",
         "DISCLOSURE": {

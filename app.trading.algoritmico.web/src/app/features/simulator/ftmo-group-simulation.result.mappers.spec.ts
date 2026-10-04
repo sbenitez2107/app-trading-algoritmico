@@ -159,7 +159,30 @@ describe('per-member reasons (F3.4.2)', () => {
     expect(slot.refusal?.key).toBe(GROUP_REFUSAL_LABELS[FtmoGroupRefusal.NoCommonWindow]);
     expect(slot.members).toEqual([]);
     expect(slot.coverage.map((c) => c.name)).toEqual(['Alpha', 'Beta']);
-    expect(slot.coverage[1].inWindowTrades).toBe(0);
+    // No window exists, so the backend's null in-window count is NOT a real zero.
+    expect(slot.coverage[1].inWindowTrades).toBeNull();
+  });
+
+  it('rowLessNoTradesRefusalHasNoWindowAndItsCoverageCountsAreAbsent', () => {
+    const slot = toGroupResultVm(
+      groupResult([
+        refusedKind(
+          DEPLOY,
+          FtmoGroupRefusal.MemberHasNoTradesInWindow,
+          [memberRefusal('b', 'Beta', FtmoGroupRefusal.MemberHasNoTradesInWindow)],
+          [coverage('a', 'Alpha', { inWindowTrades: 0 })],
+        ),
+      ]),
+    ).slots[0];
+    expect(slot.window).toBeNull();
+    expect(slot.coverage[0].inWindowTrades).toBeNull();
+    expect(slot.coverage[0].firstOpen).toBe('2020-02-01');
+  });
+
+  it('aGenuineZeroInAnExistingWindowStaysZero', () => {
+    const kind = successKind(DEPLOY);
+    kind.coverage = [coverage('a', 'Alpha', { inWindowTrades: 0 })];
+    expect(toGroupResultVm(groupResult([kind])).slots[0].coverage[0].inWindowTrades).toBe(0);
   });
 });
 
@@ -209,8 +232,8 @@ describe('group-wide refusal (F3.4.3)', () => {
   it('mixedSourceTimeZonesListsEachMemberWithItsZone', () => {
     const vm = toGroupResultVm(groupWideRefusal(FtmoGroupRefusal.MixedSourceTimeZones));
     expect(vm.groupRefusal?.zones).toEqual([
-      { name: 'Alpha', zone: 'Europe/Berlin' },
-      { name: 'Beta', zone: 'America/New_York' },
+      { strategyId: 'a', name: 'Alpha', zone: 'Europe/Berlin' },
+      { strategyId: 'b', name: 'Beta', zone: 'America/New_York' },
     ]);
   });
 

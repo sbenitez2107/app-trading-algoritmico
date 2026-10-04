@@ -516,6 +516,48 @@
         "ABOVE_DAILY": "Por encima del límite diario del {{limit}}%.",
         "OBSERVED": "Pico observado, {{kind}}: {{peak}} abiertas a la vez x riesgo = {{amount}} ({{pct}}% del capital)."
       },
+      "DIAGNOSTICS": {
+        "TITLE": "Diagnóstico del grupo, {{kind}}",
+        "COUNT_SHARE": "{{count}} ({{share}}%)",
+        "CONTRIBUTION": {
+          "HEADING": "Contribución por miembro",
+          "NOTE": "Sobre toda la ventana. El neto es un monto de dinero en cada extremo de la banda de FX, no una fracción del capital. Las operaciones no escalables no aportan al neto.",
+          "COLUMN": {
+            "MEMBER": "Miembro",
+            "TRADES": "Operaciones en la ventana",
+            "SCALABLE": "Operaciones escalables",
+            "NET_LOW": "Neto, extremo bajo de FX",
+            "NET_HIGH": "Neto, extremo alto de FX",
+            "RAISED": "Subidas al mínimo",
+            "CAPPED": "Limitadas al máximo",
+            "UNSCALABLE": "No escalables"
+          }
+        },
+        "ATTRIBUTION": {
+          "HEADING": "Qué operaciones de qué miembro decidieron las infracciones de límite",
+          "NOTE": "Cada inicio que terminó en una infracción de límite se acredita al miembro cuya operación cerró en el cierre decisivo. Los conteos son inicios; los porcentajes son sobre los inicios con cierre decisivo de este tipo. Cuando varios miembros tienen una operación que cierra en el mismo instante, el inicio es un empate: se acredita a cada uno y se cuenta como empatado, por lo que las filas no suman el total. Describe la contribución a la eliminación, no un ranking.",
+          "COLUMN": {
+            "MEMBER": "Miembro",
+            "PHASE1": "Inicios en Fase 1",
+            "PHASE2": "Inicios en Fase 2",
+            "FUNDED": "Inicios en Fondeada",
+            "SOLE": "Único contribuyente",
+            "TIED": "Empatados (cierre compartido)"
+          },
+          "TOTAL": {
+            "DECIDING": "Inicios con cierre decisivo",
+            "TIED": "Inicios empatados (cierre compartido)",
+            "UNATTRIBUTED": "Inicios sin atribuir"
+          },
+          "UNATTRIBUTED_NOTE": "Algunas infracciones de límite cerraron en un instante sin ninguna operación en la serie combinada, por lo que no se acredita a ningún miembro. Indica un defecto de datos que conviene revisar."
+        },
+        "PEAK": {
+          "HEADING": "Máximo de posiciones abiertas a la vez",
+          "VALUE": "Máximo abiertas juntas",
+          "MEMBERS": "Miembros con una posición abierta en el máximo:",
+          "FIRST_REACHED": "Alcanzado por primera vez en {{when}} (hora de origen)."
+        }
+      },
       "RESULT": {
         "NAME_WARNING": "Varias estrategias comparten el nombre {{name}} ({{ids}}). Pueden ser la misma estrategia importada en más de una cuenta.",
         "REFUSAL": {
@@ -534,6 +576,7 @@
         "WINDOW": "Ventana de reproducción: {{start}} a {{end}}",
         "COVERAGE_HEADING": "Cobertura por miembro",
         "COVERAGE_ROW": "{{name}}: primera apertura {{first}}, último cierre {{last}}, {{trades}} operaciones en la ventana",
+        "COVERAGE_ROW_NO_WINDOW": "{{name}}: primera apertura {{first}}, último cierre {{last}}, sin ventana compartida para contar operaciones",
         "COVERAGE_WIDER": "rango más amplio que la ventana",
         "SHORTENED": "El rango de al menos un miembro es más amplio que la ventana compartida. Este resultado describe solo la ventana compartida.",
         "DISCLOSURE": {

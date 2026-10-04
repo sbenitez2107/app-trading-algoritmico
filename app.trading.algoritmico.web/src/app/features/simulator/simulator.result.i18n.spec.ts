@@ -16,7 +16,9 @@ import {
 } from '../../core/services/trading-account.service';
 import { FtmoGroupSimulationPageComponent } from './ftmo-group-simulation-page/ftmo-group-simulation-page.component';
 import {
+  THREE_MEMBERS,
   coverage,
+  diagnosticsFixture,
   groupResult,
   groupWideRefusal,
   memberRefusal,
@@ -115,6 +117,24 @@ const STATES: Record<string, FtmoGroupSimulationDto | null> = {
       memberRefusal('b', 'Beta', FtmoGroupRefusal.MemberMissingKind),
     ]),
   ]),
+  memberRunRefusedUnknownInnerReason: groupResult([
+    successKind(DEPLOY),
+    refusedKind(EVAL, FtmoGroupRefusal.MemberRunRefused, [
+      memberRefusal('a', 'Alpha', FtmoGroupRefusal.MemberRunRefused, 99 as FtmoSimulationRefusal),
+    ]),
+  ]),
+  memberRunRefusedNullRunReason: groupResult([
+    successKind(DEPLOY),
+    refusedKind(EVAL, FtmoGroupRefusal.MemberRunRefused, [
+      memberRefusal('a', 'Alpha', FtmoGroupRefusal.MemberRunRefused, null),
+    ]),
+  ]),
+  unknownPerMemberReason: groupResult([
+    successKind(DEPLOY),
+    refusedKind(EVAL, FtmoGroupRefusal.MemberRunRefused, [
+      memberRefusal('a', 'Alpha', 99 as FtmoGroupRefusal),
+    ]),
+  ]),
   noCommonWindow: groupResult([
     refusedKind(
       DEPLOY,
@@ -129,6 +149,25 @@ const STATES: Record<string, FtmoGroupSimulationDto | null> = {
   success: groupResult([successKind(DEPLOY), successKind(EVAL)], {
     duplicateNameWarnings: [{ name: 'Alpha', strategyIds: ['a', 'a2'] }],
   }),
+  successWithDiagnostics: groupResult(
+    [
+      successKind(DEPLOY, diagnosticsFixture()),
+      successKind(EVAL, {
+        ...diagnosticsFixture(),
+        peak: { peakConcurrentOpen: 0, firstReachedSource: null, memberIdsAtPeak: [] },
+      }),
+    ],
+    { members: THREE_MEMBERS },
+  ),
+  successWithUnattributedStarts: groupResult(
+    [
+      successKind(DEPLOY, {
+        ...diagnosticsFixture(),
+        attribution: { ...diagnosticsFixture().attribution, unattributedStarts: 2 },
+      }),
+    ],
+    { members: THREE_MEMBERS },
+  ),
   successShortenedWindow: groupResult([
     {
       ...successKind(DEPLOY),

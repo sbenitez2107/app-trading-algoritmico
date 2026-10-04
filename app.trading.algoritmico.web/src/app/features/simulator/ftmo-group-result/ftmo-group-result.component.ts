@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import { FtmoRunPanelComponent } from '../../broker-accounts/ftmo-simulation-modal/ftmo-run-panel/ftmo-run-panel.component';
+import { FtmoGroupDiagnosticsComponent } from '../ftmo-group-diagnostics/ftmo-group-diagnostics.component';
 import { GroupResultVm } from '../ftmo-group-simulation.result.mappers';
 
 /**
@@ -14,7 +15,12 @@ import { GroupResultVm } from '../ftmo-group-simulation.result.mappers';
 @Component({
   selector: 'app-ftmo-group-result',
   standalone: true,
-  imports: [NgTemplateOutlet, TranslateModule, FtmoRunPanelComponent],
+  imports: [
+    NgTemplateOutlet,
+    TranslateModule,
+    FtmoRunPanelComponent,
+    FtmoGroupDiagnosticsComponent,
+  ],
   templateUrl: './ftmo-group-result.component.html',
   styleUrl: './ftmo-group-result.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

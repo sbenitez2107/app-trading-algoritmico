@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.52.0] - 2026-10-04
+
+### Added
+
+- The FTMO group results now include a diagnostics panel for each kind that ran. It shows:
+  - each strategy's net contribution at both FX ends;
+  - in how many starts its trade closed at the breach that decided the result, by phase, alone or tied with another strategy;
+  - the peak number of positions open at once, and which strategies held them.
+
+  Ties are credited to every tied strategy, so the rows do not add up to the total. A breach that matches no strategy is flagged as a possible data problem.
+
+### Fixed
+
+- When a group kind has no common window, coverage reads "no window" instead of claiming 0 trades.
+- Strategies with the same name are now listed separately in the mixed time zone refusal.
+
 ## [0.51.0] - 2026-10-04
 
 ### Added

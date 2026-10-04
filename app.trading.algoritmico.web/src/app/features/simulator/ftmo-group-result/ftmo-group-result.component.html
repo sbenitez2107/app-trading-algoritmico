@@ -39,7 +39,7 @@
       }
       @if (refusal.zones.length > 0) {
         <ul class="ftmo-group-result__zones">
-          @for (zone of refusal.zones; track zone.name) {
+          @for (zone of refusal.zones; track zone.strategyId) {
             <li>
               {{
                 'SIMULATOR.FTMO_GROUP.RESULT.ZONE_ROW'
@@ -119,16 +119,28 @@
                   class="ftmo-group-result__coverage-row"
                   [class.ftmo-group-result__coverage-row--wider]="row.wider"
                 >
-                  {{
-                    'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_ROW'
-                      | translate
-                        : {
-                            name: row.name,
-                            first: row.firstOpen ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
-                            last: row.lastClose ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
-                            trades: row.inWindowTrades,
-                          }
-                  }}
+                  @if (row.inWindowTrades !== null) {
+                    {{
+                      'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_ROW'
+                        | translate
+                          : {
+                              name: row.name,
+                              first: row.firstOpen ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                              last: row.lastClose ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                              trades: row.inWindowTrades,
+                            }
+                    }}
+                  } @else {
+                    {{
+                      'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_ROW_NO_WINDOW'
+                        | translate
+                          : {
+                              name: row.name,
+                              first: row.firstOpen ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                              last: row.lastClose ?? ('FTMO_SIMULATION.NOT_REPORTED' | translate),
+                            }
+                    }}
+                  }
                   @if (row.wider) {
                     <span class="ftmo-group-result__wider">
                       ({{ 'SIMULATOR.FTMO_GROUP.RESULT.COVERAGE_WIDER' | translate }})
@@ -142,6 +154,9 @@
             <p class="ftmo-group-result__shortened">
               {{ 'SIMULATOR.FTMO_GROUP.RESULT.SHORTENED' | translate }}
             </p>
+          }
+          @if (slot.diagnostics; as diagnostics) {
+            <app-ftmo-group-diagnostics [vm]="diagnostics" />
           }
         </section>
       }

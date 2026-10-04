@@ -1,6 +1,8 @@
 import {
+  FtmoGroupDiagnosticsDto,
   FtmoGroupKindResultDto,
   FtmoGroupMemberCoverageDto,
+  FtmoGroupMemberDto,
   FtmoGroupRefusal,
   FtmoGroupSimulationDto,
 } from '../../core/models/ftmo-group-simulation.model';
@@ -50,9 +52,61 @@ export interface CoverageRowVm {
   name: string;
   firstOpen: string | null;
   lastClose: string | null;
-  inWindowTrades: number;
+  /** `null` when the kind has no window: the backend's null count is not a real zero. */
+  inWindowTrades: number | null;
   /** True when the member's range extends beyond the shared window. */
   wider: boolean;
+}
+
+/** A count beside its share of the kind's deciding-breach starts. `null` is absent, never 0. */
+export interface CountShareVm {
+  count: number | null;
+  share: number | null;
+}
+
+export interface ContributionRowVm {
+  strategyId: string;
+  name: string;
+  inWindowTrades: number | null;
+  scalableTrades: number | null;
+  /** Net MONEY at each FX end (not a fraction), already formatted; `null` is absent. */
+  netLowText: string | null;
+  netHighText: string | null;
+  raisedToMinimum: number | null;
+  cappedAtMaximum: number | null;
+  unscalable: number | null;
+}
+
+export interface AttributionRowVm {
+  strategyId: string;
+  name: string;
+  phase1: CountShareVm;
+  phase2: CountShareVm;
+  funded: CountShareVm;
+  /** Starts whose deciding breach had this member's trade as the only one at the close. */
+  sole: CountShareVm;
+  /** Starts tied on the close instant with another member (credited to every tied member). */
+  tied: CountShareVm;
+}
+
+export interface PeakVm {
+  peak: number | null;
+  /** Source-time instant, to the minute; `null` when the peak is 0 or unreported. */
+  firstReached: string | null;
+  members: { strategyId: string; name: string }[];
+}
+
+export interface DiagnosticsVm {
+  kind: BacktestRunKind;
+  kindLabelKey: string;
+  contributions: ContributionRowVm[];
+  attribution: {
+    rows: AttributionRowVm[];
+    decidingBreachStarts: number | null;
+    tied: CountShareVm;
+    unattributed: CountShareVm;
+  };
+  peak: PeakVm;
 }
 
 /** `evaluated` renders the reused panel, `refused` this kind's refusal, `noRun` a kind the response omitted. */
@@ -68,13 +122,15 @@ export interface GroupKindSlotVm {
   coverage: CoverageRowVm[];
   shortened: boolean;
   panel: FtmoRunPanelVm | null;
+  /** Diagnostics of a successful kind; `null` for a refused kind or a run without diagnostics. */
+  diagnostics: DiagnosticsVm | null;
 }
 
 export interface GroupWideRefusalVm {
   label: TextRef;
   shared: TextRef | null;
   unknownIds: string[];
-  zones: { name: string; zone: string | null }[];
+  zones: { strategyId: string; name: string; zone: string | null }[];
 }
 
 export interface NameWarningVm {
@@ -137,14 +193,97 @@ function toCoverageRow(
     name: row.name,
     firstOpen: dateOnly(row.firstOpen),
     lastClose: dateOnly(row.lastClose),
-    inWindowTrades: row.inWindowTrades,
+    // With no window the backend sends a null count that arrives as 0; only an existing window has a count.
+    inWindowTrades: window === null ? null : row.inWindowTrades,
     wider,
+  };
+}
+
+/** `?? null` keeps a real 0 and maps a missing value to absent (hard rule: no truthiness, no `?? 0`). */
+function present(value: number | null | undefined): number | null {
+  return value ?? null;
+}
+
+/** Money as the readout shows it: at most two decimals, no padding. Absent stays absent. */
+function moneyText(value: number | null | undefined): string | null {
+  const v = present(value);
+  return v === null ? null : String(Number(v.toFixed(2)));
+}
+
+/** Share of the denominator as a percent with one decimal; absent when either side is missing or the denominator is 0. */
+function shareOf(count: number | null, denominator: number | null): number | null {
+  if (count === null || denominator === null || denominator === 0) return null;
+  return Math.round((count * 1000) / denominator) / 10;
+}
+
+function countShare(value: number | null | undefined, denominator: number | null): CountShareVm {
+  const count = present(value);
+  return { count, share: shareOf(count, denominator) };
+}
+
+function nameFor(
+  strategyId: string,
+  members: readonly FtmoGroupMemberDto[],
+  fallback: string | null,
+): string {
+  return members.find((m) => m.strategyId === strategyId)?.name ?? fallback ?? strategyId;
+}
+
+function instantText(value: string | null): string | null {
+  return value === null ? null : value.slice(0, 16).replace('T', ' ');
+}
+
+/** Maps one successful kind's diagnostics; member ids resolve to names through the envelope's `Members`. */
+export function toDiagnosticsVm(
+  kind: BacktestRunKind,
+  diagnostics: FtmoGroupDiagnosticsDto,
+  members: readonly FtmoGroupMemberDto[],
+): DiagnosticsVm {
+  const attribution = diagnostics.attribution;
+  const deciding = present(attribution.decidingBreachStarts);
+  return {
+    kind,
+    kindLabelKey: kindLabelKey(kind),
+    contributions: diagnostics.contributions.map((c) => ({
+      strategyId: c.strategyId,
+      name: nameFor(c.strategyId, members, c.name),
+      inWindowTrades: present(c.inWindowTrades),
+      scalableTrades: present(c.scalableTrades),
+      netLowText: moneyText(c.netLow),
+      netHighText: moneyText(c.netHigh),
+      raisedToMinimum: present(c.raisedToMinimum),
+      cappedAtMaximum: present(c.cappedAtMaximum),
+      unscalable: present(c.unscalable),
+    })),
+    attribution: {
+      rows: attribution.members.map((m) => ({
+        strategyId: m.strategyId,
+        name: nameFor(m.strategyId, members, m.name),
+        phase1: countShare(m.phase1Starts, deciding),
+        phase2: countShare(m.phase2Starts, deciding),
+        funded: countShare(m.fundedStarts, deciding),
+        sole: countShare(m.soleContributorStarts, deciding),
+        tied: countShare(m.sharedCloseStarts, deciding),
+      })),
+      decidingBreachStarts: deciding,
+      tied: countShare(attribution.sharedCloseStarts, deciding),
+      unattributed: countShare(attribution.unattributedStarts, deciding),
+    },
+    peak: {
+      peak: present(diagnostics.peak.peakConcurrentOpen),
+      firstReached: instantText(diagnostics.peak.firstReachedSource ?? null),
+      members: diagnostics.peak.memberIdsAtPeak.map((id) => ({
+        strategyId: id,
+        name: nameFor(id, members, null),
+      })),
+    },
   };
 }
 
 function toSlot(
   kind: BacktestRunKind,
   result: FtmoGroupKindResultDto | undefined,
+  members: readonly FtmoGroupMemberDto[],
 ): GroupKindSlotVm {
   const base = {
     kind,
@@ -155,6 +294,7 @@ function toSlot(
     coverage: [],
     shortened: false,
     panel: null,
+    diagnostics: null,
   };
   if (result === undefined) return { ...base, state: 'noRun' };
 
@@ -190,7 +330,9 @@ function toSlot(
 
   // Group option (a): the group has no single-start anchor, so the reused panel must never show the note.
   const panel = toRunPanelVm({ ...result.run, start1DiffersFromSingleStartAnchor: false });
-  return { ...common, state: 'evaluated', panel };
+  const diagnostics =
+    result.diagnostics === null ? null : toDiagnosticsVm(kind, result.diagnostics, members);
+  return { ...common, state: 'evaluated', panel, diagnostics };
 }
 
 /** Maps the group envelope to the view model of the result area. Presence is tested with `!== null`. */
@@ -208,7 +350,11 @@ export function toGroupResultVm(dto: FtmoGroupSimulationDto): GroupResultVm {
         unknownIds: [...dto.unknownStrategyIds],
         zones:
           dto.refusal === FtmoGroupRefusal.MixedSourceTimeZones
-            ? dto.members.map((m) => ({ name: m.name, zone: m.sourceTimeZoneId }))
+            ? dto.members.map((m) => ({
+                strategyId: m.strategyId,
+                name: m.name,
+                zone: m.sourceTimeZoneId,
+              }))
             : [],
       },
       slots: [],
@@ -222,6 +368,7 @@ export function toGroupResultVm(dto: FtmoGroupSimulationDto): GroupResultVm {
     toSlot(
       kind,
       dto.kinds.find((k) => k.kind === kind),
+      dto.members,
     ),
   );
   const runs = dto.kinds.flatMap((k) => (k.run === null ? [] : [k.run]));
