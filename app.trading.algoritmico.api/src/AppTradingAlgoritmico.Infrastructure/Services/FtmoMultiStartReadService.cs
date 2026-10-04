@@ -129,7 +129,8 @@ public sealed class FtmoMultiStartReadService(AppDbContext db) : IFtmoMultiStart
         (decimal Low, decimal High) fxBand,
         int unscalableCount,
         FtmoChallengeRulesDto rules,
-        CancellationToken ct)
+        CancellationToken ct,
+        int? maxDegreeOfParallelism = null)
     {
         var singleStartAnchor = FtmoReplayCalendar.Build(projectedLow, sourceZone, berlinZone).SourceOpen;
 
@@ -147,11 +148,37 @@ public sealed class FtmoMultiStartReadService(AppDbContext db) : IFtmoMultiStart
 
         var attribution = FtmoChallengeRace.AttributeOpenDays(projectedLow, sourceZone, berlinZone);
 
-        var rows = new List<FtmoMultiStartRowDto>(starts.Count);
-        for (var i = 0; i < starts.Count; i++)
-        {
-            ct.ThrowIfCancellationRequested();
+        // Per-start parallelism (orchestrator decision 2026-10-04). Each start is a pure function of READ-ONLY
+        // shared inputs (projectedLow/High, attribution: only indexed reads) and its own freshly built slices,
+        // caches and results (CachedOpenDays is created per RunPhase call); the only statics reachable are
+        // immutable (PhaseResult.NotStarted, FundedResult.NotStarted) and TimeZoneInfo is thread-safe. Results are
+        // written to a pre-sized array BY START INDEX, so order and content equal the sequential loop.
+        var degree = maxDegreeOfParallelism ?? Environment.ProcessorCount;
+        ArgumentOutOfRangeException.ThrowIfLessThan(degree, 1);
+        ct.ThrowIfCancellationRequested();
 
+        var results = new FtmoMultiStartRowDto[starts.Count];
+        try
+        {
+            Parallel.For(
+                0, starts.Count, new ParallelOptions { MaxDegreeOfParallelism = degree, CancellationToken = ct },
+                i =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    results[i] = ComputeStartRow(i);
+                });
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.Count > 0)
+        {
+            // Surface the worker's own exception type, exactly as the sequential loop did.
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerExceptions[0]).Throw();
+            throw;
+        }
+
+        var rows = new List<FtmoMultiStartRowDto>(results);
+
+        FtmoMultiStartRowDto ComputeStartRow(int i)
+        {
             var start = starts[i];
             var lowSeries = FtmoStartEnumerator.SliceFromStart(projectedLow, start.SourceOpen);
             var highSeries = FtmoStartEnumerator.SliceFromStart(projectedHigh, start.SourceOpen);
@@ -182,10 +209,10 @@ public sealed class FtmoMultiStartReadService(AppDbContext db) : IFtmoMultiStart
                 _ => null,
             };
 
-            rows.Add(new FtmoMultiStartRowDto(
+            return new FtmoMultiStartRowDto(
                 i, start.SourceOpen, startDay, start.FtmoMonth, outcome, isCensored, runwayCalendarDays,
                 calendarDaysToBothTargets, ToPhaseDto(chosen.Phase1), ToPhaseDto(chosen.Phase2),
-                ToFundedDto(chosen.Funded), end, sensitive));
+                ToFundedDto(chosen.Funded), end, sensitive);
         }
 
         var summary = Summarize(rows);

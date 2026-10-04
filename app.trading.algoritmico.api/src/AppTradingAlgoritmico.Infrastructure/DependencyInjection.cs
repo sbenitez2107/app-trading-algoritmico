@@ -112,6 +112,9 @@ public static class DependencyInjection
         // ftmo-multi-start, PR4 — read service.
         services.AddScoped<IFtmoMultiStartReadService, FtmoMultiStartReadService>();
 
+        // ftmo-group-simulation, B2 — group read service.
+        services.AddScoped<IFtmoGroupSimulationReadService, FtmoGroupSimulationReadService>();
+
         return services;
     }
 }

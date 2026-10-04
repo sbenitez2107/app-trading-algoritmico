@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.46.0] - 2026-10-04
+
+### Added
+
+- New endpoint `POST api/ftmo-simulations/group` simulates up to 4 strategies trading on one FTMO account. Their trades are merged onto one balance and replayed from every monthly start over the period where all members have data, with Deploy and Evaluation kept separate.
+- Each member's problems refuse only the panel they affect, with the member and the reason named. Group-wide problems refuse the whole request.
+
+### Changed
+
+- The multi-start FTMO simulation computes its monthly starts in parallel, with identical results. A single strategy now takes about 0.45 s instead of about 3 s.
+
 ## [0.45.7] - 2026-10-04
 
 ### Fixed

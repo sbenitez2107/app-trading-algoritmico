@@ -271,6 +271,22 @@ fixture that satisfies this and asserts it. A second test documents the tie case
   has already finished. (c) Per-start parallelism would mean re-implementing `ComputeRun`'s loop, so it is
   rejected unless (a)+(b) cannot reach k = 4.
 
+**Parallelism decision (2026-10-04, orchestrator, after the first B2 benchmark failed k=2).** The sequential
+`ComputeRun` cost ~1.4-1.6 s per member for both kinds: ~120 monthly starts each re-evaluate their whole suffix
+at two FX ends, at ~25 us per row (k=1 already 2.8-3.1 s). Option (c) above was taken, but INSIDE
+`FtmoMultiStartReadService.ComputeRun`'s per-start loop (only the loop mechanics are edited; no re-implementation
+in the group service, so the single-strategy endpoint speeds up too). `Parallel.For` over the starts, degree =
+`Environment.ProcessorCount` (optional `maxDegreeOfParallelism` parameter for tests), cancellation token in
+`ParallelOptions` and checked per start, results written to a pre-sized array by start index and then assembled
+by the unchanged code, so the output is identical to the sequential loop (pinned by the golden and snapshot pins,
+the multi-start/service/equivalence suites unedited, and `FtmoMultiStartParallelismTests`). A worker exception is
+rethrown with its own type (not an `AggregateException`). Thread-safety: per-start inputs are read-only
+(`projectedLow/High` and the open-day attribution dictionary are only indexed), each start builds its own slices,
+`CachedOpenDays` (per `RunPhase`) and results; the only statics are immutable (`PhaseResult.NotStarted`,
+`FundedResult.NotStarted`) and `TimeZoneInfo` is thread-safe. `FtmoBreachEvaluator.cs` is untouched. The two
+kinds are NOT run in parallel with each other: the per-start `Parallel.For` already saturates the cores, a second
+layer would add exception wrapping and nothing measurable. (b) in the list above is therefore not used.
+
 ### D8 — Picker candidates read (B3)
 
 `GET api/ftmo-simulations/candidates?tradingAccountId={guid}` on the same controller, through
@@ -362,5 +378,5 @@ order. Reverting B1 restores `ResolveSharedAsync` with no consumer impact, becau
 
 ## Open Questions
 
-- [ ] The final `MaxMembers` value waits on the B2 benchmark.
+- [x] `MaxMembers = 4` (B2.4.4): after per-start parallelism the Never median (both kinds, Release, 2 runs) is k=2 1.665/1.454 s, k=4 3.785/3.468, k=6 7.081/6.831, k=8 10.682/9.575, k=10 16.635/16.055. Before it: k=2 4.499/6.176, k=4 11.387/17.583.
 - [ ] Does SQX file-row order match Open order within a run? This only affects the D4 tie criterion. Verify on real SBDEMO2 data during B2.
