@@ -1,0 +1,68 @@
+<section class="ftmo-search-page">
+  <h1 class="ftmo-search-page__title">{{ 'SIMULATOR.FTMO_SEARCH.TITLE' | translate }}</h1>
+  <p class="ftmo-search-page__disclosure">{{ 'SIMULATOR.FTMO_SEARCH.DISCLOSURE' | translate }}</p>
+
+  @if (accountsError()) {
+    <div class="ftmo-search-page__error" role="alert">
+      {{ 'SIMULATOR.FTMO_SEARCH.FORM.ACCOUNTS_ERROR' | translate }}
+    </div>
+  }
+  @if (accountsLoaded() && accounts().length === 0) {
+    <p class="ftmo-search-page__empty">
+      {{ 'SIMULATOR.FTMO_SEARCH.FORM.NO_ACCOUNTS' | translate }}
+    </p>
+  }
+
+  @if (notice(); as n) {
+    <div class="ftmo-search-page__notice" role="status">
+      @if (n === 'lost') {
+        {{ 'SIMULATOR.FTMO_SEARCH.ERRORS.LOST' | translate }}
+      } @else {
+        {{ 'SIMULATOR.FTMO_SEARCH.NOTICE.ALREADY_RUNNING' | translate }}
+      }
+    </div>
+  }
+
+  @if (candidatesError(); as e) {
+    <div class="ftmo-search-page__error" role="alert">
+      {{ errorKey(e) | translate: { detail: e.detail ?? '' } }}
+    </div>
+  }
+
+  @if (candidates(); as data) {
+    <app-ftmo-search-form
+      [value]="form()"
+      [accounts]="accounts()"
+      [accountId]="accountId()"
+      [maxMembers]="data.maxMembers"
+      [showFx]="showFx()"
+      [canStart]="canStart()"
+      [running]="running()"
+      (valueChange)="onFormChange($event)"
+      (accountChange)="selectAccount($event)"
+      (start)="start()"
+    />
+  }
+
+  @if (error(); as e) {
+    <div class="ftmo-search-page__error" role="alert">
+      {{ errorKey(e) | translate: { detail: e.detail ?? '' } }}
+    </div>
+  }
+
+  @if (job(); as j) {
+    <app-ftmo-search-progress [job]="j" (cancel)="cancel()" />
+    <app-ftmo-search-scatter
+      [rows]="j.rows"
+      [ceilingPercent]="requestedCeilingPercent()"
+      (openInGroup)="openInGroup($event)"
+    />
+    <app-ftmo-search-table
+      [rows]="j.rows"
+      [status]="j.status"
+      [ineligible]="j.ineligible"
+      [defaultCeilingPercent]="requestedCeilingPercent()"
+      (openInGroup)="openInGroup($event)"
+    />
+  }
+</section>

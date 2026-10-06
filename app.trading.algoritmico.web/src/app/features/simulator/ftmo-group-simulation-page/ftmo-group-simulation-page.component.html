@@ -31,6 +31,12 @@
     </label>
   }
 
+  @for (n of deepLinkNotices(); track n.key) {
+    <p class="ftmo-group-page__deeplink-notice" role="status">
+      {{ 'SIMULATOR.FTMO_GROUP.DEEPLINK.' + n.key | translate: n.params }}
+    </p>
+  }
+
   @if (loading()) {
     <p class="ftmo-group-page__status">{{ 'SIMULATOR.FTMO_GROUP.PICKER.LOADING' | translate }}</p>
   }

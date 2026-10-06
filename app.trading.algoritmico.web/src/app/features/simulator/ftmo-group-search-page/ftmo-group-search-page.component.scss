@@ -1,0 +1,49 @@
+.ftmo-search-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+
+  &__title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  &__disclosure {
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+}
+
+.ftmo-search-page {
+  &__notice,
+  &__error,
+  &__empty {
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-main);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+
+  &__notice {
+    border-color: var(--color-warning);
+  }
+
+  &__error {
+    border-color: var(--color-loss);
+  }
+
+  &__empty {
+    color: var(--text-muted);
+  }
+}

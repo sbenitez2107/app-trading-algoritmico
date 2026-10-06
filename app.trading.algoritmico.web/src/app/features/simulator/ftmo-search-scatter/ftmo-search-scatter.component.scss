@@ -1,0 +1,80 @@
+.ftmo-search-scatter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  padding: var(--spacing-md);
+  color: var(--text-main);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  &__svg {
+    width: 100%;
+    max-width: 44rem;
+    height: auto;
+  }
+
+  &__grid {
+    stroke: var(--border-color);
+    stroke-width: 1;
+  }
+
+  &__axis {
+    stroke: var(--text-muted);
+    stroke-width: 1;
+  }
+
+  &__tick,
+  &__axis-label {
+    fill: var(--text-muted);
+    font-size: 11px;
+  }
+
+  &__point {
+    fill: var(--text-muted);
+    stroke: var(--bg-surface);
+    stroke-width: 1;
+    cursor: pointer;
+
+    &--frontier {
+      fill: var(--color-primary);
+    }
+
+    &--within {
+      stroke: var(--text-main);
+      stroke-width: 2;
+      stroke-dasharray: 3 2;
+    }
+
+    &:hover,
+    &:focus-visible {
+      stroke: var(--text-main);
+      stroke-width: 2;
+      outline: none;
+    }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    margin: 0;
+    padding: 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    list-style: none;
+  }
+
+  &__empty,
+  &__not-plotted {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+}

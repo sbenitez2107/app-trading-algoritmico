@@ -1,0 +1,192 @@
+<section class="ftmo-search-table">
+  <header class="ftmo-search-table__head">
+    <h2 class="ftmo-search-table__title">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.TITLE' | translate }}</h2>
+    <label class="ftmo-search-table__ceiling">
+      <span>{{ 'SIMULATOR.FTMO_SEARCH.TABLE.CEILING' | translate }}</span>
+      <input
+        class="ftmo-search-table__ceiling-input"
+        type="number"
+        step="any"
+        [value]="ceilingPercent() ?? ''"
+        (input)="onCeilingInput($event)"
+      />
+    </label>
+    <label class="ftmo-search-table__filter">
+      <input
+        class="ftmo-search-table__only-within"
+        type="checkbox"
+        [checked]="onlyWithin()"
+        (change)="onOnlyWithinChange($event)"
+      />
+      <span>{{ 'SIMULATOR.FTMO_SEARCH.TABLE.ONLY_WITHIN' | translate }}</span>
+    </label>
+  </header>
+
+  @if (partial() && rows().length > 0) {
+    <p class="ftmo-search-table__partial" role="status">
+      {{ 'SIMULATOR.FTMO_SEARCH.TABLE.PARTIAL' | translate }}
+    </p>
+  }
+
+  @if (rows().length === 0) {
+    <p class="ftmo-search-table__empty">
+      @if (running()) {
+        {{ 'SIMULATOR.FTMO_SEARCH.TABLE_PLACEHOLDER' | translate }}
+      } @else {
+        {{ 'SIMULATOR.FTMO_SEARCH.TABLE.EMPTY' | translate }}
+      }
+    </p>
+  } @else {
+    @if (view().length === 0) {
+      <p class="ftmo-search-table__empty">
+        {{ 'SIMULATOR.FTMO_SEARCH.TABLE.NO_MATCH' | translate }}
+      </p>
+    }
+    <div class="ftmo-search-table__scroll">
+      <table class="ftmo-search-table__table">
+        <thead>
+          <tr>
+            <th rowspan="2" scope="col">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.RANK' | translate }}</th>
+            <th rowspan="2" scope="col">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.MEMBERS' | translate }}</th>
+            <th rowspan="2" scope="col">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.SYMBOLS' | translate }}</th>
+            <th rowspan="2" scope="col">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.PEAK' | translate }}</th>
+            <th rowspan="2" scope="col">
+              {{ 'SIMULATOR.FTMO_SEARCH.TABLE.IDENTICAL' | translate }}
+            </th>
+            @for (h of kindHeaders; track h.name) {
+              <th colspan="6" scope="colgroup" class="ftmo-search-table__kind-head">
+                {{ h.labelKey | translate }}
+              </th>
+            }
+            <th rowspan="2" scope="col">
+              <span class="ftmo-search-table__sr-only">
+                {{ 'SIMULATOR.FTMO_SEARCH.TABLE.ACTIONS' | translate }}
+              </span>
+            </th>
+          </tr>
+          <tr>
+            @for (h of kindHeaders; track h.name) {
+              @for (m of metricKeys; track m) {
+                <th scope="col">{{ 'SIMULATOR.FTMO_SEARCH.TABLE.' + m | translate }}</th>
+              }
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of view(); track row.source) {
+            <tr
+              class="ftmo-search-table__row"
+              [class.ftmo-search-table__row--within]="row.withinCeiling"
+            >
+              <td class="ftmo-search-table__rank">{{ row.rank }}</td>
+              <td class="ftmo-search-table__members">{{ row.memberNames.join(', ') }}</td>
+              <td class="ftmo-search-table__symbols">{{ row.symbols.join(', ') }}</td>
+              <td class="ftmo-search-table__peak">{{ row.peak }}</td>
+              <td>
+                @if (row.identical) {
+                  <span class="ftmo-search-table__identical">
+                    {{ 'SIMULATOR.FTMO_SEARCH.TABLE.IDENTICAL_YES' | translate }}
+                  </span>
+                }
+              </td>
+              @for (k of row.kinds; track k.kind) {
+                @switch (k.state) {
+                  @case ('evaluated') {
+                    <td [attr.data-kind]="kindName(k.kind)">
+                      <ng-container
+                        *ngTemplateOutlet="pct; context: { $implicit: k.breach }"
+                      ></ng-container>
+                    </td>
+                    <td [attr.data-kind]="kindName(k.kind)">
+                      <ng-container
+                        *ngTemplateOutlet="pct; context: { $implicit: k.worstDaily }"
+                      ></ng-container>
+                    </td>
+                    <td [attr.data-kind]="kindName(k.kind)">
+                      <ng-container
+                        *ngTemplateOutlet="pct; context: { $implicit: k.worstDrawdown }"
+                      ></ng-container>
+                    </td>
+                    <td [attr.data-kind]="kindName(k.kind)">
+                      <ng-container
+                        *ngTemplateOutlet="pct; context: { $implicit: k.medianDrawdown }"
+                      ></ng-container>
+                    </td>
+                    <td [attr.data-kind]="kindName(k.kind)">
+                      <ng-container
+                        *ngTemplateOutlet="pct; context: { $implicit: k.fundedNoBreach }"
+                      ></ng-container>
+                    </td>
+                    <td class="ftmo-search-table__median-days" [attr.data-kind]="kindName(k.kind)">
+                      @if (k.medianDays.kind === 'value') {
+                        {{ k.medianDays.value | number: '1.0-1' }}
+                      } @else {
+                        {{ 'FTMO_SIMULATION.NOT_REPORTED' | translate }}
+                      }
+                    </td>
+                  }
+                  @case ('refused') {
+                    <td
+                      colspan="6"
+                      class="ftmo-search-table__refusal"
+                      [attr.data-kind]="kindName(k.kind)"
+                    >
+                      {{ k.refusal!.key | translate: { value: k.refusal!.value } }}
+                    </td>
+                  }
+                  @default {
+                    <td
+                      colspan="6"
+                      class="ftmo-search-table__absent"
+                      [attr.data-kind]="kindName(k.kind)"
+                    >
+                      {{ 'FTMO_SIMULATION.NOT_REPORTED' | translate }}
+                    </td>
+                  }
+                }
+              }
+              <td>
+                <button
+                  type="button"
+                  class="ftmo-search-table__open"
+                  (click)="openInGroup.emit(row.source)"
+                >
+                  {{ 'SIMULATOR.FTMO_SEARCH.TABLE.OPEN_GROUP' | translate }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (excluded().length > 0) {
+    <div class="ftmo-search-table__excluded">
+      <h3 class="ftmo-search-table__excluded-title">
+        {{ 'SIMULATOR.FTMO_SEARCH.TABLE.EXCLUDED_TITLE' | translate }}
+      </h3>
+      <ul>
+        @for (e of excluded(); track e.reason.key) {
+          <li>
+            {{
+              'SIMULATOR.FTMO_SEARCH.TABLE.EXCLUDED_ROW'
+                | translate: { reason: e.reason.key | translate, count: e.count }
+            }}
+            @if (e.reason.raw !== null) {
+              ({{ e.reason.raw }})
+            }
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</section>
+
+<ng-template #pct let-value>
+  @if (value === null) {
+    {{ 'FTMO_SIMULATION.NOT_REPORTED' | translate }}
+  } @else {
+    {{ value | number: '1.0-2' }}%
+  }
+</ng-template>

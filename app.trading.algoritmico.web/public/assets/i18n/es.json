@@ -460,9 +460,16 @@
   "SIMULATOR": {
     "NAV": {
       "TITLE": "Simulador",
-      "FTMO_GROUP": "Grupo FTMO"
+      "FTMO_GROUP": "Grupo FTMO",
+      "FTMO_SEARCH": "Búsqueda de grupos FTMO"
     },
     "FTMO_GROUP": {
+      "DEEPLINK": {
+        "ACCOUNT_FALLBACK": "La cuenta del enlace falta o es desconocida, por lo que se muestra la cuenta predeterminada y no se seleccionaron las estrategias del enlace.",
+        "UNKNOWN_MEMBERS": "{{count}} estrategias del enlace no se encontraron y se ignoraron.",
+        "OVER_CAP": "El enlace listaba más de {{max}} estrategias; solo se seleccionaron las primeras {{max}}.",
+        "INVALID_VALUES": "Algunos valores del enlace no eran válidos y se ignoraron."
+      },
       "TITLE": "Simulación de grupo FTMO",
       "DISCLOSURE": "Esta pantalla reproduce juntas, sobre una única cuenta FTMO, las operaciones de backtest de un grupo de estrategias. Modela la eliminación frente a los límites de FTMO; no es una certificación, y un resultado favorable no garantiza un resultado real con fondeo.",
       "PICKER": {
@@ -589,6 +596,128 @@
           "SAME_CLOSE": "Cuando varias operaciones cierran en el mismo instante, el orden en que se aplican esos cierres es una decisión de modelado que puede crear o quitar una eliminación.",
           "ELIGIBILITY": "Las reglas de elegibilidad del programa de fondeo, por ejemplo la prohibición de martingala o grid, no están modeladas."
         }
+      }
+    },
+    "FTMO_SEARCH": {
+      "TITLE": "Búsqueda de grupos FTMO",
+      "DISCLOSURE": "Esta pantalla busca combinaciones de estrategias frente a los límites de FTMO. Modela el riesgo de eliminación sobre operaciones cerradas; no es una certificación, y elegir el mejor de muchos grupos probados en backtest es optimista.",
+      "STATUS": {
+        "UNKNOWN": "Estado desconocido",
+        "RUNNING": "En curso",
+        "COMPLETED": "Completada",
+        "STOPPED_AT_BUDGET": "Detenida por presupuesto",
+        "CANCELLED": "Cancelada",
+        "FAILED": "Fallida"
+      },
+      "STAGE": {
+        "UNKNOWN": "Etapa desconocida",
+        "LOADING": "Cargando estrategias",
+        "ELIGIBILITY": "Verificando elegibilidad",
+        "PROXY": "Puntuando candidatos",
+        "SIMULATING": "Simulando la preselección",
+        "RANKING": "Ordenando"
+      },
+      "STOP_REASON": {
+        "UNKNOWN": "Motivo desconocido",
+        "NONE": "Sin presupuesto alcanzado",
+        "MAX_FULL_SIMULATIONS": "Se alcanzó el límite de simulaciones",
+        "WALL_CLOCK": "Se alcanzó el límite de tiempo"
+      },
+      "INELIGIBLE_REASON": {
+        "UNKNOWN": "Motivo desconocido",
+        "MISSING_KIND": "Falta la corrida Deploy o Evaluation",
+        "SYMBOL_REFUSED": "Instrumento no utilizable",
+        "ZONE_UNRESOLVED": "Zona horaria sin resolver",
+        "PROJECTION_REFUSED": "Corrida rechazada",
+        "PROJECTION_ROWLESS": "La corrida no tiene operaciones",
+        "IDENTICAL_DEPLOY_EVAL": "Deploy y Evaluation son idénticas"
+      },
+      "ERRORS": {
+        "LOST": "Se perdió la búsqueda, probablemente porque la API se reinició. Inicia una nueva."
+      },
+      "TABLE_PLACEHOLDER": "Los grupos ordenados aparecerán aquí.",
+      "TABLE": {
+        "TITLE": "Grupos ordenados",
+        "CEILING": "Techo de eliminación (%)",
+        "ONLY_WITHIN": "Solo dentro del techo",
+        "PARTIAL": "Resultados parciales: la búsqueda terminó antes de calcular todos los grupos.",
+        "EMPTY": "No hay grupos para mostrar.",
+        "NO_MATCH": "Ningún grupo está dentro del techo.",
+        "RANK": "Puesto",
+        "MEMBERS": "Miembros",
+        "SYMBOLS": "Símbolos",
+        "PEAK": "Pico de posiciones abiertas",
+        "IDENTICAL": "Incluye Deploy/Evaluación idénticas",
+        "IDENTICAL_YES": "Idénticas",
+        "BREACH": "Proporción de brechas",
+        "WORST_DAILY": "Peor uso del límite diario",
+        "WORST_DRAWDOWN": "Peor drawdown usado",
+        "MEDIAN_DRAWDOWN": "Drawdown mediano usado",
+        "FUNDED_NO_BREACH": "Fondeada, sin brecha",
+        "MEDIAN_DAYS": "Mediana de días a ambos objetivos",
+        "ACTIONS": "Acciones",
+        "OPEN_GROUP": "Abrir en el simulador de grupos",
+        "EXCLUDED_TITLE": "Estrategias excluidas",
+        "EXCLUDED_ROW": "{{reason}}: {{count}}"
+      },
+      "SCATTER": {
+        "TITLE": "Mediana de días vs proporción de brechas",
+        "ARIA": "Dispersión de los grupos rankeados: mediana de días a ambos objetivos contra proporción de brechas, ambas del peor tipo.",
+        "X_AXIS": "Mediana de días a ambos objetivos (peor tipo)",
+        "Y_AXIS": "Proporción de brechas (%, peor tipo)",
+        "POINT_TITLE": "{{members}}: {{days}} días, {{breach}}% de brechas",
+        "LEGEND_FRONTIER": "Azul: frontera, ningún otro grupo tiene menos días y menor proporción de brechas",
+        "LEGEND_WITHIN": "Borde punteado: dentro del techo de eliminación",
+        "NOT_PLOTTED": "{{count}} grupos sin graficar: no tienen mediana de días a ambos objetivos.",
+        "EMPTY": "Ningún grupo tiene mediana de días a ambos objetivos para graficar."
+      },
+      "NOTICE": {
+        "ALREADY_RUNNING": "Ya había una búsqueda en curso. Se muestra su progreso."
+      },
+      "FORM": {
+        "ACCOUNT": "Cuenta",
+        "SIZE_LEGEND": "Tamaño del grupo",
+        "MIN_MEMBERS": "Mínimo de miembros",
+        "MAX_MEMBERS": "Máximo de miembros",
+        "SIZE_BOUND": "Tamaño del grupo entre {{min}} y {{max}} miembros.",
+        "SIZE_INVALID": "Ingrese tamaños enteros entre {{min}} y {{max}}, con el mínimo no mayor que el máximo.",
+        "MAX_PER_INSTRUMENT": "Máx. de estrategias por instrumento",
+        "CEILING": "Techo de eliminación (%)",
+        "CAPITAL": "Capital inicial",
+        "RISK": "Riesgo objetivo por operación",
+        "EXCLUDE_IDENTICAL": "Excluir grupos cuyas corridas Deploy y Evaluation son idénticas",
+        "ONE_PERCENT_RULE": "Aplicar la regla del 1% de la academia",
+        "FX_LEGEND": "Banda FX (estrategias no USD en el conjunto)",
+        "FX_LOW": "FX mínimo (opcional)",
+        "FX_HIGH": "FX máximo (opcional)",
+        "FX_INVALID": "Ingrese ambos valores FX o ninguno, con el FX mínimo mayor que 0 y el FX máximo no menor que el mínimo.",
+        "BUDGET_LEGEND": "Presupuesto (opcional)",
+        "MAX_FULL_SIMULATIONS": "Máx. de simulaciones completas (hasta {{max}})",
+        "MAX_WALL_CLOCK": "Tiempo máximo en segundos (hasta {{max}})",
+        "START": "Iniciar búsqueda",
+        "RUNNING": "Hay una búsqueda en curso",
+        "NO_ACCOUNTS": "No hay cuentas de trading.",
+        "ACCOUNTS_ERROR": "No se pudieron cargar las cuentas."
+      },
+      "PROGRESS": {
+        "CANCEL": "Cancelar",
+        "PROCESSED": "{{processed}} de {{total}} procesados",
+        "ELAPSED": "Transcurrido {{time}}",
+        "SIMULATIONS": "Simulaciones completas {{done}} de {{planned}}",
+        "FUNNEL": {
+          "EXAMINED": "Grupos examinados",
+          "REMOVED_BY_CAP": "Descartados por el tope por instrumento",
+          "REMOVED_BY_PAIR_CONFLICT": "Descartados por conflicto de pares",
+          "REMOVED_BY_ONE_PERCENT_RULE": "Descartados por la regla del 1%",
+          "REMOVED_NO_COMMON_WINDOW": "Descartados: sin ventana común",
+          "REMOVED_MEMBER_HAS_NO_TRADES": "Descartados: un miembro no tiene operaciones",
+          "SHORTLISTED": "Preseleccionados"
+        },
+        "COMPLETED_MESSAGE": "La búsqueda se completó.",
+        "STOPPED_MESSAGE": "La búsqueda se detuvo al llegar a su presupuesto: {{limit}}. {{count}} grupos no se calcularon.",
+        "CANCELLED_MESSAGE": "La búsqueda fue cancelada. Se conservan los resultados parciales.",
+        "FAILED_MESSAGE": "La búsqueda falló. {{detail}}",
+        "DISCLOSURE_EXAMINED": "{{count}} grupos examinados. Elegir el mejor de muchos grupos probados en backtest es optimista (sesgo de selección). Las cifras son riesgo de eliminación sobre agregados diarios de operaciones cerradas, no una certificación ni un pronóstico, y los resultados se pierden al reiniciar la API."
       }
     }
   }

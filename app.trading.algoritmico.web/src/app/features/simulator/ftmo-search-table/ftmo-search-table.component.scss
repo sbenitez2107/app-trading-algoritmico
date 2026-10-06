@@ -1,0 +1,143 @@
+.ftmo-search-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  padding: var(--spacing-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    color: var(--text-main);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  &__ceiling,
+  &__filter {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+  }
+
+  &__ceiling-input {
+    width: 5rem;
+    padding: var(--spacing-xs);
+    color: var(--text-main);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+  }
+
+  &__partial,
+  &__empty {
+    margin: 0;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+  }
+
+  &__partial {
+    color: var(--text-main);
+    border-color: var(--color-warning);
+  }
+
+  // The wide table scrolls inside its own container, so it never stretches the page layout.
+  &__scroll {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  &__table {
+    width: 100%;
+    min-width: 72rem;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+    color: var(--text-main);
+
+    th,
+    td {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-muted);
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__kind-head {
+    text-align: center;
+    border-left: 1px solid var(--border-color);
+  }
+
+  &__row--within {
+    background: var(--bg-surface-2);
+    box-shadow: inset 3px 0 0 var(--color-gain);
+  }
+
+  &__members,
+  &__symbols {
+    overflow-wrap: anywhere;
+  }
+
+  &__identical {
+    color: var(--color-warning);
+  }
+
+  &__refusal,
+  &__absent {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 1px solid var(--border-color);
+  }
+
+  &__open {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    color: var(--text-main);
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  &__excluded {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+
+    ul {
+      margin: 0;
+      padding-left: var(--spacing-lg);
+    }
+  }
+
+  &__excluded-title {
+    margin: 0 0 var(--spacing-xs);
+    font-size: 0.875rem;
+    color: var(--text-main);
+  }
+
+  &__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+    clip-path: inset(50%);
+  }
+}

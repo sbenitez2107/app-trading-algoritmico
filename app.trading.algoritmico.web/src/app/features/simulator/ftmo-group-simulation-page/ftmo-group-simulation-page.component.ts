@@ -7,8 +7,9 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { EMPTY, Subject, Subscription, catchError, switchMap, tap } from 'rxjs';
+import { EMPTY, Subject, Subscription, catchError, map, switchMap, tap } from 'rxjs';
 import {
   FtmoGroupCandidatesDto,
   FtmoGroupSimulationDto,
@@ -30,6 +31,12 @@ import {
   toGroupRequest,
   toWorstCaseReadout,
 } from '../ftmo-group-simulation.mappers';
+import {
+  DeepLinkNotice,
+  DeepLinkParams,
+  applyDeepLink,
+  readDeepLink,
+} from '../ftmo-group-search.deeplink.mappers';
 import { toGroupResultVm } from '../ftmo-group-simulation.result.mappers';
 
 /**
@@ -43,6 +50,11 @@ import { toGroupResultVm } from '../ftmo-group-simulation.result.mappers';
  * does not echo the risk or capital, so the readout cannot be rebuilt from the result alone; clearing it is
  * the only way the observed `peak x risk` never mixes a stale peak with a new input.
  */
+interface PendingLink {
+  link: DeepLinkParams;
+  accountKnown: boolean;
+}
+
 @Component({
   selector: 'app-ftmo-group-simulation-page',
   standalone: true,
@@ -60,6 +72,10 @@ export class FtmoGroupSimulationPageComponent {
   private readonly accountService = inject(TradingAccountService);
   private readonly simulationService = inject(FtmoSimulationService);
   private readonly destroyRef = inject(DestroyRef);
+  /** Optional: the specs of this page provide no router. */
+  private readonly route = inject(ActivatedRoute, { optional: true });
+  /** The deep link, applied exactly once (on the first candidates load); never auto-runs. */
+  private pendingLink: PendingLink | null = null;
   private readonly accountChanges = new Subject<string>();
   private runSubscription: Subscription | null = null;
 
@@ -75,6 +91,7 @@ export class FtmoGroupSimulationPageComponent {
   readonly running = signal(false);
   readonly result = signal<FtmoGroupSimulationDto | null>(null);
   readonly runError = signal<FtmoRequestError | null>(null);
+  readonly deepLinkNotices = signal<DeepLinkNotice[]>([]);
 
   /** The result area's view model; `null` before the first run and after any invalidation. */
   readonly resultVm = computed(() => {
@@ -112,20 +129,25 @@ export class FtmoGroupSimulationPageComponent {
           this.error.set(null);
           this.loading.set(true);
         }),
-        switchMap((id) =>
-          this.simulationService.getGroupCandidates(id).pipe(
+        switchMap((id) => {
+          // The link belongs to the first load attempt only; a failure must not defer it.
+          const link = this.pendingLink;
+          this.pendingLink = null;
+          return this.simulationService.getGroupCandidates(id).pipe(
+            map((response) => ({ response, link })),
             catchError((err: FtmoRequestError) => {
               this.error.set(err);
               this.loading.set(false);
               return EMPTY;
             }),
-          ),
-        ),
+          );
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((response) => {
+      .subscribe(({ response, link }) => {
         this.candidates.set(response);
         this.loading.set(false);
+        this.applyLink(link, response);
       });
 
     this.accountService
@@ -135,12 +157,31 @@ export class FtmoGroupSimulationPageComponent {
         next: (accounts) => {
           this.accounts.set(accounts.map((a) => ({ id: a.id, name: a.name })));
           this.accountsLoaded.set(true);
-          const id = pickDefaultAccountId(this.accounts());
+          const link = readDeepLink(this.route?.snapshot?.queryParamMap ?? null);
+          const accountKnown =
+            link?.account != null && this.accounts().some((a) => a.id === link.account);
+          this.pendingLink = link === null ? null : { link, accountKnown };
+          const id = accountKnown ? link!.account! : pickDefaultAccountId(this.accounts());
           if (id !== null) this.selectAccount(id);
         },
         // A failed load must not leave a blank page (F2 RELIABILITY-001).
         error: () => this.accountsError.set(true),
       });
+  }
+
+  /** Preselects from the link once; later edits and account changes are never overwritten. */
+  private applyLink(pending: PendingLink | null, response: FtmoGroupCandidatesDto): void {
+    if (pending === null) return;
+    const applied = applyDeepLink(
+      pending.link,
+      response.candidates.map((c) => c.strategyId),
+      response.maxMembers,
+      pending.accountKnown,
+      this.form(),
+    );
+    this.form.set(applied.form);
+    this.selectedIds.set(new Set(applied.selected));
+    this.deepLinkNotices.set(applied.notices);
   }
 
   selectAccount(id: string): void {

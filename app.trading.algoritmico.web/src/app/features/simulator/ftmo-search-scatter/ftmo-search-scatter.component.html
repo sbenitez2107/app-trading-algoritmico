@@ -1,0 +1,123 @@
+<section class="ftmo-search-scatter">
+  <h2 class="ftmo-search-scatter__title">
+    {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.TITLE' | translate }}
+  </h2>
+
+  @if (vm().points.length === 0) {
+    <p class="ftmo-search-scatter__empty">
+      {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.EMPTY' | translate }}
+    </p>
+  } @else {
+    <svg
+      class="ftmo-search-scatter__svg"
+      [attr.viewBox]="viewBox"
+      role="group"
+      [attr.aria-label]="'SIMULATOR.FTMO_SEARCH.SCATTER.ARIA' | translate"
+    >
+      @for (t of vm().xTicks; track t.value) {
+        <line
+          class="ftmo-search-scatter__grid"
+          [attr.x1]="t.position"
+          [attr.x2]="t.position"
+          [attr.y1]="layout.top"
+          [attr.y2]="baseline"
+        />
+        <text
+          class="ftmo-search-scatter__tick"
+          text-anchor="middle"
+          [attr.x]="t.position"
+          [attr.y]="baseline + 16"
+        >
+          {{ t.value }}
+        </text>
+      }
+      @for (t of vm().yTicks; track t.value) {
+        <line
+          class="ftmo-search-scatter__grid"
+          [attr.x1]="layout.left"
+          [attr.x2]="right"
+          [attr.y1]="t.position"
+          [attr.y2]="t.position"
+        />
+        <text
+          class="ftmo-search-scatter__tick"
+          text-anchor="end"
+          [attr.x]="layout.left - 6"
+          [attr.y]="t.position + 4"
+        >
+          {{ t.value }}
+        </text>
+      }
+      <line
+        class="ftmo-search-scatter__axis"
+        [attr.x1]="layout.left"
+        [attr.x2]="right"
+        [attr.y1]="baseline"
+        [attr.y2]="baseline"
+      />
+      <line
+        class="ftmo-search-scatter__axis"
+        [attr.x1]="layout.left"
+        [attr.x2]="layout.left"
+        [attr.y1]="layout.top"
+        [attr.y2]="baseline"
+      />
+      <text
+        class="ftmo-search-scatter__axis-label"
+        text-anchor="middle"
+        [attr.x]="layout.left + layout.width / 2"
+        [attr.y]="layout.viewHeight - 8"
+      >
+        {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.X_AXIS' | translate }}
+      </text>
+      <text
+        class="ftmo-search-scatter__axis-label"
+        text-anchor="middle"
+        transform="rotate(-90)"
+        [attr.x]="-(layout.top + layout.height / 2)"
+        y="12"
+      >
+        {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.Y_AXIS' | translate }}
+      </text>
+      @for (p of vm().points; track p.row) {
+        @let label =
+          'SIMULATOR.FTMO_SEARCH.SCATTER.POINT_TITLE'
+            | translate
+              : {
+                  members: p.memberNames.join(', '),
+                  days: (p.days | number: '1.0-1'),
+                  breach: (p.breachPercent | number: '1.0-2'),
+                };
+        <circle
+          class="ftmo-search-scatter__point"
+          [class.ftmo-search-scatter__point--frontier]="p.frontier"
+          [class.ftmo-search-scatter__point--within]="p.withinCeiling"
+          role="button"
+          tabindex="0"
+          [attr.aria-label]="label"
+          [attr.cx]="p.cx"
+          [attr.cy]="p.cy"
+          [attr.r]="p.frontier ? 6 : 4"
+          (click)="open(p)"
+          (keydown.enter)="open(p)"
+        >
+          <title>{{ label }}</title>
+        </circle>
+      }
+    </svg>
+    <ul class="ftmo-search-scatter__legend">
+      <li class="ftmo-search-scatter__legend-frontier">
+        {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.LEGEND_FRONTIER' | translate }}
+      </li>
+      <li class="ftmo-search-scatter__legend-within">
+        {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.LEGEND_WITHIN' | translate }}
+      </li>
+    </ul>
+  }
+
+  @if (vm().notPlotted > 0) {
+    <p class="ftmo-search-scatter__not-plotted" role="status">
+      {{ 'SIMULATOR.FTMO_SEARCH.SCATTER.NOT_PLOTTED' | translate: { count: vm().notPlotted } }}
+    </p>
+  }
+</section>

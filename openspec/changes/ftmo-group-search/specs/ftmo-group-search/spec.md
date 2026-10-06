@@ -90,15 +90,22 @@ requested account only.
 ### Requirement: Candidates Respect The Per-Instrument Cap
 
 A candidate MUST contain at most `maxPerInstrument` strategies of the same verbatim instrument symbol. The
-default is 1. The cap MUST be applied before the proxy so capped candidates cost nothing further, and the
-count of candidates removed by the cap MUST be reported.
+default is 2 (user decision 2026-10-04: the first real calibration on SBDEMO2 had 18 eligible strategies covering only
+2 instruments, so a default of 1 left only pairs and a vacuous recall of 1.0), and the user MAY lower it to 1. The
+cap MUST be applied before the proxy so capped candidates cost nothing further, and the count of candidates removed
+by the cap MUST be reported.
 
-#### Scenario: The default cap forbids two strategies of one symbol
+#### Scenario: The default cap admits two strategies of one symbol
+- GIVEN two instruments with two strategies each and no explicit `maxPerInstrument`
+- WHEN candidates are enumerated
+- THEN triples and quadruples exist
+
+#### Scenario: An explicit cap of 1 forbids two strategies of one symbol
 - GIVEN strategies A and B both on EURUSD and `maxPerInstrument = 1`
 - WHEN candidates are enumerated
 - THEN no candidate contains both A and B
 
-#### Scenario: Raising the cap admits them
+#### Scenario: A cap of 2 admits them
 - GIVEN the same strategies and `maxPerInstrument = 2`
 - WHEN candidates are enumerated
 - THEN a candidate containing A and B exists
@@ -144,8 +151,10 @@ MUST be removed before the proxy and counted. When false (the default) no such f
 
 For each surviving candidate the proxy MUST be computed from the cached per-member projections trimmed to
 THAT candidate's own replay window (the intersection defined by `ftmo-group-simulation`), never to the pool's
-window or any other candidate's. The proxy MUST use the worst summed day against the daily limit and the peak
-concurrency. A candidate with an empty window or a member with no in-window trades MUST be removed with a
+window or any other candidate's. The proxy is the `FtmoRaceSurrogate`: per monthly start a cheap race (phase 1 +10%, phase 2 +5%, funded, min 4
+trading days; daily floor from the previous Berlin midnight, static max floor; breach before target) aggregated into
+breach share, headroom and median days on the worse kind, with Peak concurrency as a later tie-break. Approximations:
+a breach on either FX end counts, the funded share is not modelled, zero-duration rows count differently for trading days. A candidate with an empty window or a member with no in-window trades MUST be removed with a
 counted reason and MUST NOT be shortlisted.
 
 #### Scenario: Adding a late-starting member shrinks the window used by the proxy
@@ -167,8 +176,8 @@ counted reason and MUST NOT be shortlisted.
 ### Requirement: Enumeration, Shortlist And Ranking Are Deterministic With No Randomness
 
 Candidates MUST be enumerated in ascending `StrategyId` order (lexicographic over the sorted id tuple, by
-size). The shortlist MUST be the best M candidates by ascending proxy score, ties broken by the sorted
-`StrategyId` tuple; M is a named constant set from the benchmark. The ranking of fully computed candidates
+size). The shortlist MUST be the best M candidates ordered by surrogate breach share, then headroom descending, then median
+days (none last), then Peak, then the combo key (the sorted `StrategyId` tuple); M is a named constant set from the benchmark. The ranking of fully computed candidates
 MUST be lexicographic over, in order:
 
 1. both Deploy and Evaluation evaluated with no refusal (evaluated first);
@@ -301,6 +310,15 @@ candidates completed so far, with the count not completed.
 - THEN status is `StoppedAtBudget`, the limit reached is the simulation count, and the ranking covers only
   completed candidates in the deterministic order
 
+#### Scenario: A budget stop still represents every size
+- GIVEN a shortlist of sizes 2, 3 and 4 and a simulation budget of 3
+- WHEN the job stops at the budget
+- THEN one group per size was simulated: the shortlist is simulated interleaved by size (k=2 #1, k=3 #1, k=4 #1,
+  k=2 #2, ...), a size that runs out dropping from the rotation, and the final ranking is independent of that order
+
+Defaults (2026-10-06, after a real Debug run of about 18 s per group that stopped at 51 of 150): shortlist and
+simulation budget 75 (per-size quota 25, DEPTH d100 = 25), wall clock 30 min; ceilings 500 simulations and 3600 s.
+
 #### Scenario: The wall-clock budget stops the job
 - GIVEN a time budget shorter than the work
 - WHEN it elapses
@@ -368,6 +386,8 @@ record the result with the PR. The shortlist size M and the default budget MUST 
 calibration MUST show that every one of the top 10 candidates by full-simulation ranking, within the
 calibration set, is inside the shortlist at the chosen M; otherwise M MUST be raised or the proxy revised and
 the result re-recorded. Until recorded, the search endpoint MUST NOT ship.
+
+Recorded 2026-10-06: on the SBDEMO2 pool (130 strategies, 18 eligible, 1719 survivors, shortlist 150, full ground truth of all 1719 groups) recall@10 and recall@25 are 1.000 for k=2, 3 and 4. The earlier proxy (worst DailyUsed, then Peak) failed with recall@25 of 0.72 / 0.36 / 0.16 and was replaced by the surrogate. The k4 truth MUST NOT be strided, because a sample's top K does not match a global quota.
 
 #### Scenario: The recorded calibration justifies M
 - GIVEN the recorded calibration

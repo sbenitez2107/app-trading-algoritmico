@@ -61,7 +61,11 @@ calls. The projection depends on (trades, grid, symbol, risk, FX) only, never on
 - Enumerate lexicographic index combinations over the eligible pool sorted by `StrategyId`, for
   k = kMin..kMax (`<= FtmoGroupSimulationLimits.MaxMembers`, `FtmoGroupSimulationLimits.cs:15`).
 - Exact prunes, applied before the proxy:
-  - (a) per-instrument count `> maxPerInstrument`;
+  - (a) per-instrument count `> maxPerInstrument` (default 2, `FtmoGroupSearchLimits.DefaultMaxPerInstrument`;
+    USER DECISION 2026-10-04: the first real calibration on SBDEMO2 had 130 strategies, 18 eligible, 4029 enumerated,
+    72 survivors, all pairs, shortlist 72: with a cap of 1 the pool covered only 2 instruments (gold, NQ; DAX had no
+    FX band, BTC no backtests), so recall 1.0 was vacuous. The calibration now fails when the shortlist holds every
+    survivor);
   - (b) a pair conflict: different source zones, or disjoint coverage. In 1-D, pairwise-overlapping
     intervals share a common point (Helly), so the pair prune is exactly `Intersect != null`
     (`FtmoGroupMerger.cs:58-69`);
@@ -107,12 +111,30 @@ ordering and window shrink, and cannot be pinned exactly.
   own headroom unblended. Fractions on the wire (0.8 = 80% of the allowance used).
 
 ### D5 Shortlist, ranking, constants
-- **Constants** (`FtmoGroupSearchLimits`, set and asserted by the PR1 benchmark the same way
-  `MaxMembers` is):
-  - `ShortlistSize` (provisional 150);
-  - `DefaultMaxFullSimulations = ShortlistSize`;
-  - `DefaultMaxWallClock` (provisional 15 min);
-  - `MaxPoolSize` (provisional 40; the largest P whose C(P,2..4) proxy pass is ≤ 60 s).
+- **Constants** (`FtmoGroupSearchLimits`, set from the 1d benchmark and pinned by `FtmoGroupSearchLimitsTests`,
+  the same way `MaxMembers` is). Evidence (Release, 12 logical cores, closed-form P=24 pool, two runs; the machine is
+  noisy, so gates are medians of 3):
+  - proxy stage at P=24 (12,926 candidates): median 56.1 s (run 1), 39.2 s (run 2), 37.4 s (falsification run),
+    about 4.3 ms per candidate at the worst; single samples from 37.6 s to 60.9 s. P=32: 183-203 s; P=40: 356-485 s.
+  - full computation of one candidate (both kinds): k=2 1.5-1.7 s, k=3 1.9-2.9 s, k=4 2.4-3.5 s (median of 3, two runs).
+  - `ShortlistSize = 150`;
+  - `DefaultMaxFullSimulations = ShortlistSize`: 150 x 3.5 s (slowest per-candidate median) = 525 s;
+  - `DefaultMaxWallClock = 15 min` (900 s), so budget x time per group fits with 1.7x headroom;
+  - `MaxPoolSize = 24` (was a provisional 40): the largest P whose C(P,2..4) proxy pass is within 60 s; P=25 projects
+    to 67 s. The margin at P=24 is thin: a single P=24 sample reached 60.9 s, over the gate, so only the median passes; the proxy is the lever if the pool must grow (a cheaper proxy or a stricter
+    pre-filter), not a bigger constant.
+  - `ShortlistSize` stays provisional until the calibration (D9) is run: recall@10 < 0.9 forces a larger shortlist
+    (and then a larger wall clock).
+  - **Revised after a real run (2026-10-06).** In the Debug API with the default budget, one full simulation took about
+    18 s and the job stopped at the budget after 51 of 150 groups; the shortlist was simulated in global ranked order,
+    so almost no k=4 group was reached. The calibration shows the surrogate order holds the true top 25 of every size
+    within the first 25 positions (DEPTH d100 = 25 for k=2, 3, 4; D9). New constants: `ShortlistSize = 75` (per-size
+    quota 25 over sizes 2..4), `DefaultMaxFullSimulations = ShortlistSize`, `DefaultMaxWallClock = 30 min` (75 x 18 s =
+    22.5 min). Ceilings unchanged (500 simulations, 3600 s).
+  - **Simulation order.** `FtmoGroupSearchEngine.InterleaveBySize` turns the shortlist into a round-robin over the sizes
+    (k=2 #1, k=3 #1, k=4 #1, k=2 #2, ...), each size best-first; a size that runs out drops from the rotation. `Plan`
+    applies it, so `Simulate` stays "in the given order" and a budget stop leaves every size represented. The final
+    ranking is unchanged: `FtmoGroupSearchRanking` orders the results independently of the order they were computed in.
 - **Shortlist**: a per-k quota `floor(N / #k)`, filled best-proxy-first. The remainder goes to the
   global proxy order. Simulation follows shortlist order, so a budget stop cuts the tail.
 - **Comparer** (`FtmoGroupSearchRanking.Comparer`, exact decimals, no epsilon):
@@ -127,9 +149,11 @@ ordering and window shrink, and cannot be pinned exactly.
   filter toggle. It is never a ranking key and never drops rows.
 
 ### D6 Diagnostics opt-out in `ComputeGroup`: NO
-Diagnostics are O(n log n + starts) against the seconds that `ComputeRun` takes, and rank key 6
-needs `Diagnostics.Peak`. An opt-out would edit `FtmoGroupComputation.cs:130` (a shipped file) for
-an unmeasurable gain. If the benchmark ever shows more than 2% of per-candidate time, revisit
+Diagnostics are O(n log n + starts) against the seconds that `ComputeRun` takes. Rank key 6 does
+NOT read `Diagnostics.Peak`: it ranks on the proxy peak (`FtmoPeakConcurrency`, the worse kind),
+which `FtmoGroupSearchReviewGapTests` pins equal to the full simulation's worse-kind
+`Diagnostics.Peak.PeakConcurrentOpen` (1d, RELIABILITY-005). An opt-out would edit
+`FtmoGroupComputation.cs:130` (a shipped file) for an unmeasurable gain. If the benchmark ever shows more than 2% of per-candidate time, revisit
 with an optional `bool includeDiagnostics = true` parameter.
 
 ### D7 Job infrastructure
@@ -175,7 +199,10 @@ shipped spec `ftmo-group-simulation-ui` receives a delta (deep link) from the sp
 ### D9 Proxy calibration
 `FtmoGroupSearchCalibrationTests`, `[CalibrationFact]`. It is skipped unless
 `FTMO_CALIBRATION_CONNECTION` is set, and running it needs explicit user authorization (project DB
-rule). It uses a no-tracking context, and an interceptor throws on any non-SELECT command.
+rule). It uses a no-tracking context, a SaveChanges interceptor that throws, and a command interceptor that is an
+ALLOWLIST: after literal-aware stripping of comments and masking of string literals / quoted identifiers, a command
+must start with `SELECT` or `WITH`, hold no `;` except one trailing, and no `INTO`, `EXEC` or `EXECUTE`. The SQL EF
+Core generates for the calibration's own query shapes is proven to pass it (SQLite in memory).
 
 On the SBDEMO2 pool (P≈24), ground truth is a full simulation of:
 - every k=2 (276) and k=3 (2,024) candidate;
@@ -183,10 +210,17 @@ On the SBDEMO2 pool (P≈24), ground truth is a full simulation of:
 
 Metric: recall@K = |topK(full) ∩ shortlist| / K, for K ∈ {10, 25}, per k. The result is recorded
 in the test's doc comment (precedent `FtmoGroupBenchmarkTests.cs:23-34`). Trust threshold:
-recall@10 ≥ 0.9 per k. Otherwise raise `ShortlistSize` or revise the score before PR2 ships its
+recall@10 and recall@25 ≥ 0.9 per k with at least 10 sampled candidates; a run in which no k
+qualifies fails. A candidate past position K that ties with the K-th entry on the full ranking key (all keys but
+the id tie-break) counts as in the top K. Known bias: the k=4 stride is systematic over a lexicographic
+enumeration, so it correlates with the leading members, and the k=4 truth is the top of the sample, not of all
+k=4 candidates; k=4 recall can overstate the shortlist's recall (k=2 and k=3 are exhaustive). Otherwise raise `ShortlistSize` or revise the score before PR2 ships its
 defaults.
 
+**Result (2026-10-06, calib-4.log): PASSED.** The shortlist order is now the `FtmoRaceSurrogate` (`Services/FtmoRaceSurrogate.cs`), which replaced the old proxy (worst DailyUsed, then Peak) after that proxy failed with recall@25 of 0.72 / 0.36 / 0.16. Per monthly start the surrogate runs a cheap race (phase 1 +10%, phase 2 +5%, funded, min 4 trading days; daily floor from the previous Berlin midnight, static max floor; breach before target) and aggregates breach share, headroom and median days on the worse kind. Shortlist order: surrogate breach share, then headroom desc, then median days (none last), then Peak, then the combo key. Documented approximations: a breach on either FX end counts; the funded share is not modelled; zero-duration rows count differently for trading days. Pool: SBDEMO2, FX 1.05..1.20, maxPerInstrument=2; 130 strategies, 18 eligible (USATECHIDXUSD=12, XAUUSD=6); 4029 enumerated, 1719 survivors, shortlist 150; ground truth is the full simulation of all 1719 groups (k4 stride 1, which supersedes the stride 10 above). recall@10 and recall@25 = 1.000 for k=2, 3 and 4; DEPTH d100 = K. Run took 4.5 h, ~9.4 s per group sequential in the harness. Lesson: a strided k4 truth gave a false failure (recall 0.6 / 0.24, calib-3.log), since the sample's top K does not match a global quota. Harness: `FTMO_CALIBRATION_TRUTH_FILE` caches the truth (fingerprint + schema version); a DEPTH diagnostic; failures reported per size. The proxy stage at P=24 measured 49.7 / 58.1 s against the 60 s gate (thin margin). Open: measure the real per-group time in the parallel job runner (task 1d.3.5), since 9.4 s x 150 exceeds the 15-min budget if sequential.
+
 ### D10 Frontend
+- **Max per instrument** input defaults to 2 (minimum 1), user decision 2026-10-04 (see D3).
 - **Route**: `{path:'ftmo/search'}` in `simulator.routes.ts:3-12`, plus a sidebar link after
   `main-layout.component.html:284-291`. The existing link gets `[routerLinkActiveOptions]="{exact:true}"`.
 - **Components** (standalone, OnPush, signals):
@@ -205,6 +239,10 @@ defaults.
   (x, y) and keep a point iff y < running min. Exact duplicates share the status. Points with
   null x are not plotted, and their count is shown.
 - **Deep link** (decision 2026-10-04): `/simulator/ftmo?account&members=a,b&risk&capital&fxLow&fxHigh`.
+  **The job DTO carries the request (2026-10-06)**: `FtmoGroupSearchJobDto.Request` is the request as submitted (fractions stay
+  fractions, set by the registry on start, present on POST 202 `job`, `GET {id}` and `GET current`). The page ALWAYS builds the
+  link and the table ceiling from `job.request`; the local snapshot, the form fallback and the `LINK_FROM_FORM` notice are
+  removed, and the "ceiling falls back to 5% on re-attach" limitation is resolved. The form is not re-populated on re-attach.
   Broker and the source lot grid are NOT link parameters: both pages use the same shared constants.
   The group page injects `ActivatedRoute` with `{optional:true}`, because the existing specs
   provide no router. It applies the parameters ONCE (account if known, else the default plus a
@@ -241,7 +279,7 @@ defaults.
 ```csharp
 public sealed record FtmoGroupSearchRequest(Guid? TradingAccountId, IReadOnlyList<string>? Symbols, int? MinMembers,
     int? MaxMembers, string? Broker, decimal? InitialCapital, decimal? TargetRiskPerTrade, int? SizeDecimals,
-    decimal? Step, decimal? MinLot, decimal? MaxLots, decimal? FxLow, decimal? FxHigh, int MaxPerInstrument = 1,
+    decimal? Step, decimal? MinLot, decimal? MaxLots, decimal? FxLow, decimal? FxHigh, int MaxPerInstrument = 2,
     bool IncludeIdenticalKinds = false, bool AcademyOnePercentRule = false, int? MaxFullSimulations = null,
     int? MaxWallClockSeconds = null, decimal EliminationCeiling = 0.05m);
 public sealed record FtmoGroupSearchJobDto(Guid JobId, FtmoGroupSearchStatus Status, FtmoGroupSearchProgressDto Progress,
@@ -274,6 +312,6 @@ removes the deep-link parameters.
 
 ## Open Questions
 
-- [ ] Provisional constants (150 / 15 min / 40) await the PR1 benchmark and calibration.
+- [ ] Provisional constants (now 75 / 30 min / 24; were 150 / 15 min / 40) await the PR1 benchmark and calibration.
 - [x] RESOLVED (user decision 2026-10-04): leaving the search page does NOT cancel the job; it only stops
   polling. `GET current` re-attaches when the user returns. Explicit cancel stays on the Cancel button.

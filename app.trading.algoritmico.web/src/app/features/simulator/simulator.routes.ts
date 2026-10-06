@@ -9,4 +9,11 @@ export const SIMULATOR_ROUTES: Routes = [
         (m) => m.FtmoGroupSimulationPageComponent,
       ),
   },
+  {
+    path: 'ftmo/search',
+    loadComponent: () =>
+      import('./ftmo-group-search-page/ftmo-group-search-page.component').then(
+        (m) => m.FtmoGroupSearchPageComponent,
+      ),
+  },
 ];

@@ -38,7 +38,7 @@ the sidebar's "Simulator" group MUST contain a second entry that opens it. Label
 The form MUST contain: the account (default SBDEMO2, else the first account); an optional symbol filter of
 the pool; group size min and max (defaults 2 and 4, both bounded to [2, `MaxMembers`], with `MaxMembers`
 taken from the candidates read and never hardcoded); `targetRiskPerTrade` (required, no prefill); max
-strategies per instrument (default 1, minimum 1); exclude identical Deploy/Eval (default on); the academy 1%
+strategies per instrument (default 2, minimum 1; user decision 2026-10-04); exclude identical Deploy/Eval (default on); the academy 1%
 rule (default off); the elimination ceiling (default 5%); `initialCapital` (default `10000`); FX band inputs
 shown only when the pool contains a non-USD strategy; and the optional budget. Broker (`FTMO`) and the source
 lot grid MUST come from the same constants as the group simulator and not be edited here. Start MUST be
@@ -47,7 +47,7 @@ disabled until a valid risk and capital hold, min <= max, and no job is running.
 #### Scenario: Defaults are prefilled
 - GIVEN the page opens
 - WHEN the form is rendered
-- THEN max per instrument shows 1, identical is excluded, the 1% rule is off, size is 2 to 4, the ceiling is
+- THEN max per instrument shows 2, identical is excluded, the 1% rule is off, size is 2 to 4, the ceiling is
   5%, capital is `10000`, and risk is empty
 
 #### Scenario: Start is disabled without a risk
@@ -203,12 +203,19 @@ deep link. The ceiling MUST be drawn or the points below it distinguished. Axis 
 
 Opening a group from a row or a point MUST navigate to `/simulator/ftmo` with query parameters `account`,
 `members` (comma-separated ids in ascending `StrategyId` order), `risk` (the search's risk), and `capital`
-and the FX band when set, as accepted by `ftmo-group-simulation-ui`. Navigation MUST NOT run the simulation.
+and the FX band when set, as accepted by `ftmo-group-simulation-ui`. The values MUST come from the request carried by the
+job (`job.request`), never from the current form, so a re-attached job links with its own values. Navigation MUST NOT run
+the simulation.
 
 #### Scenario: The link carries the search inputs
 - GIVEN a result for members A, B at risk 25 and capital 10000
 - WHEN its link is opened
 - THEN the URL has `account`, `members=A,B`, `risk=25` and `capital=10000`
+
+#### Scenario: A re-attached job links with its own request
+- GIVEN a job re-attached through `GET current` whose request has risk 100 and the form is empty
+- WHEN a result's link is opened
+- THEN the URL has `risk=100`, and the table ceiling defaults to the request's ceiling
 
 #### Scenario: Opening does not run
 - GIVEN the group page opened from the link

@@ -1,0 +1,101 @@
+<section class="ftmo-search-progress">
+  <header class="ftmo-search-progress__head">
+    <span class="ftmo-search-progress__status">{{ status().key | translate }}</span>
+    @if (status().raw !== null) {
+      <span class="ftmo-search-progress__raw">({{ status().raw }})</span>
+    }
+    <span class="ftmo-search-progress__stage">{{ stage().key | translate }}</span>
+    @if (stage().raw !== null) {
+      <span class="ftmo-search-progress__raw">({{ stage().raw }})</span>
+    }
+    <button
+      type="button"
+      class="ftmo-search-progress__cancel"
+      [disabled]="!running()"
+      (click)="cancel.emit()"
+    >
+      {{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.CANCEL' | translate }}
+    </button>
+  </header>
+
+  <div
+    class="ftmo-search-progress__bar"
+    role="progressbar"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    [attr.aria-valuenow]="percent()"
+  >
+    <div class="ftmo-search-progress__fill" [style.width.%]="percent()"></div>
+  </div>
+
+  <p class="ftmo-search-progress__line">
+    {{
+      'SIMULATOR.FTMO_SEARCH.PROGRESS.PROCESSED'
+        | translate: { processed: job().progress.processed, total: job().progress.total }
+    }}
+    ·
+    {{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.ELAPSED' | translate: { time: elapsed() } }}
+    ·
+    {{
+      'SIMULATOR.FTMO_SEARCH.PROGRESS.SIMULATIONS'
+        | translate
+          : {
+              done: job().progress.fullSimulationsDone,
+              planned: job().progress.maxFullSimulations,
+            }
+    }}
+  </p>
+
+  <dl class="ftmo-search-progress__funnel">
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.EXAMINED' | translate }}</dt>
+    <dd>{{ job().progress.funnel.examined | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.REMOVED_BY_CAP' | translate }}</dt>
+    <dd>{{ job().progress.funnel.removedByCap | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.REMOVED_BY_PAIR_CONFLICT' | translate }}</dt>
+    <dd>{{ job().progress.funnel.removedByPairConflict | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.REMOVED_BY_ONE_PERCENT_RULE' | translate }}</dt>
+    <dd>{{ job().progress.funnel.removedByOnePercentRule | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.REMOVED_NO_COMMON_WINDOW' | translate }}</dt>
+    <dd>{{ job().progress.funnel.removedNoCommonWindow | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.REMOVED_MEMBER_HAS_NO_TRADES' | translate }}</dt>
+    <dd>{{ job().progress.funnel.removedMemberHasNoTrades | number }}</dd>
+    <dt>{{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.FUNNEL.SHORTLISTED' | translate }}</dt>
+    <dd>{{ job().progress.funnel.shortlisted | number }}</dd>
+  </dl>
+
+  @switch (job().status) {
+    @case (Status.Completed) {
+      <p class="ftmo-search-progress__terminal ftmo-search-progress__terminal--completed">
+        {{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.COMPLETED_MESSAGE' | translate }}
+      </p>
+    }
+    @case (Status.StoppedAtBudget) {
+      <p class="ftmo-search-progress__terminal ftmo-search-progress__terminal--stopped">
+        {{
+          'SIMULATOR.FTMO_SEARCH.PROGRESS.STOPPED_MESSAGE'
+            | translate: { limit: stopReason().key | translate, count: job().notComputed }
+        }}
+      </p>
+    }
+    @case (Status.Cancelled) {
+      <p class="ftmo-search-progress__terminal ftmo-search-progress__terminal--cancelled">
+        {{ 'SIMULATOR.FTMO_SEARCH.PROGRESS.CANCELLED_MESSAGE' | translate }}
+      </p>
+    }
+    @case (Status.Failed) {
+      <p class="ftmo-search-progress__terminal ftmo-search-progress__terminal--failed" role="alert">
+        {{
+          'SIMULATOR.FTMO_SEARCH.PROGRESS.FAILED_MESSAGE'
+            | translate: { detail: job().errorMessage ?? '' }
+        }}
+      </p>
+    }
+  }
+
+  <p class="ftmo-search-progress__disclosure">
+    {{
+      'SIMULATOR.FTMO_SEARCH.PROGRESS.DISCLOSURE_EXAMINED'
+        | translate: { count: job().progress.funnel.examined | number }
+    }}
+  </p>
+</section>

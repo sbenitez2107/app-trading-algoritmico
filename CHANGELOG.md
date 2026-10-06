@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.54.0] - 2026-10-06
+
+### Added
+
+- New FTMO group search page under Simulator, reachable from the sidebar. It starts an automatic search, shows its progress and lets you cancel it.
+- Search results are shown as a ranked table and a scatter chart of the simulated groups.
+- Each result links to the FTMO group page with the group pre-filled, so it can be re-run and inspected in detail.
+
 ## [0.53.0] - 2026-10-06
 
 ### Added

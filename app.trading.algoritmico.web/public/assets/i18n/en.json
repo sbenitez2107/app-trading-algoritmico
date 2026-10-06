@@ -460,9 +460,16 @@
   "SIMULATOR": {
     "NAV": {
       "TITLE": "Simulator",
-      "FTMO_GROUP": "FTMO group"
+      "FTMO_GROUP": "FTMO group",
+      "FTMO_SEARCH": "FTMO group search"
     },
     "FTMO_GROUP": {
+      "DEEPLINK": {
+        "ACCOUNT_FALLBACK": "The account in the link is missing or unknown, so the default account is shown and the strategies in the link were not selected.",
+        "UNKNOWN_MEMBERS": "{{count}} strategies in the link were not found and were ignored.",
+        "OVER_CAP": "The link listed more than {{max}} strategies; only the first {{max}} were selected.",
+        "INVALID_VALUES": "Some values in the link were not valid and were ignored."
+      },
       "TITLE": "FTMO group simulation",
       "DISCLOSURE": "This screen replays the backtest trades of a group of strategies together on one FTMO account. It models elimination against FTMO limits; it is not a certification, and a favorable result does not guarantee a real funded outcome.",
       "PICKER": {
@@ -589,6 +596,128 @@
           "SAME_CLOSE": "When several trades close at the same instant, the order in which those closes are applied is a modelling choice that can create or remove a breach.",
           "ELIGIBILITY": "Eligibility rules of the funding programme, for example a martingale or grid ban, are not modelled."
         }
+      }
+    },
+    "FTMO_SEARCH": {
+      "TITLE": "FTMO group search",
+      "DISCLOSURE": "This screen looks for strategy combinations that hold up against FTMO limits. It models elimination risk on closed trades; it is not a certification, and choosing the best of many backtested groups is optimistic.",
+      "STATUS": {
+        "UNKNOWN": "Unknown status",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "STOPPED_AT_BUDGET": "Stopped at budget",
+        "CANCELLED": "Cancelled",
+        "FAILED": "Failed"
+      },
+      "STAGE": {
+        "UNKNOWN": "Unknown stage",
+        "LOADING": "Loading strategies",
+        "ELIGIBILITY": "Checking eligibility",
+        "PROXY": "Scoring candidates",
+        "SIMULATING": "Simulating the shortlist",
+        "RANKING": "Ranking"
+      },
+      "STOP_REASON": {
+        "UNKNOWN": "Unknown reason",
+        "NONE": "No budget reached",
+        "MAX_FULL_SIMULATIONS": "Simulation limit reached",
+        "WALL_CLOCK": "Time limit reached"
+      },
+      "INELIGIBLE_REASON": {
+        "UNKNOWN": "Unknown reason",
+        "MISSING_KIND": "Missing Deploy or Evaluation run",
+        "SYMBOL_REFUSED": "Instrument not usable",
+        "ZONE_UNRESOLVED": "Time zone not resolved",
+        "PROJECTION_REFUSED": "Run refused",
+        "PROJECTION_ROWLESS": "Run has no trades",
+        "IDENTICAL_DEPLOY_EVAL": "Deploy and Evaluation are identical"
+      },
+      "ERRORS": {
+        "LOST": "The search was lost, most likely because the API restarted. Start a new one."
+      },
+      "TABLE_PLACEHOLDER": "The ranked groups will appear here.",
+      "TABLE": {
+        "TITLE": "Ranked groups",
+        "CEILING": "Elimination ceiling (%)",
+        "ONLY_WITHIN": "Only within the ceiling",
+        "PARTIAL": "Partial results: the search ended before every group was computed.",
+        "EMPTY": "No groups to show.",
+        "NO_MATCH": "No group is within the ceiling.",
+        "RANK": "Rank",
+        "MEMBERS": "Members",
+        "SYMBOLS": "Symbols",
+        "PEAK": "Peak concurrent open",
+        "IDENTICAL": "Identical Deploy/Evaluation included",
+        "IDENTICAL_YES": "Identical",
+        "BREACH": "Breach share",
+        "WORST_DAILY": "Worst daily limit used",
+        "WORST_DRAWDOWN": "Worst drawdown used",
+        "MEDIAN_DRAWDOWN": "Median drawdown used",
+        "FUNDED_NO_BREACH": "Funded, no breach",
+        "MEDIAN_DAYS": "Median days to both targets",
+        "ACTIONS": "Actions",
+        "OPEN_GROUP": "Open in group simulator",
+        "EXCLUDED_TITLE": "Excluded strategies",
+        "EXCLUDED_ROW": "{{reason}}: {{count}}"
+      },
+      "SCATTER": {
+        "TITLE": "Median days vs breach share",
+        "ARIA": "Scatter of the ranked groups: median days to both targets against breach share, both of the worse kind.",
+        "X_AXIS": "Median days to both targets (worse kind)",
+        "Y_AXIS": "Breach share (%, worse kind)",
+        "POINT_TITLE": "{{members}}: {{days}} days, {{breach}}% breach",
+        "LEGEND_FRONTIER": "Blue: frontier, no other group has fewer days and a lower breach share",
+        "LEGEND_WITHIN": "Dashed outline: within the elimination ceiling",
+        "NOT_PLOTTED": "{{count}} groups not plotted: no median days to both targets.",
+        "EMPTY": "No group has a median days to both targets to plot."
+      },
+      "NOTICE": {
+        "ALREADY_RUNNING": "A search was already running. Showing its progress."
+      },
+      "FORM": {
+        "ACCOUNT": "Account",
+        "SIZE_LEGEND": "Group size",
+        "MIN_MEMBERS": "Minimum members",
+        "MAX_MEMBERS": "Maximum members",
+        "SIZE_BOUND": "Group size between {{min}} and {{max}} members.",
+        "SIZE_INVALID": "Enter whole sizes between {{min}} and {{max}}, with the minimum not above the maximum.",
+        "MAX_PER_INSTRUMENT": "Max strategies per instrument",
+        "CEILING": "Elimination ceiling (%)",
+        "CAPITAL": "Initial capital",
+        "RISK": "Target risk per trade",
+        "EXCLUDE_IDENTICAL": "Exclude groups whose Deploy and Evaluation runs are identical",
+        "ONE_PERCENT_RULE": "Apply the academy 1% rule",
+        "FX_LEGEND": "FX band (non-USD strategies in the pool)",
+        "FX_LOW": "FX low (optional)",
+        "FX_HIGH": "FX high (optional)",
+        "FX_INVALID": "Enter both FX values or neither, with FX low above 0 and FX high not below FX low.",
+        "BUDGET_LEGEND": "Budget (optional)",
+        "MAX_FULL_SIMULATIONS": "Max full simulations (up to {{max}})",
+        "MAX_WALL_CLOCK": "Max time in seconds (up to {{max}})",
+        "START": "Start search",
+        "RUNNING": "A search is running",
+        "NO_ACCOUNTS": "There are no trading accounts.",
+        "ACCOUNTS_ERROR": "The accounts could not be loaded."
+      },
+      "PROGRESS": {
+        "CANCEL": "Cancel",
+        "PROCESSED": "{{processed}} of {{total}} processed",
+        "ELAPSED": "Elapsed {{time}}",
+        "SIMULATIONS": "Full simulations {{done}} of {{planned}}",
+        "FUNNEL": {
+          "EXAMINED": "Groups examined",
+          "REMOVED_BY_CAP": "Removed by the per-instrument cap",
+          "REMOVED_BY_PAIR_CONFLICT": "Removed by pair conflict",
+          "REMOVED_BY_ONE_PERCENT_RULE": "Removed by the 1% rule",
+          "REMOVED_NO_COMMON_WINDOW": "Removed: no common window",
+          "REMOVED_MEMBER_HAS_NO_TRADES": "Removed: a member has no trades",
+          "SHORTLISTED": "Shortlisted"
+        },
+        "COMPLETED_MESSAGE": "The search completed.",
+        "STOPPED_MESSAGE": "The search stopped at its budget: {{limit}}. {{count}} groups were not computed.",
+        "CANCELLED_MESSAGE": "The search was cancelled. Partial results are kept.",
+        "FAILED_MESSAGE": "The search failed. {{detail}}",
+        "DISCLOSURE_EXAMINED": "{{count}} groups examined. Choosing the best of many backtested groups is optimistic (selection bias). Figures are elimination risk on closed-trade daily aggregates, not a certification or forecast, and results are lost when the API restarts."
       }
     }
   }

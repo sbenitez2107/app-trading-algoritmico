@@ -1,0 +1,146 @@
+<form class="ftmo-search-form" novalidate (submit)="onSubmit($event)">
+  <div class="ftmo-search-form__field">
+    <label for="ftmo-search-account">{{ 'SIMULATOR.FTMO_SEARCH.FORM.ACCOUNT' | translate }}</label>
+    <select id="ftmo-search-account" name="account" (change)="setAccount($event)">
+      @for (account of accounts(); track account.id) {
+        <option [value]="account.id" [selected]="account.id === accountId()">
+          {{ account.name }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <fieldset class="ftmo-search-form__group">
+    <legend>{{ 'SIMULATOR.FTMO_SEARCH.FORM.SIZE_LEGEND' | translate }}</legend>
+    @for (f of sizeFields; track f.key) {
+      <div class="ftmo-search-form__field">
+        <label [for]="'ftmo-search-' + f.key">{{ f.labelKey | translate }}</label>
+        <input
+          [id]="'ftmo-search-' + f.key"
+          type="number"
+          step="any"
+          [name]="f.key"
+          [value]="numberValue(f.key)"
+          (input)="setNumber(f.key, $event)"
+        />
+      </div>
+    }
+    <p class="ftmo-search-form__hint">
+      {{ 'SIMULATOR.FTMO_SEARCH.FORM.SIZE_BOUND' | translate: { min: minSize, max: maxMembers() } }}
+    </p>
+    @if (!sizeValid()) {
+      <p class="ftmo-search-form__size-error" role="alert">
+        {{
+          'SIMULATOR.FTMO_SEARCH.FORM.SIZE_INVALID' | translate: { min: minSize, max: maxMembers() }
+        }}
+      </p>
+    }
+  </fieldset>
+
+  @for (f of constraintFields; track f.key) {
+    <div class="ftmo-search-form__field">
+      <label [for]="'ftmo-search-' + f.key">{{ f.labelKey | translate }}</label>
+      <input
+        [id]="'ftmo-search-' + f.key"
+        type="number"
+        step="any"
+        [name]="f.key"
+        [value]="numberValue(f.key)"
+        (input)="setNumber(f.key, $event)"
+      />
+    </div>
+  }
+
+  @for (f of moneyFields; track f.key) {
+    <div class="ftmo-search-form__field">
+      <label [for]="'ftmo-search-' + f.key">{{ f.labelKey | translate }}</label>
+      <input
+        [id]="'ftmo-search-' + f.key"
+        type="number"
+        step="any"
+        [name]="f.key"
+        [value]="numberValue(f.key)"
+        (input)="setNumber(f.key, $event)"
+      />
+    </div>
+  }
+
+  <div class="ftmo-search-form__check">
+    <input
+      id="ftmo-search-excludeIdentical"
+      type="checkbox"
+      name="excludeIdentical"
+      [checked]="value().excludeIdentical"
+      (change)="setFlag('excludeIdentical', $event)"
+    />
+    <label for="ftmo-search-excludeIdentical">{{
+      'SIMULATOR.FTMO_SEARCH.FORM.EXCLUDE_IDENTICAL' | translate
+    }}</label>
+  </div>
+  <div class="ftmo-search-form__check">
+    <input
+      id="ftmo-search-onePercentRule"
+      type="checkbox"
+      name="onePercentRule"
+      [checked]="value().onePercentRule"
+      (change)="setFlag('onePercentRule', $event)"
+    />
+    <label for="ftmo-search-onePercentRule">{{
+      'SIMULATOR.FTMO_SEARCH.FORM.ONE_PERCENT_RULE' | translate
+    }}</label>
+  </div>
+
+  @if (showFx()) {
+    <fieldset class="ftmo-search-form__group">
+      <legend>{{ 'SIMULATOR.FTMO_SEARCH.FORM.FX_LEGEND' | translate }}</legend>
+      @for (f of fxFields; track f.key) {
+        <div class="ftmo-search-form__field">
+          <label [for]="'ftmo-search-' + f.key">{{ f.labelKey | translate }}</label>
+          <input
+            [id]="'ftmo-search-' + f.key"
+            type="number"
+            step="any"
+            [name]="f.key"
+            [value]="numberValue(f.key)"
+            (input)="setNumber(f.key, $event)"
+          />
+        </div>
+      }
+      @if (!fxValid()) {
+        <p class="ftmo-search-form__fx-error" role="alert">
+          {{ 'SIMULATOR.FTMO_SEARCH.FORM.FX_INVALID' | translate }}
+        </p>
+      }
+    </fieldset>
+  }
+
+  <fieldset class="ftmo-search-form__group">
+    <legend>{{ 'SIMULATOR.FTMO_SEARCH.FORM.BUDGET_LEGEND' | translate }}</legend>
+    @for (f of budgetFields; track f.key) {
+      <div class="ftmo-search-form__field">
+        <label [for]="'ftmo-search-' + f.key">{{
+          f.labelKey | translate: { max: f.ceiling }
+        }}</label>
+        <input
+          [id]="'ftmo-search-' + f.key"
+          type="number"
+          step="any"
+          [name]="f.key"
+          [value]="numberValue(f.key)"
+          (input)="setNumber(f.key, $event)"
+        />
+      </div>
+    }
+  </fieldset>
+
+  <div class="ftmo-search-form__run-row">
+    <button type="submit" class="ftmo-search-form__start" [disabled]="!canStart()">
+      {{ 'SIMULATOR.FTMO_SEARCH.FORM.START' | translate }}
+    </button>
+    @if (running()) {
+      <span class="ftmo-search-form__running" role="status">
+        {{ 'SIMULATOR.FTMO_SEARCH.FORM.RUNNING' | translate }}
+      </span>
+    }
+  </div>
+</form>
