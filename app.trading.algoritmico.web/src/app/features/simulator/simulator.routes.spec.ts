@@ -11,7 +11,22 @@ function layoutRoute(): Route {
   return layout;
 }
 
+/**
+ * The first dynamic import of a lazy route chunk pays the module transform/load cost, which can exceed
+ * the 5 s default when the full suite saturates the CPU. Resolve the loaders once up front with a
+ * generous hook budget so the tests only assert identity.
+ */
+const LAZY_LOAD_WARMUP_MS = 60_000;
+
 describe('simulator routes', () => {
+  beforeAll(async () => {
+    await Promise.all(
+      SIMULATOR_ROUTES.filter((r) => r.loadComponent).map((r) =>
+        (r.loadComponent as () => Promise<unknown>)(),
+      ),
+    );
+  }, LAZY_LOAD_WARMUP_MS);
+
   it('theEmptyPath_RedirectsToFtmo', () => {
     const empty = SIMULATOR_ROUTES.find((r) => r.path === '');
     expect(empty?.redirectTo).toBe('ftmo');

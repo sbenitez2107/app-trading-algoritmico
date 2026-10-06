@@ -180,11 +180,32 @@ const STATES: Record<string, FtmoGroupSimulationDto | null> = {
   ]),
 };
 
+/**
+ * Each (locale, state) page is rendered once per file: the per-state sweep and the cross-locale
+ * comparison share the cached text instead of building the whole component tree twice.
+ */
+const renderedText = new Map<string, string>();
+function textOf(lang: 'en' | 'es', name: string): string {
+  const key = `${lang}:${name}`;
+  let text = renderedText.get(key);
+  if (text === undefined) {
+    text = (page(lang, STATES[name]).nativeElement as HTMLElement).textContent ?? '';
+    renderedText.set(key, text);
+  }
+  return text;
+}
+
+/**
+ * Rendering ~17 full pages per locale costs ~1s in isolation but several times that when the whole
+ * suite saturates the CPU, so the comparison test gets a larger budget than the 5 s default.
+ */
+const CROSS_LOCALE_TIMEOUT_MS = 30_000;
+
 describe('group page real-dictionary sweep (F3.5.1)', () => {
   for (const lang of ['en', 'es'] as const) {
-    for (const [name, dto] of Object.entries(STATES)) {
+    for (const name of Object.keys(STATES)) {
       it(`${lang}_${name}_hasNoPlaceholderAndNoRawKey`, () => {
-        const text = (page(lang, dto).nativeElement as HTMLElement).textContent ?? '';
+        const text = textOf(lang, name);
         expect(text.length).toBeGreaterThan(0);
         expect(text).not.toContain('{{');
         expect(text).not.toContain('}}');
@@ -200,13 +221,15 @@ describe('group page real-dictionary sweep (F3.5.1)', () => {
     ).toBe(false);
   });
 
-  it('theTwoLocalesRenderDifferentTextInEveryState', () => {
-    for (const [name, dto] of Object.entries(STATES)) {
-      const enText = (page('en', dto).nativeElement as HTMLElement).textContent;
-      const esText = (page('es', dto).nativeElement as HTMLElement).textContent;
-      expect(enText, name).not.toBe(esText);
-    }
-  });
+  it(
+    'theTwoLocalesRenderDifferentTextInEveryState',
+    () => {
+      for (const name of Object.keys(STATES)) {
+        expect(textOf('en', name), name).not.toBe(textOf('es', name));
+      }
+    },
+    CROSS_LOCALE_TIMEOUT_MS,
+  );
 
   it('everyResultKeyHasADistinctRefusalTextInBothLocales', () => {
     const refusals = (l: Record<string, unknown>): string[] =>
