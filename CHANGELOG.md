@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.53.0] - 2026-10-06
+
+### Added
+
+- Automatic FTMO group search API under `api/ftmo-simulations/group-search`: start a search, poll its progress, fetch the current job and cancel it.
+- The search shortlists candidate groups with a fast race surrogate, then fully simulates a 75-group shortlist interleaved across group sizes, within a 30-minute default budget.
+- Searches run as a background job; the job status carries the original request so a page can restore it.
+
 ## [0.52.1] - 2026-10-04
 
 ### Fixed

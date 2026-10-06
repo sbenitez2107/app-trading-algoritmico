@@ -21,38 +21,52 @@ internal static class FtmoPeakConcurrency
         return Compute(merged.Low);
     }
 
+    [ThreadStatic]
+    private static long[]? opens;
+
+    [ThreadStatic]
+    private static long[]? closes;
+
     internal static int Compute(IReadOnlyList<ProjectedTrade> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
 
-        var events = new List<(DateTime Instant, int Kind)>();
+        // Thread-owned scratch: a search calls this on every candidate, and an event list per call was most of its garbage.
+        if (opens is null || opens.Length < rows.Count)
+        {
+            opens = new long[Math.Max(rows.Count, 256)];
+            closes = new long[opens.Length];
+        }
+
+        var openTicks = opens;
+        var closeTicks = closes!;
+        var count = 0;
         foreach (var row in rows)
         {
             if (row.Net is null || row.CloseSource <= row.OpenSource)
                 continue;
 
-            events.Add((row.OpenSource, 1));
-            events.Add((row.CloseSource, 0));
+            openTicks[count] = row.OpenSource.Ticks;
+            closeTicks[count] = row.CloseSource.Ticks;
+            count++;
         }
 
-        // Kind 0 (close) sorts before kind 1 (open) at the same instant.
-        events.Sort((x, y) =>
-        {
-            var byInstant = x.Instant.CompareTo(y.Instant);
-            return byInstant != 0 ? byInstant : x.Kind.CompareTo(y.Kind);
-        });
+        Array.Sort(openTicks, 0, count);
+        Array.Sort(closeTicks, 0, count);
 
-        var open = 0;
-        var peak = 0;
-        foreach (var (_, kind) in events)
+        // A close at the same instant as an open is processed first, so the two do not overlap.
+        int o = 0, c = 0, open = 0, peak = 0;
+        while (o < count)
         {
-            if (kind == 0)
+            if (closeTicks[c] <= openTicks[o])
             {
                 open--;
+                c++;
                 continue;
             }
 
             open++;
+            o++;
             if (open > peak)
                 peak = open;
         }

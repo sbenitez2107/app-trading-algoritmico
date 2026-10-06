@@ -38,11 +38,10 @@ internal static class FtmoDailyLossProfile
         DateOnly? worstDay = null;
         DateOnly? firstExceeding = null;
 
-        foreach (var trade in series.OrderBy(t => t.CloseSource).ThenBy(t => t.RowIndex))
+        var n = CloseOrder(series);
+        for (var k = 0; k < n; k++)
         {
-            if (trade.Net is null)
-                continue;
-
+            var trade = series[order![k]];
             var day = dayOf(trade.CloseSource);
             if (currentDay is null || day != currentDay)
             {
@@ -64,5 +63,62 @@ internal static class FtmoDailyLossProfile
         }
 
         return new Profile(worstLoss, worstDay, firstExceeding);
+    }
+
+    [ThreadStatic]
+    private static long[]? keys;
+
+    [ThreadStatic]
+    private static int[]? order;
+
+    /// <summary>
+    /// Fills the thread-owned <c>order</c> with the positions of the series' scalable rows by <c>(CloseSource, RowIndex)</c>
+    /// and returns how many there are. A null net never starts a day, so those rows are not in it. Primitive keys and
+    /// reused buffers: a search profiles every candidate, and a LINQ sort per call was a large part of its garbage.
+    /// </summary>
+    private static int CloseOrder(IReadOnlyList<ProjectedTrade> series)
+    {
+        if (keys is null || keys.Length < series.Count)
+        {
+            keys = new long[Math.Max(series.Count, 256)];
+            order = new int[keys.Length];
+        }
+
+        var n = 0;
+        for (var r = 0; r < series.Count; r++)
+        {
+            if (series[r].Net is null)
+                continue;
+
+            keys[n] = series[r].CloseSource.Ticks;
+            order![n] = r;
+            n++;
+        }
+
+        Array.Sort(keys, order!, 0, n);
+
+        for (var start = 0; start < n;)
+        {
+            var end = start + 1;
+            while (end < n && keys[end] == keys[start])
+                end++;
+
+            for (var i = start + 1; i < end; i++)
+            {
+                var item = order![i];
+                var j = i - 1;
+                while (j >= start && series[order[j]].RowIndex > series[item].RowIndex)
+                {
+                    order[j + 1] = order[j];
+                    j--;
+                }
+
+                order[j + 1] = item;
+            }
+
+            start = end;
+        }
+
+        return n;
     }
 }

@@ -30,7 +30,7 @@ internal static class FtmoGroupSearchEngine
     internal sealed record SearchOptions(
         int MinMembers,
         int MaxMembers,
-        int MaxPerInstrument = 1,
+        int MaxPerInstrument = FtmoGroupSearchLimits.DefaultMaxPerInstrument,
         bool IncludeIdenticalDeployEval = false,
         bool OnePercentRule = false,
         int ShortlistSize = FtmoGroupSearchLimits.ShortlistSize);
@@ -48,7 +48,8 @@ internal static class FtmoGroupSearchEngine
     internal sealed record PruneResult(IReadOnlyList<int[]> Survivors, Funnel Funnel);
 
     /// <param name="Removal">Null when the candidate has a usable proxy; otherwise why it was removed.</param>
-    internal readonly record struct ProxyOutcome(FtmoGroupRefusal? Removal, decimal DailyUsed, int Peak);
+    /// <param name="Race">The multi-start race surrogate that orders the shortlist; null orders the candidate by <paramref name="DailyUsed"/> alone.</param>
+    internal readonly record struct ProxyOutcome(FtmoGroupRefusal? Removal, decimal DailyUsed, int Peak, FtmoRaceSurrogate.Outcome? Race = null);
 
     internal sealed record ShortlistedCandidate(IReadOnlyList<Guid> MemberIds, decimal DailyUsed, int Peak);
 
@@ -222,13 +223,15 @@ internal static class FtmoGroupSearchEngine
     /// <summary>
     /// The proxy of ONE candidate on its OWN window: shipped <c>Intersect</c> then <c>Merge</c> per kind (so the window
     /// is the candidate's, never the pool's), then the worse of both kinds and both FX ends for the daily-used fraction
-    /// and the peak. A kind with an empty window, or a member without a row in it, removes the candidate.
+    /// and the peak, and the multi-start race surrogate (<see cref="FtmoRaceSurrogate"/>) that orders the shortlist. A
+    /// kind with an empty window, or a member without a row in it, removes the candidate.
     /// </summary>
     internal static ProxyOutcome ComputeProxy(FtmoProjectionCache cache, IReadOnlyList<Guid> ascendingIds, GroupParams p)
     {
         var allowance = p.DailyPct * p.InitialCapital;
         var worstLoss = 0m;
         var peak = 0;
+        var raceKinds = new List<FtmoRaceSurrogate.KindResult>();
 
         foreach (var kind in FtmoGroupMemberResolution.Kinds)
         {
@@ -248,19 +251,23 @@ internal static class FtmoGroupSearchEngine
                 worstLoss = Math.Max(worstLoss, FtmoDailyLossProfile.Compute(end, cache.DayOf, p.InitialCapital, p.DailyPct).WorstDayLoss);
 
             peak = Math.Max(peak, FtmoPeakConcurrency.Compute(merged));
+            raceKinds.Add(FtmoRaceSurrogate.ComputeKind(merged, cache.DayOf, p));
         }
 
-        return new ProxyOutcome(null, worstLoss / allowance, peak);
+        return new ProxyOutcome(null, worstLoss / allowance, peak, FtmoRaceSurrogate.Aggregate(raceKinds));
     }
 
-    /// <summary>Parallel, but each result is written to its candidate's own slot, so the output is order-stable.</summary>
+    /// <summary>
+    /// Parallel, but each result is written to its candidate's own slot, so the output is order-stable. A cancelled
+    /// <paramref name="ct"/> stops the pass at the next iteration with <see cref="OperationCanceledException"/>.
+    /// </summary>
     internal static ProxyOutcome[] ProxyAll(
         FtmoProjectionCache cache, IReadOnlyList<Guid> eligibleIds, IReadOnlyList<int[]> survivors, GroupParams p,
-        int maxDegreeOfParallelism = -1)
+        int maxDegreeOfParallelism = -1, CancellationToken ct = default)
     {
         var outcomes = new ProxyOutcome[survivors.Count];
         Parallel.For(
-            0, survivors.Count, new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism },
+            0, survivors.Count, new ParallelOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism, CancellationToken = ct },
             i => outcomes[i] = ComputeProxy(cache, [.. survivors[i].Select(ix => eligibleIds[ix])], p));
         return outcomes;
     }
@@ -268,14 +275,20 @@ internal static class FtmoGroupSearchEngine
     // ---- Shortlist ----
 
     /// <summary>
-    /// Per-size quota <c>floor(N / #sizes)</c> filled best-proxy-first, the remainder by global proxy order; returned in
-    /// global proxy order (daily-used, then peak, then the sorted id tuple - the combos index an ascending pool).
+    /// Per-size quota <c>floor(N / #sizes)</c> filled best-first, the remainder by global order; returned in global
+    /// order: a surrogate with no starts last (its keys are vacuous), then the race surrogate's breach share (lowest first), its headroom (highest first), its median days (lowest
+    /// first, none last), then peak concurrency, then the sorted id tuple - the combos index an ascending pool. A
+    /// candidate without a surrogate has no breach, the headroom <c>1 - DailyUsed</c> and no days.
     /// </summary>
     internal static IReadOnlyList<int> Shortlist(IReadOnlyList<int[]> survivors, IReadOnlyList<ProxyOutcome> proxies, SearchOptions options)
     {
         var ranked = Enumerable.Range(0, survivors.Count)
             .Where(i => proxies[i].Removal is null)
-            .OrderBy(i => proxies[i].DailyUsed)
+            .OrderBy(i => proxies[i].Race?.HasStarts == false)
+            .ThenBy(i => proxies[i].Race?.BreachShare ?? 0m)
+            .ThenByDescending(i => proxies[i].Race?.Headroom ?? 1m - proxies[i].DailyUsed)
+            .ThenBy(i => proxies[i].Race?.MedianDays is null)
+            .ThenBy(i => proxies[i].Race?.MedianDays ?? 0)
             .ThenBy(i => proxies[i].Peak)
             .ThenBy(i => survivors[i], Comparer<int[]>.Create(CompareCombos))
             .ToList();
@@ -292,6 +305,25 @@ internal static class FtmoGroupSearchEngine
             chosen.Add(i);
 
         return [.. ranked.Where(chosen.Contains)];
+    }
+
+    /// <summary>
+    /// The SIMULATION order: round-robin over the sizes (k=2 #1, k=3 #1, k=4 #1, k=2 #2, ...), each size best-first as in
+    /// the input, a size that runs out simply dropping from the rotation. A budget stop then leaves every size
+    /// represented instead of only the best-ranked ones. Pure and deterministic; it changes only WHAT is simulated first,
+    /// never the final ranking (<see cref="FtmoGroupSearchRanking"/> orders the results independently).
+    /// </summary>
+    internal static IReadOnlyList<ShortlistedCandidate> InterleaveBySize(IReadOnlyList<ShortlistedCandidate> shortlist)
+    {
+        var bySize = shortlist.GroupBy(c => c.MemberIds.Count).OrderBy(g => g.Key).Select(g => g.ToArray()).ToArray();
+        var interleaved = new List<ShortlistedCandidate>(shortlist.Count);
+        for (var round = 0; interleaved.Count < shortlist.Count; round++)
+        {
+            foreach (var size in bySize.Where(s => round < s.Length))
+                interleaved.Add(size[round]);
+        }
+
+        return interleaved;
     }
 
     private static int CompareCombos(int[] a, int[] b)
@@ -313,16 +345,18 @@ internal static class FtmoGroupSearchEngine
         SearchOptions options,
         GroupParams p,
         decimal targetRiskPerTrade,
-        int maxDegreeOfParallelism = -1)
+        int maxDegreeOfParallelism = -1,
+        CancellationToken ct = default)
     {
         ValidateOptions(options);
         var eligibility = EvaluateEligibility(cache, resolve, options.IncludeIdenticalDeployEval);
         var pruned = Prune(cache, eligibility.Eligible, resolve, options, p.InitialCapital, targetRiskPerTrade);
-        var proxies = ProxyAll(cache, eligibility.Eligible, pruned.Survivors, p, maxDegreeOfParallelism);
+        var proxies = ProxyAll(cache, eligibility.Eligible, pruned.Survivors, p, maxDegreeOfParallelism, ct);
 
-        var shortlist = Shortlist(pruned.Survivors, proxies, options)
+        var ranked = Shortlist(pruned.Survivors, proxies, options)
             .Select(i => new ShortlistedCandidate([.. pruned.Survivors[i].Select(ix => eligibility.Eligible[ix])], proxies[i].DailyUsed, proxies[i].Peak))
             .ToList();
+        var shortlist = InterleaveBySize(ranked);
 
         return new SearchPlan(
             eligibility, pruned.Funnel,
@@ -334,7 +368,7 @@ internal static class FtmoGroupSearchEngine
     // ---- Full computation (the Simulating stage) ----
 
     /// <summary>
-    /// The shipped <c>ComputeGroup</c>, once per kind, for each shortlisted candidate in shortlist order and
+    /// The shipped <c>ComputeGroup</c>, once per kind, for each shortlisted candidate in plan order (interleaved by size) and
     /// sequentially (design D7: each run already uses all cores). Both budgets are checked BEFORE each candidate, so a
     /// stop cuts the tail. The token goes into <c>ComputeGroup</c>; on cancel the candidate in flight is discarded and
     /// the ones completed so far are returned, so the partial result is deterministic.

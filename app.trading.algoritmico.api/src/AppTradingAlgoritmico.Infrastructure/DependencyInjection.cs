@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AppTradingAlgoritmico.Infrastructure;
 
@@ -115,6 +116,13 @@ public static class DependencyInjection
         // ftmo-group-simulation, B2 — group read service.
         services.AddScoped<IFtmoGroupSimulationReadService, FtmoGroupSimulationReadService>();
         services.AddScoped<IFtmoGroupCandidatesReadService, FtmoGroupCandidatesReadService>();
+
+        // ftmo-group-search, 2b - one in-memory job, its worker, and the runner (a singleton: it opens its own scope per job).
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<FtmoGroupSearchJobRegistry>();
+        services.AddSingleton<IFtmoGroupSearchJobs>(sp => sp.GetRequiredService<FtmoGroupSearchJobRegistry>());
+        services.AddSingleton<IFtmoGroupSearchRunner, FtmoGroupSearchRunner>();
+        services.AddHostedService<FtmoGroupSearchWorker>();
 
         return services;
     }

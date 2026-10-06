@@ -9,7 +9,7 @@ namespace AppTradingAlgoritmico.Infrastructure.Services;
 /// <summary>
 /// ftmo-group-search D2 — the per-job projection cache. Every strategy is projected ONCE at the job's single risk,
 /// grid and FX band (the projection depends on those and the trades, never on the group), and each candidate
-/// rebinds the cached inputs with <c>MemberOrder = i</c>. Also holds one shared close-instant to bookkeeping-day
+/// rebinds the cached inputs with <c>MemberOrder = i</c>. Also holds one shared instant (close or open) to bookkeeping-day
 /// dictionary (read-only after construction, so safe under the parallel proxy), and each member's instrument set
 /// and coverage. Instance state only: the cache dies with the job.
 /// </summary>
@@ -41,10 +41,11 @@ internal sealed class FtmoProjectionCache
                 .ToList();
             _coverage[m.StrategyId] = rows.Count == 0 ? null : (rows.Min(t => t.OpenSource), rows.Max(t => t.CloseSource));
 
-            foreach (var close in rows.Select(t => t.CloseSource))
+            // Closes feed the daily-loss bookkeeping; opens feed the race surrogate's start months and trading days.
+            foreach (var instant in rows.SelectMany(t => new[] { t.CloseSource, t.OpenSource }))
             {
-                if (!_days.ContainsKey(close))
-                    _days[close] = FtmoDayClock.Attribute(close, sourceZone, berlin).BookkeepingDay;
+                if (!_days.ContainsKey(instant))
+                    _days[instant] = FtmoDayClock.Attribute(instant, sourceZone, berlin).BookkeepingDay;
             }
         }
     }

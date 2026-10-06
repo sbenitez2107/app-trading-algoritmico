@@ -61,10 +61,32 @@ public class FtmoGroupSearchPrunesTests
 
     // ---- 1b.3.2: instrument cap ----
 
+    // User decision 2026-10-04: the default cap is 2, so two instruments with two strategies each yield triples and quads.
     [Fact]
-    public void Prune_DefaultCapOfOne_ForbidsTwoStrategiesOfOneSymbol_AndCountsTheRemoval()
+    public void Prune_DefaultCap_IsTwo_AndTwoInstrumentsWithTwoStrategiesEachYieldTriplesAndQuads()
     {
-        var r = Prune([Span(1, "EURUSD", 2), Span(2, "EURUSD", 2), Span(3, "GBPUSD", 2)], new(2, 2));
+        var r = Prune([Span(1, "XAUUSD", 2), Span(2, "XAUUSD", 2), Span(3, "NQ", 2), Span(4, "NQ", 2)], new(2, 4));
+
+        new FtmoGroupSearchEngine.SearchOptions(2, 4).MaxPerInstrument.Should().Be(FtmoGroupSearchLimits.DefaultMaxPerInstrument).And.Be(2);
+        r.Survivors.Select(c => c.Length).Distinct().Order().Should().Equal(2, 3, 4);
+        r.Survivors.Select(Key).Should().Contain(["0,1,2", "0,1,2,3"]);
+        ShouldReconcile(r);
+    }
+
+    [Fact]
+    public void Prune_AnExplicitCapOfOne_StillYieldsOnlyPairsOnThatPool()
+    {
+        var r = Prune([Span(1, "XAUUSD", 2), Span(2, "XAUUSD", 2), Span(3, "NQ", 2), Span(4, "NQ", 2)], new(2, 4, MaxPerInstrument: 1));
+
+        r.Survivors.Should().OnlyContain(c => c.Length == 2);
+        r.Survivors.Select(Key).Should().Equal("0,2", "0,3", "1,2", "1,3");
+        ShouldReconcile(r);
+    }
+
+    [Fact]
+    public void Prune_ACapOfOne_ForbidsTwoStrategiesOfOneSymbol_AndCountsTheRemoval()
+    {
+        var r = Prune([Span(1, "EURUSD", 2), Span(2, "EURUSD", 2), Span(3, "GBPUSD", 2)], new(2, 2, MaxPerInstrument: 1));
 
         r.Survivors.Select(Key).Should().Equal("0,2", "1,2");
         r.Funnel.Should().Be(new FtmoGroupSearchEngine.Funnel(3, 1, 0, 0, 2));
@@ -162,7 +184,7 @@ public class FtmoGroupSearchPrunesTests
     public void Prune_ACandidateBreakingTwoRules_IsCountedOnceUnderTheFirstRule()
     {
         // The two share a symbol (cap) AND are disjoint (pair): counted under the cap only.
-        var r = Prune([Span(1, "EURUSD", 2, 2), Span(2, "EURUSD", 20, 2)], new(2, 2));
+        var r = Prune([Span(1, "EURUSD", 2, 2), Span(2, "EURUSD", 20, 2)], new(2, 2, MaxPerInstrument: 1));
 
         r.Funnel.Should().Be(new FtmoGroupSearchEngine.Funnel(1, 1, 0, 0, 0));
     }

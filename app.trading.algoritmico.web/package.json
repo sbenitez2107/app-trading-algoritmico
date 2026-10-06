@@ -1,6 +1,6 @@
 {
   "name": "app-trading-algoritmico-web",
-  "version": "0.52.7",
+  "version": "0.53.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
