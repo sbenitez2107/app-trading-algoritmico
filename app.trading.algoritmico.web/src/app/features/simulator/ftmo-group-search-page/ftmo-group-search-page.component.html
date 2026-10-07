@@ -64,5 +64,15 @@
       [defaultCeilingPercent]="requestedCeilingPercent()"
       (openInGroup)="openInGroup($event)"
     />
+    <section class="ftmo-search-page__group-disclosure">
+      <h3 class="ftmo-search-page__group-disclosure-title">
+        {{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.TITLE' | translate }}
+      </h3>
+      <ul class="ftmo-search-page__group-disclosure-points">
+        <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.CONCURRENT' | translate }}</li>
+        <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.SAME_CLOSE' | translate }}</li>
+        <li>{{ 'SIMULATOR.FTMO_GROUP.RESULT.DISCLOSURE.ELIGIBILITY' | translate }}</li>
+      </ul>
+    </section>
   }
 </section>

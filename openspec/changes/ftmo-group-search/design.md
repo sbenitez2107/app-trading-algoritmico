@@ -80,7 +80,7 @@ calls. The projection depends on (trades, grid, symbol, risk, FX) only, never on
   - `FtmoPeakConcurrency.Compute(merged)` MIRRORS the private sweep (`FtmoGroupDiagnostics.cs:166-211`:
     scalable rows, `Close > Open`, closes before opens).
   - A member with zero in-window rows prunes with the reason `MemberHasNoTradesInWindow`.
-- Proxy score = (worse-of-kinds and FX ends daily-used fraction, worse-of-kinds peak, ids). Run
+- Proxy score = the race surrogate (`FtmoRaceSurrogate`, see D9): breach share, then headroom desc, then median days (none last), then peak, then the combo key. Run
   the proxy with `Parallel.For` writing results by candidate index, so the output is deterministic.
 **Pins**: (1) parity test: on fixtures, `Evaluate(...).Daily.Verdict != NoBreachObserved` holds
 iff `WorstDayLoss > dailyPct·capital`, and the first breach day equals the profile's first
@@ -169,7 +169,7 @@ with an optional `bool includeDiagnostics = true` parameter.
 - **Cancel**: `DELETE` triggers the CTS. The token flows into `ComputeGroup` and from there into
   `Parallel.For` (`FtmoMultiStartReadService.cs:163-164`). The terminal state is `Cancelled`, with
   partial ranked results. Engine contract (1b-ii): the pure engine catches `OperationCanceledException` and returns a result flagged `Cancelled` carrying the candidates completed before the cancel (the one in flight is discarded); the worker (2a) maps that flag to the `Cancelled` status. A cancel is not a stop reason.
-- **Budget**: checked before each candidate and every 256 proxies. On a hit the status is
+- **Budget**: checked before each candidate (the proxy stage is not budget-checked; see tasks.md 1d). On a hit the status is
   `StoppedAtBudget` (a distinct status, per the spec; never `Completed`), a stop reason names the limit hit
   (simulation count or time), the not-computed count is reported, and the results are ranked over what was
   evaluated. Status enum: `Running`, `Completed`, `StoppedAtBudget`, `Cancelled`, `Failed`, with a
@@ -193,7 +193,7 @@ Only new files are created, except `FtmoGroupSimulationReadService.cs` (D1),
 `FtmoGroupSearchTripwireTests` (same `CallerFilePath` root technique as
 `BacktestPortfolioRiskTripwireTests.cs:49-57`) greps the pure search files for `Random`,
 `Guid.NewGuid`, `DateTime.Now|UtcNow`, `SaveChanges` and `FtmoBreachEvaluator`. Registry and worker
-are excluded from the `Guid.NewGuid`/clock checks. Existing tests and specs edited: NONE. The
+are excluded from the `Guid.NewGuid`/clock checks. Existing backend tests edited: NONE. Two existing web specs (`simulator.result.i18n.spec.ts`, `simulator.routes.spec.ts`) were edited in the stabilization commit f0adffa for stability, with the assertions unchanged. The
 shipped spec `ftmo-group-simulation-ui` receives a delta (deep link) from the spec phase.
 
 ### D9 Proxy calibration
@@ -217,7 +217,7 @@ enumeration, so it correlates with the leading members, and the k=4 truth is the
 k=4 candidates; k=4 recall can overstate the shortlist's recall (k=2 and k=3 are exhaustive). Otherwise raise `ShortlistSize` or revise the score before PR2 ships its
 defaults.
 
-**Result (2026-10-06, calib-4.log): PASSED.** The shortlist order is now the `FtmoRaceSurrogate` (`Services/FtmoRaceSurrogate.cs`), which replaced the old proxy (worst DailyUsed, then Peak) after that proxy failed with recall@25 of 0.72 / 0.36 / 0.16. Per monthly start the surrogate runs a cheap race (phase 1 +10%, phase 2 +5%, funded, min 4 trading days; daily floor from the previous Berlin midnight, static max floor; breach before target) and aggregates breach share, headroom and median days on the worse kind. Shortlist order: surrogate breach share, then headroom desc, then median days (none last), then Peak, then the combo key. Documented approximations: a breach on either FX end counts; the funded share is not modelled; zero-duration rows count differently for trading days. Pool: SBDEMO2, FX 1.05..1.20, maxPerInstrument=2; 130 strategies, 18 eligible (USATECHIDXUSD=12, XAUUSD=6); 4029 enumerated, 1719 survivors, shortlist 150; ground truth is the full simulation of all 1719 groups (k4 stride 1, which supersedes the stride 10 above). recall@10 and recall@25 = 1.000 for k=2, 3 and 4; DEPTH d100 = K. Run took 4.5 h, ~9.4 s per group sequential in the harness. Lesson: a strided k4 truth gave a false failure (recall 0.6 / 0.24, calib-3.log), since the sample's top K does not match a global quota. Harness: `FTMO_CALIBRATION_TRUTH_FILE` caches the truth (fingerprint + schema version); a DEPTH diagnostic; failures reported per size. The proxy stage at P=24 measured 49.7 / 58.1 s against the 60 s gate (thin margin). Open: measure the real per-group time in the parallel job runner (task 1d.3.5), since 9.4 s x 150 exceeds the 15-min budget if sequential.
+**Result (2026-10-06, calib-4.log): PASSED.** The shortlist order is now the `FtmoRaceSurrogate` (`Services/FtmoRaceSurrogate.cs`), which replaced the old proxy (worst DailyUsed, then Peak) after that proxy failed with recall@25 of 0.72 / 0.36 / 0.16. Per monthly start the surrogate runs a cheap race (phase 1 +10%, phase 2 +5%, funded, min 4 trading days; daily floor from the previous Berlin midnight, static max floor; breach before target) and aggregates breach share, headroom and median days on the worse kind. Shortlist order: surrogate breach share, then headroom desc, then median days (none last), then Peak, then the combo key. Documented approximations: a breach on either FX end counts; the funded share is not modelled; zero-duration rows count differently for trading days. Pool: SBDEMO2, FX 1.05..1.20, maxPerInstrument=2; 130 strategies, 18 eligible (USATECHIDXUSD=12, XAUUSD=6); 4029 enumerated, 1719 survivors, shortlist 150; ground truth is the full simulation of all 1719 groups (k4 stride 1, which supersedes the stride 10 above). recall@10 and recall@25 = 1.000 for k=2, 3 and 4; DEPTH d100 = K. Run took 4.5 h, ~9.4 s per group sequential in the harness. Lesson: a strided k4 truth gave a false failure (recall 0.6 / 0.24, calib-3.log), since the sample's top K does not match a global quota. Harness: `FTMO_CALIBRATION_TRUTH_FILE` caches the truth (fingerprint + schema version); a DEPTH diagnostic; failures reported per size. The proxy stage at P=24 measured 49.7 / 58.1 s against the 60 s gate (thin margin). Closed: the 9.4 s x 150 budget item was superseded by the 75 / 30 min rebalance (1d.3.6). The parallel per-group measurement moves to a separate performance change (task 1d.3.5, partial). Re-run at shortlist 75 (2026-10-06, calib-5.log): PASSED. Production shortlist 75 (quota 25 per size) against the cached full truth (`TRUTH source=file`, truth-full.json, 1719 entries, k4 stride 1): recall@10 and recall@25 = 1.000 for k=2, 3 and 4; DEPTH d100 = K. Run took 45 s (truth read from the cache). This measures, rather than infers, recall at 75 (verify W6 resolved).
 
 ### D10 Frontend
 - **Max per instrument** input defaults to 2 (minimum 1), user decision 2026-10-04 (see D3).
@@ -277,16 +277,22 @@ defaults.
 ## Interfaces / Contracts
 
 ```csharp
-public sealed record FtmoGroupSearchRequest(Guid? TradingAccountId, IReadOnlyList<string>? Symbols, int? MinMembers,
-    int? MaxMembers, string? Broker, decimal? InitialCapital, decimal? TargetRiskPerTrade, int? SizeDecimals,
-    decimal? Step, decimal? MinLot, decimal? MaxLots, decimal? FxLow, decimal? FxHigh, int MaxPerInstrument = 2,
-    bool IncludeIdenticalKinds = false, bool AcademyOnePercentRule = false, int? MaxFullSimulations = null,
-    int? MaxWallClockSeconds = null, decimal EliminationCeiling = 0.05m);
+// Built DTOs: Application/DTOs/Backtests/FtmoGroupSearchDto.cs
+public sealed record FtmoGroupSearchRequest(Guid? TradingAccountId, int? MinMembers, int? MaxMembers,
+    int? MaxPerInstrument, bool? IncludeIdenticalDeployEval, bool? OnePercentRule, decimal? EliminationCeiling,
+    string? Broker, decimal? InitialCapital, decimal? TargetRiskPerTrade, decimal? FxLow, decimal? FxHigh,
+    int? SizeDecimals, decimal? Step, decimal? MinLot, decimal? MaxLots, int? MaxFullSimulations,
+    int? MaxWallClockSeconds); // all optional; no symbols field (the UI symbol filter was omitted for this reason)
 public sealed record FtmoGroupSearchJobDto(Guid JobId, FtmoGroupSearchStatus Status, FtmoGroupSearchProgressDto Progress,
-    bool StoppedAtBudget, int GroupsExamined, IReadOnlyList<FtmoGroupSearchIneligibleDto> Ineligible,
-    IReadOnlyList<FtmoGroupSearchRowDto> Ranked, IReadOnlyList<string> Disclosures);
-// Row: Rank, MemberIds/Names/Symbols, IdenticalKindsFlag, PerKind{BreachShare, DailyUsed, WorstMaxUsed,
-// MedianMaxUsed, FundedShare, MedianDaysToBothTargets, Peak, Status, Refusal}, Headroom, WithinCeiling.
+    FtmoGroupSearchStopReason StopReason, int NotComputed, IReadOnlyList<FtmoGroupSearchIneligibleDto> Ineligible,
+    IReadOnlyList<FtmoGroupSearchRowDto> Rows, IReadOnlyList<string> Disclosures, string? ErrorMessage,
+    FtmoGroupSearchRequest Request); // Request is set by the registry so a re-attached job links with its own request
+public sealed record FtmoGroupSearchRowDto(int Rank, IReadOnlyList<Guid> MemberIds, IReadOnlyList<string> MemberNames,
+    int PeakConcurrentOpen, bool IdenticalDeployEval, bool WithinCeiling, decimal Headroom,
+    IReadOnlyList<FtmoGroupSearchKindHeadroomDto> KindHeadrooms, IReadOnlyList<FtmoGroupKindResultDto> Kinds,
+    IReadOnlyList<string>? Symbols = null);
+// KindHeadroomDto: Kind, WorstDailyUsed, WorstMaxUsed, MedianMaxUsed, Headroom (no FX end used; see tasks.md 2a.1.2).
+// Progress: Stage, Processed, Total, ElapsedMs, FullSimulationsDone, MaxFullSimulations, Funnel.
 ```
 
 ## Testing Strategy
@@ -312,6 +318,8 @@ removes the deep-link parameters.
 
 ## Open Questions
 
-- [ ] Provisional constants (now 75 / 30 min / 24; were 150 / 15 min / 40) await the PR1 benchmark and calibration.
+- [x] Constants are 75 / 30 min / 24 (were 150 / 15 min / 40); calibration recorded in D9.
+- [x] RESOLVED (verify W6, 2026-10-06, calib-5.log): re-run at shortlist 75 (quota 25 per size) against the cached full truth (truth-full.json, 1719 entries): recall@10 and recall@25 = 1.000 for k=2, 3 and 4; DEPTH d100 = K; 45 s. Recorded in D9.
+- [ ] OPEN (verify W7): the default budget does not fit 75 groups in a Debug build (about 28 s per group, a real run stopped at 66/75; Release is estimated at 75 x 3.5 s = 262 s). Pending the separate performance change.
 - [x] RESOLVED (user decision 2026-10-04): leaving the search page does NOT cancel the job; it only stops
   polling. `GET current` re-attaches when the user returns. Explicit cancel stays on the Cancel button.

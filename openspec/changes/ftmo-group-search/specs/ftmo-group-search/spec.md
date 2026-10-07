@@ -222,7 +222,7 @@ Per kind, computed from the candidate's merged in-window series, without editing
   max-loss allowance (`MaxLossLimitPct x initialCapital`). The median across starts MUST also be reported.
 
 When the candidate has an FX band, both values MUST be taken at the worse of the Low and High FX ends, and the
-end used MUST be reported. Ranking MUST use the worst values, never the median. A value of 1.0 means the
+end used is NOT reported per kind (decision: the DTO carries no FX end; see tasks.md 2a.1.2). Ranking MUST use the worst values, never the median. A value of 1.0 means the
 allowance is fully used. Headroom is `1 - max(a, b)` and is shown per kind.
 
 #### Scenario: Daily loss uses the previous-midnight balance
@@ -235,10 +235,10 @@ allowance is fully used. Headroom is `1 - max(a, b)` and is shown per kind.
 - WHEN (b) is computed
 - THEN the worst is 0.8, the median is 0.4, and ranking uses 0.8
 
-#### Scenario: The worse FX end is used and reported
+#### Scenario: The worse FX end is used
 - GIVEN a non-USD member where the High end produces the larger loss
 - WHEN headroom is computed
-- THEN the High-end value is used and the response names High as the end
+- THEN the High-end value is used (the response does not name the end; amended by decision, the end used is not reported per kind)
 
 #### Scenario: Both kinds report headroom separately
 - GIVEN a candidate valid on both kinds

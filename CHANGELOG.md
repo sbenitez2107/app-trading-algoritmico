@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.54.2] - 2026-10-06
+
+### Fixed
+
+- The FTMO group search page now shows the group simulator disclosures (concurrent breaches, same-close ordering, eligibility rules) once a search job or result is displayed.
+
 ## [0.54.0] - 2026-10-06
 
 ### Added

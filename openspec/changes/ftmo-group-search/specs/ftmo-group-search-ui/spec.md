@@ -35,14 +35,15 @@ the sidebar's "Simulator" group MUST contain a second entry that opens it. Label
 
 ### Requirement: The Search Form And Its Defaults
 
-The form MUST contain: the account (default SBDEMO2, else the first account); an optional symbol filter of
-the pool; group size min and max (defaults 2 and 4, both bounded to [2, `MaxMembers`], with `MaxMembers`
+The form MUST contain: the account (default SBDEMO2, else the first account); group size min and max (defaults 2 and 4, both bounded to [2, `MaxMembers`], with `MaxMembers`
 taken from the candidates read and never hardcoded); `targetRiskPerTrade` (required, no prefill); max
 strategies per instrument (default 2, minimum 1; user decision 2026-10-04); exclude identical Deploy/Eval (default on); the academy 1%
 rule (default off); the elimination ceiling (default 5%); `initialCapital` (default `10000`); FX band inputs
 shown only when the pool contains a non-USD strategy; and the optional budget. Broker (`FTMO`) and the source
 lot grid MUST come from the same constants as the group simulator and not be edited here. Start MUST be
 disabled until a valid risk and capital hold, min <= max, and no job is running.
+
+Decision (amended): the optional symbol filter of the pool was omitted, because the backend request has no symbols field.
 
 #### Scenario: Defaults are prefilled
 - GIVEN the page opens
